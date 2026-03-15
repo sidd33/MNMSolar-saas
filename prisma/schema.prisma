@@ -1,0 +1,65 @@
+// This is your blueprint for the "Steel Safe" (PostgreSQL)
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  MEMBER
+}
+
+model Organization {
+  id          String    @id @default(cuid())
+  name        String
+  projects    Project[]
+  users       User[]
+}
+
+model User {
+  id             String       @id // This matches Clerk's User ID
+  email          String       @unique
+  role           Role         @default(MEMBER)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  tasks          Task[]       @relation("AssignedTasks")
+  auditLogs      AuditLog[]
+}
+
+model Project {
+  id             String       @id @default(cuid())
+  name           String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  tasks          Task[]
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  title       String
+  status      String     @default("TODO") // TODO, IN_PROGRESS, REVIEW, DONE
+  priority    String     @default("MEDIUM") // LOW, MEDIUM, HIGH
+  dueDate     DateTime?
+  projectId   String
+  project     Project    @relation(fields: [projectId], references: [id])
+  assigneeId  String?
+  assignee    User?      @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  auditLogs   AuditLog[]
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String   // e.g., "CHANGED_STATUS", "ASSIGNED_USER"
+  oldValue  String?
+  newValue  String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id])
+  createdAt DateTime @default(now())
+}
