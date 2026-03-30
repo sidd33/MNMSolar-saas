@@ -1,4 +1,3 @@
-// This is your blueprint for the "Steel Safe" (PostgreSQL)
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -8,58 +7,161 @@ generator client {
   provider = "prisma-client-js"
 }
 
-enum Role {
-  ADMIN
-  MANAGER
-  MEMBER
+
+
+enum PipelineStage {
+  PROSPECT
+  SITE_SURVEY
+  PRELIMINARY_QUOTE
+  DETAILED_ENGG
+  WORK_ORDER
+  HANDOVER_TO_EXECUTION
+  MATERIAL_PROCUREMENT
+  STRUCTURE_ERECTION
+  PV_PANEL_INSTALLATION
+  AC_DC_INSTALLATION
+  NET_METERING
+  FINAL_HANDOVER
+}
+
+enum LiasoningStage {
+  NOT_STARTED
+  FEASIBILITY
+  L1_APPROVED
+  AGREEMENT
+  COMMISSIONED
+}
+
+enum ExecutionStage {
+  SURVEY
+  STRUCTURE
+  PANEL_INSTALL
+  INVERTER_WIRING
+}
+
+enum FileCategory {
+  LIAISONING
+  TECHNICAL
+  COMMERCIAL
+  HANDOVER_SHEET
 }
 
 model Organization {
-  id          String    @id @default(cuid())
-  name        String
-  projects    Project[]
-  users       User[]
+  id           String        @id @default(cuid())
+  name         String
+  users        User[]
+  projects     Project[]
+  tasks        Task[]
+  auditLogs    AuditLog[]
+  projectFiles ProjectFile[]
+  handoffLogs  HandoffLog[]
 }
 
 model User {
-  id             String       @id // This matches Clerk's User ID
+  id             String       @id
   email          String       @unique
-  role           Role         @default(MEMBER)
+  role           String?
+  isSuperAdmin   Boolean      @default(false)
+  department     String?
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
   tasks          Task[]       @relation("AssignedTasks")
   auditLogs      AuditLog[]
+  handoffLogs    HandoffLog[]
 }
 
 model Project {
+  id                String         @id @default(cuid())
+  name              String
+  stage             PipelineStage  @default(PROSPECT)
+  liasoningStage    LiasoningStage @default(NOT_STARTED)
+  executionStage    ExecutionStage @default(SURVEY)
+  isBottlenecked    Boolean        @default(false)
+  currentDepartment String? // Sales, Engineering, Execution, Accounts
+  organizationId    String
+  organization      Organization   @relation(fields: [organizationId], references: [id])
+  tasks             Task[]
+  clientName           String?
+  address              String?
+  dcCapacity           String?        @default("50 kWp")
+  sanctionedLoad       String?        @default("40 kW")
+  orderValue           String?
+  projectType          String?
+  primaryContactName   String?
+  primaryContactMobile String?
+  updatedAt            DateTime       @updatedAt
+  createdAt            DateTime       @default(now())
+  projectFiles         ProjectFile[]
+  handoffLogs          HandoffLog[]
+}
+
+model ProjectFile {
   id             String       @id @default(cuid())
   name           String
+  category       FileCategory
+  content        String       @db.Text
+  fileUrl        String?
+  utFileKey      String?
+  projectId      String
+  project        Project      @relation(fields: [projectId], references: [id])
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
-  tasks          Task[]
+  createdAt      DateTime     @default(now())
 }
 
 model Task {
-  id          String     @id @default(cuid())
-  title       String
-  status      String     @default("TODO") // TODO, IN_PROGRESS, REVIEW, DONE
-  priority    String     @default("MEDIUM") // LOW, MEDIUM, HIGH
-  dueDate     DateTime?
-  projectId   String
-  project     Project    @relation(fields: [projectId], references: [id])
-  assigneeId  String?
-  assignee    User?      @relation("AssignedTasks", fields: [assigneeId], references: [id])
-  auditLogs   AuditLog[]
+  id             String       @id @default(cuid())
+  title          String
+  description    String?
+  status         String       @default("TODO")
+  priority       String       @default("MEDIUM")
+  department     String? // Sales, Engineering, Execution, Purchase, Accounts
+  dueDate        DateTime?
+  assigneeId     String?
+  assignee       User?        @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  projectId      String?
+  project        Project?     @relation(fields: [projectId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  auditLogs      AuditLog[]
+  updatedAt      DateTime     @updatedAt
+  createdAt      DateTime     @default(now())
 }
 
 model AuditLog {
-  id        String   @id @default(cuid())
-  action    String   // e.g., "CHANGED_STATUS", "ASSIGNED_USER"
-  oldValue  String?
-  newValue  String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  taskId    String
-  task      Task     @relation(fields: [taskId], references: [id])
-  createdAt DateTime @default(now())
+  id             String       @id @default(cuid())
+  action         String
+  oldValue       String?
+  newValue       String?
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  taskId         String?
+  task           Task?        @relation(fields: [taskId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime     @default(now())
+}
+
+model HandoffLog {
+  id             String       @id @default(cuid())
+  projectId      String
+  project        Project      @relation(fields: [projectId], references: [id])
+  fromDept       String
+  toDept         String
+  fromStage      String
+  toStage        String
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  comment        String?      @db.Text
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime     @default(now())
+}
+
+model StageConfig {
+  id           String   @id @default(cuid())
+  stage        String   @unique
+  expectedDays Int
+  label        String
+  updatedAt    DateTime @updatedAt
 }

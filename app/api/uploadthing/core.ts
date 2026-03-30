@@ -1,0 +1,48 @@
+import { createUploadthing, type FileRouter } from "uploadthing/next";
+import { auth } from "@clerk/nextjs/server";
+import { z } from "zod";
+
+const f = createUploadthing();
+
+export const ourFileRouter = {
+  projectFileUploader: f({ 
+    pdf: { maxFileSize: "16MB", maxFileCount: 10 },
+    image: { maxFileSize: "16MB", maxFileCount: 10 },
+    text: { maxFileSize: "16MB", maxFileCount: 10 },
+    blob: { maxFileSize: "16MB", maxFileCount: 10 }
+  })
+    .input(z.object({ 
+      projectId: z.string(),
+      category: z.string()
+    }))
+    .middleware(async ({ req, input }) => {
+      const { userId } = await auth();
+      if (!userId) throw new Error("Unauthorized");
+      
+      // Pass these to onUploadComplete via metadata
+      return { 
+        userId,
+        projectId: input.projectId,
+        category: input.category
+      };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      try {
+        console.log("Server callback fired:", file.name);
+        console.log("File URL:", file.url);
+        console.log("Metadata:", metadata);
+        
+        return { 
+          uploadedBy: metadata.userId, 
+          fileUrl: file.url,
+          projectId: metadata.projectId,
+          category: metadata.category
+        };
+      } catch (error) {
+        console.error("onUploadComplete execution error:", error);
+        throw error;
+      }
+    }),
+} satisfies FileRouter;
+
+export type OurFileRouter = typeof ourFileRouter;
