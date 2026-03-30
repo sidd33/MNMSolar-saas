@@ -174,7 +174,7 @@ export function Project360Modal({ projectId, open, onOpenChange }: Project360Mod
   // If currentDept is not set from logs, default to project's currentDepartment
   if (!currentDept && project?.currentDepartment) {
      currentDept = project.currentDepartment.toUpperCase();
-     visitedDepts.add(currentDept);
+     visitedDepts.add(currentDept!);
   }
 
   return (
