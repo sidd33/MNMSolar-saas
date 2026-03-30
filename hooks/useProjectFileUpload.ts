@@ -70,7 +70,7 @@ export function useProjectFileUpload() {
     },
   });
 
-  const [isCompresing, setIsCompressing] = useState(false);
+  const [isCompressing, setIsCompressing] = useState(false);
 
   const compressFile = async (file: File): Promise<File> => {
     const originalSize = file.size;
@@ -106,7 +106,7 @@ export function useProjectFileUpload() {
         // Use object streams for more efficient encoding
         const compressedBytes = await pdfDoc.save({ useObjectStreams: true });
         
-        const compressedFile = new File([compressedBytes], file.name, {
+        const compressedFile = new File([compressedBytes] as BlobPart[], file.name, {
           type: 'application/pdf',
           lastModified: Date.now(),
         });
@@ -150,7 +150,7 @@ export function useProjectFileUpload() {
 
   return { 
     uploadFiles, 
-    isUploading: isUTUploading || isCompresing, 
+    isUploading: isUTUploading || isCompressing, 
     progress, 
     status 
   };
