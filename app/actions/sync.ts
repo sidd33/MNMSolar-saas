@@ -23,13 +23,17 @@ export async function syncUserAndOrg() {
   const userEmail = user.emailAddresses[0].emailAddress;
 
   // 1. Ensure Org exists if we have an orgId
-  if (orgId) {
-    await prisma.organization.upsert({
-      where: { id: orgId },
-      update: { name: orgName },
-      create: { id: orgId, name: orgName },
-    });
+  if (!orgId) {
+    // If no org context is active, we just check if the user exists to return it
+    const existingUser = await prisma.user.findUnique({ where: { id: userId } });
+    return { userId, orgId: null, user: existingUser };
   }
+
+  await prisma.organization.upsert({
+    where: { id: orgId },
+    update: { name: orgName },
+    create: { id: orgId, name: orgName },
+  });
 
   // 2. Ensure User exists and is synced with latest metadata/org
   const dbUser = await prisma.user.upsert({
@@ -37,14 +41,14 @@ export async function syncUserAndOrg() {
     update: {
       role: userRole,
       department: userDept,
-      ...(orgId ? { organizationId: orgId } : {})
+      organizationId: orgId
     },
     create: {
       id: userId,
       email: userEmail,
       role: userRole,
       department: userDept,
-      ...(orgId ? { organizationId: orgId } : {})
+      organizationId: orgId
     },
   });
 

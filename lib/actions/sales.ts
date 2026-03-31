@@ -50,6 +50,7 @@ export async function createLead(data: any) {
 
 export async function updateLead(id: string, data: any) {
   const { orgId } = await validateSalesAccess();
+  if (!orgId) throw new Error("No organization context found");
   
   const lead = await prisma.lead.update({
     where: { id, organizationId: orgId },
@@ -78,6 +79,7 @@ export async function getMyLeads() {
 
 export async function convertLeadToProject(leadId: string) {
     const { orgId } = await validateSalesAccess();
+    if (!orgId) throw new Error("No organization context found");
     
     return await prisma.lead.update({
         where: { id: leadId, organizationId: orgId },
@@ -105,6 +107,7 @@ export async function createQuote(data: any) {
 
 export async function updateQuote(id: string, data: any) {
   const { orgId } = await validateSalesAccess();
+  if (!orgId) throw new Error("No organization context found");
   
   const quote = await prisma.quote.update({
     where: { id, organizationId: orgId },
