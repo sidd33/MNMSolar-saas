@@ -28,6 +28,9 @@ export default clerkMiddleware(async (auth, request) => {
       return NextResponse.redirect(new URL('/dashboard/owner', request.url));
     }
     if (role === 'EMPLOYEE' && department) {
+      if (department === 'SALES') {
+        return NextResponse.redirect(new URL('/dashboard/sales', request.url));
+      }
       return NextResponse.redirect(new URL(`/dashboard/department/${department}`, request.url));
     }
   }

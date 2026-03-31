@@ -24,7 +24,23 @@ import { createProject } from "@/app/actions/project";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
-export function ProjectIntakeDialog() {
+interface ProjectIntakeDialogProps {
+  projectName?: string;
+  clientName?: string;
+  address?: string;
+  capacityKw?: string | number;
+  quotedValue?: string | number;
+  trigger?: React.ReactNode;
+}
+
+export function ProjectIntakeDialog({
+  projectName = "",
+  clientName = "",
+  address = "",
+  capacityKw = "",
+  quotedValue = "",
+  trigger
+}: ProjectIntakeDialogProps) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
@@ -44,12 +60,16 @@ export function ProjectIntakeDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger 
+      <DialogTrigger
         render={
-          <Button className="bg-[#38A169] hover:bg-[#2F855A] text-white rounded-xl font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-green-600/20 active:scale-95 transition-all">
-            <Plus size={18} strokeWidth={3} />
-            New Project
-          </Button>
+          trigger ? (
+            trigger as React.ReactElement
+          ) : (
+            <Button className="bg-[#38A169] hover:bg-[#2F855A] text-white rounded-xl font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-green-600/20 active:scale-95 transition-all">
+              <Plus size={18} strokeWidth={3} />
+              New Project
+            </Button>
+          )
         }
       />
       <DialogContent className="sm:max-w-[700px] p-0 overflow-hidden border-none rounded-3xl bg-white shadow-2xl">
@@ -81,6 +101,7 @@ export function ProjectIntakeDialog() {
                 <Input 
                   id="name" 
                   name="name" 
+                  defaultValue={projectName}
                   placeholder="e.g., Green Valley Commercial 50KW" 
                   className="h-12 rounded-xl bg-slate-50 border-slate-100 focus-visible:ring-[#1C3384] focus-visible:bg-white transition-all font-medium"
                   required 
@@ -96,6 +117,7 @@ export function ProjectIntakeDialog() {
                 <Input 
                   id="clientName" 
                   name="clientName" 
+                  defaultValue={clientName}
                   placeholder="e.g., John Doe Enterprises" 
                   className="h-12 rounded-xl bg-slate-50 border-slate-100 focus-visible:ring-[#1C3384] focus-visible:bg-white transition-all font-medium"
                   required 
@@ -112,10 +134,43 @@ export function ProjectIntakeDialog() {
               <Input 
                 id="address" 
                 name="address" 
+                defaultValue={address}
                 placeholder="e.g., 123 Solar Way" 
                 className="h-12 rounded-xl bg-slate-50 border-slate-100 focus-visible:ring-[#1C3384] focus-visible:bg-white transition-all font-medium"
                 required 
               />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* DC Capacity */}
+              <div className="space-y-2">
+                <Label htmlFor="dcCapacity" className="text-xs font-black uppercase tracking-widest text-[#64748B] flex items-center gap-2">
+                  <Zap size={14} className="text-[#FFC800]" />
+                  DC Capacity
+                </Label>
+                <Input 
+                  id="dcCapacity" 
+                  name="dcCapacity" 
+                  defaultValue={capacityKw ? `${capacityKw} kWp` : ""}
+                  placeholder="e.g., 50 kWp" 
+                  className="h-12 rounded-xl bg-slate-50 border-slate-100 focus-visible:ring-[#1C3384] focus-visible:bg-white transition-all font-medium"
+                />
+              </div>
+
+              {/* Order Value */}
+              <div className="space-y-2">
+                <Label htmlFor="orderValue" className="text-xs font-black uppercase tracking-widest text-[#64748B] flex items-center gap-2">
+                  <ShieldCheck size={14} className="text-[#FFC800]" />
+                  Order Value (₹)
+                </Label>
+                <Input 
+                  id="orderValue" 
+                  name="orderValue" 
+                  defaultValue={quotedValue}
+                  placeholder="e.g., 2500000" 
+                  className="h-12 rounded-xl bg-slate-50 border-slate-100 focus-visible:ring-[#1C3384] focus-visible:bg-white transition-all font-medium"
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

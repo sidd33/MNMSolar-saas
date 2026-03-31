@@ -22,53 +22,31 @@ export async function syncUserAndOrg() {
   const userDept = metadata?.department || null;
   const userEmail = user.emailAddresses[0].emailAddress;
 
-  // 1. Ensure User exists in DB
-  let dbUser = await prisma.user.findUnique({
-    where: { id: userId },
-  });
-
-  if (!dbUser) {
-    if (!orgId) return { userId, orgId: null };
-
-    // Ensure Org exists
+  // 1. Ensure Org exists if we have an orgId
+  if (orgId) {
     await prisma.organization.upsert({
       where: { id: orgId },
       update: { name: orgName },
       create: { id: orgId, name: orgName },
     });
-
-    dbUser = await prisma.user.create({
-      data: {
-        id: userId,
-        email: userEmail,
-        organization: { connect: { id: orgId } },
-        role: userRole,
-        department: userDept,
-      },
-    });
-  } else if (orgId) {
-    // 2. Ensure Org exists and user is linked correctly
-    await prisma.organization.upsert({
-      where: { id: orgId },
-      update: { name: orgName },
-      create: { id: orgId, name: orgName },
-    });
-
-    if (
-      (dbUser as any).organizationId !== orgId || 
-      (dbUser as any).role !== userRole ||
-      (dbUser as any).department !== userDept
-    ) {
-      dbUser = await prisma.user.update({
-        where: { id: userId },
-        data: { 
-          organization: { connect: { id: orgId } },
-          role: userRole,
-          department: userDept,
-        },
-      });
-    }
   }
+
+  // 2. Ensure User exists and is synced with latest metadata/org
+  const dbUser = await prisma.user.upsert({
+    where: { id: userId },
+    update: {
+      role: userRole,
+      department: userDept,
+      ...(orgId ? { organizationId: orgId } : {})
+    },
+    create: {
+      id: userId,
+      email: userEmail,
+      role: userRole,
+      department: userDept,
+      ...(orgId ? { organizationId: orgId } : {})
+    },
+  });
 
   return { userId, orgId, user: dbUser };
 }

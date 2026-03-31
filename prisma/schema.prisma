@@ -46,6 +46,25 @@ enum FileCategory {
   HANDOVER_SHEET
 }
 
+enum LeadStatus {
+  NEW
+  CONTACTED
+  SITE_VISIT_SCHEDULED
+  QUOTE_SENT
+  NEGOTIATING
+  CONVERTED
+  LOST
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  NEGOTIATING
+  APPROVED
+  REJECTED
+  CONVERTED
+}
+
 model Organization {
   id           String        @id @default(cuid())
   name         String
@@ -55,6 +74,8 @@ model Organization {
   auditLogs    AuditLog[]
   projectFiles ProjectFile[]
   handoffLogs  HandoffLog[]
+  leads        Lead[]
+  quotes       Quote[]
 }
 
 model User {
@@ -68,6 +89,8 @@ model User {
   tasks          Task[]       @relation("AssignedTasks")
   auditLogs      AuditLog[]
   handoffLogs    HandoffLog[]
+  assignedLeads  Lead[]
+  assignedQuotes Quote[]
 }
 
 model Project {
@@ -89,6 +112,7 @@ model Project {
   projectType          String?
   primaryContactName   String?
   primaryContactMobile String?
+  createdByUserId      String?
   updatedAt            DateTime       @updatedAt
   createdAt            DateTime       @default(now())
   projectFiles         ProjectFile[]
@@ -164,4 +188,44 @@ model StageConfig {
   expectedDays Int
   label        String
   updatedAt    DateTime @updatedAt
+}
+
+model Lead {
+  id             String     @id @default(cuid())
+  name           String
+  contactPerson  String?
+  mobile         String?
+  email          String?
+  siteAddress    String?
+  capacityKw     Float?
+  estimatedValue Float?
+  status         LeadStatus @default(NEW)
+  notes          String?
+  assignedToId   String?
+  assignedTo     User?      @relation(fields: [assignedToId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  quotes         Quote[]
+}
+
+model Quote {
+  id             String      @id @default(cuid())
+  leadId         String?
+  lead           Lead?       @relation(fields: [leadId], references: [id])
+  projectName    String
+  clientName     String
+  capacityKw     Float?
+  quotedValue    Float?
+  status         QuoteStatus @default(DRAFT)
+  notes          String?
+  assignedToId   String?
+  assignedTo     User?       @relation(fields: [assignedToId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  fileUrl        String?
+  utFileKey      String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 }

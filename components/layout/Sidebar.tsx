@@ -22,14 +22,21 @@ import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
-  { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-  { label: "Project Workspace", icon: Briefcase, href: "/dashboard/workspace", priority: true },
-  { label: "Project Timeline", icon: Calendar, href: "/dashboard/timeline" },
-  { label: "Overall Queue", icon: Mail, href: "/dashboard/department/OVERALL", adminOnly: true },
-  { label: "Sales", icon: Users, href: "/dashboard/department/Sales", dept: "SALES" },
-  { label: "Engineering", icon: Calendar, href: "/dashboard/department/Engineering", dept: "ENGINEERING" },
-  { label: "Execution", icon: Briefcase, href: "/dashboard/department/Execution", dept: "EXECUTION" },
-  { label: "Accounts", icon: CreditCard, href: "/dashboard/department/Accounts", dept: "ACCOUNTS" },
+  // --- OWNER / SHARED ITEMS ---
+  { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard", ownerOnly: true },
+  { label: "Project Workspace", icon: Briefcase, href: "/dashboard/workspace", priority: true, ownerOnly: true },
+  { label: "Project Timeline", icon: Calendar, href: "/dashboard/timeline", ownerOnly: true },
+  { label: "Overall Queue", icon: Mail, href: "/dashboard/department/OVERALL", adminOnly: true, ownerOnly: true },
+  { label: "Sales Pipeline", icon: Users, href: "/dashboard/department/Sales", dept: "SALES", ownerOnly: true },
+  { label: "Engineering", icon: Calendar, href: "/dashboard/department/Engineering", dept: "ENGINEERING", ownerOnly: true },
+  { label: "Execution", icon: Briefcase, href: "/dashboard/department/Execution", dept: "EXECUTION", ownerOnly: true },
+  { label: "Accounts", icon: CreditCard, href: "/dashboard/department/Accounts", dept: "ACCOUNTS", ownerOnly: true },
+
+  // --- SALES DEPARTMENT EXCLUSIVE ---
+  { label: "My Dashboard", icon: LayoutDashboard, href: "/dashboard/sales", salesOnly: true },
+  { label: "My Leads", icon: Users, href: "/dashboard/sales/leads", salesOnly: true },
+  { label: "My Quotes", icon: Mail, href: "/dashboard/sales/quotes", salesOnly: true },
+  { label: "My Projects", icon: Briefcase, href: "/dashboard/sales/projects", salesOnly: true },
 ];
 
 interface SidebarProps {
@@ -102,9 +109,24 @@ export function Sidebar({ stats = {} }: SidebarProps) {
       <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto scrollbar-none">
         {NAV_ITEMS.map((item, index) => {
           const role = (user?.publicMetadata as any)?.role;
-          const isOwner = role === 'OWNER';
+          const department = (user?.publicMetadata as any)?.department;
+          
+          const isOwner = role === 'OWNER' || role === 'SUPER_ADMIN';
+          const isSales = role === 'EMPLOYEE' && department === 'SALES';
 
-          // Admin-only Link restriction (Overall Queue)
+          // --- ACCESS CONTROL LOGIC ---
+          
+          // 1. Sales Employees only see "salesOnly" items
+          if (isSales && !(item as any).salesOnly) {
+              return null;
+          }
+
+          // 2. Non-Sales employees (Owners/Admins) only see non-salesOnly items
+          if (!isSales && (item as any).salesOnly) {
+              return null;
+          }
+
+          // 3. Admin-only Link restriction (Overall Queue)
           if ((item as any).adminOnly && !isOwner) {
              return null;
           }
