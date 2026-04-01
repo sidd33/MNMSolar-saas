@@ -48,7 +48,7 @@ export function Sidebar({ stats = {} }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
 
   useEffect(() => {
     setMounted(true);
@@ -107,7 +107,13 @@ export function Sidebar({ stats = {} }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto scrollbar-none">
-        {NAV_ITEMS.map((item, index) => {
+        {!isLoaded ? (
+            <div className="flex flex-col gap-2 p-4 opacity-50">
+                <div className="h-10 w-full bg-white/5 rounded-xl animate-pulse" />
+                <div className="h-10 w-full bg-white/5 rounded-xl animate-pulse" />
+                <div className="h-10 w-full bg-white/5 rounded-xl animate-pulse" />
+            </div>
+        ) : NAV_ITEMS.map((item, index) => {
           const role = (user?.publicMetadata as any)?.role;
           const department = (user?.publicMetadata as any)?.department;
           
@@ -116,19 +122,24 @@ export function Sidebar({ stats = {} }: SidebarProps) {
 
           // --- ACCESS CONTROL LOGIC ---
           
-          // 1. Sales Employees only see "salesOnly" items
+          // 1. Sales Employees strictly only see "salesOnly" items
           if (isSales && !(item as any).salesOnly) {
               return null;
           }
 
-          // 2. Non-Sales employees (Owners/Admins) only see non-salesOnly items
-          if (!isSales && (item as any).salesOnly) {
+          // 2. Owner-only items should only be seen by exactly Owners.
+          if ((item as any).ownerOnly && !isOwner) {
               return null;
           }
 
           // 3. Admin-only Link restriction (Overall Queue)
           if ((item as any).adminOnly && !isOwner) {
              return null;
+          }
+
+          // 4. If someone isn't Sales and isn't Owner, but the item is Sales only, hide it
+          if (!isSales && (item as any).salesOnly) {
+              return null;
           }
 
           const isActive = pathname === item.href || (item.href === "/dashboard" && pathname === "/dashboard/owner");
