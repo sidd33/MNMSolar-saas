@@ -111,7 +111,7 @@ export function QuotesClient({ quotes }: QuotesClientProps) {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredQuotes.map((quote) => (
+              filteredQuotes.map((quote: any) => (
                 <TableRow key={quote.id} className="hover:bg-slate-50/40 border-slate-50/50 transition-colors group h-24">
                   <TableCell className="px-8 py-4">
                     <div className="flex items-center gap-4">

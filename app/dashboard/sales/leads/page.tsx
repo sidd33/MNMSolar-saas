@@ -79,7 +79,7 @@ export default async function MyLeadsPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              leads.map((lead) => (
+              leads.map((lead: any) => (
                 <TableRow key={lead.id} className="hover:bg-slate-50/50 border-slate-50 transition-colors group">
                   <TableCell className="px-6 py-4">
                     <div className="flex items-center gap-3">
