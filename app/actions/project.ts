@@ -243,6 +243,13 @@ export async function forwardProject(formData: FormData) {
     }
   });
 
+  if (nextStage === "FINAL_HANDOVER") {
+    import('@/lib/actions/archive').then(({ archiveProjectFiles }) => {
+      archiveProjectFiles(projectId).catch(e => console.error("Auto-archive failed:", e));
+    });
+    console.log(`Archive triggered for project: ${projectId}`);
+  }
+
   revalidatePath(`/dashboard/projects`);
   revalidatePath(`/dashboard/owner`);
   revalidatePath(`/dashboard/department/${department}`);

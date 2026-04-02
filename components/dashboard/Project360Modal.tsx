@@ -29,9 +29,11 @@ import {
   Check,
   Eye,
   ExternalLink,
-  X
+  X,
+  Server
 } from "lucide-react";
 import { getProject360Data, uploadProjectFile, updateSanctionedLoad } from "@/app/actions/project";
+import { archiveProjectFiles } from "@/lib/actions/archive";
 import { formatDistanceToNow, format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
@@ -62,6 +64,7 @@ export function Project360Modal({ projectId, open, onOpenChange }: Project360Mod
   const { uploadFiles, isUploading, progress, status } = useProjectFileUpload();
 
   const [isEditingSanctioned, setIsEditingSanctioned] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
   const [sanctionedInput, setSanctionedInput] = useState("");
   const [updatingSanctioned, setUpdatingSanctioned] = useState(false);
 
@@ -79,8 +82,8 @@ export function Project360Modal({ projectId, open, onOpenChange }: Project360Mod
     // Resolve URL to prioritize actual remote URLs but support legacy base64
     const rawUrl = file.fileUrl || (file.content.startsWith('http') ? file.content : `data:application/octet-stream;base64,${file.content}`);
 
-    // Smart Proxy: Buffer all external cloud links through our Next API to bypass strict CORS & Popup blockers
-    const url = rawUrl.startsWith('http') ? `/api/files/proxy?url=${encodeURIComponent(rawUrl)}` : rawUrl;
+    const isBridgeLocal = rawUrl.includes('localhost') || rawUrl.includes(process.env.NEXT_PUBLIC_BRIDGE_AGENT_URL || 'never_match');
+    const url = (rawUrl.startsWith('http') && !isBridgeLocal) ? `/api/files/proxy?url=${encodeURIComponent(rawUrl)}` : rawUrl;
 
     const ext = file.name.split('.').pop()?.toLowerCase() || '';
     const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext);
@@ -115,6 +118,26 @@ export function Project360Modal({ projectId, open, onOpenChange }: Project360Mod
       console.error("Failed to update sanctioned load", err);
     } finally {
       setUpdatingSanctioned(false);
+    }
+  };
+
+  const handleArchiveFiles = async () => {
+    if (!window.confirm("This will move all files to the local server.\nMake sure the bridge agent is running before proceeding.\n\nContinue?")) return;
+    
+    setIsArchiving(true);
+    const toastId = toast.loading("Archiving files to Local Node...");
+    try {
+      const res = await archiveProjectFiles(projectId);
+      if (res.failed > 0) {
+        toast.error(`Archived ${res.archived}, Failed ${res.failed} — is the bridge agent running?`, { id: toastId });
+      } else {
+        toast.success(`${res.archived} files archived successfully`, { id: toastId });
+      }
+      await fetchData();
+    } catch (e) {
+      toast.error("Archive failed — is the bridge agent running?", { id: toastId });
+    } finally {
+      setIsArchiving(false);
     }
   };
 
@@ -486,7 +509,7 @@ export function Project360Modal({ projectId, open, onOpenChange }: Project360Mod
                     </Badge>
                   </div>
 
-                  <div className="mb-4 shrink-0">
+                  <div className="flex flex-col gap-2 mb-4 shrink-0">
                     <input type="file" id="dossier-upload" className="hidden" onChange={handleFileUpload} />
                     <Button
                       variant="outline"
@@ -497,6 +520,18 @@ export function Project360Modal({ projectId, open, onOpenChange }: Project360Mod
                       <FileUp size={14} className="text-slate-400" />
                       {isUploading ? (status || `Uploading... ${progress}%`) : "Upload Asset"}
                     </Button>
+                    
+                    {(role === "OWNER" || role === "SUPER_ADMIN") && project?.projectFiles?.some((f: any) => !f.isArchived && (f.fileUrl || (f.content && f.content.startsWith('http')))) && (
+                      <Button
+                        variant="outline"
+                        disabled={isArchiving}
+                        onClick={handleArchiveFiles}
+                        className="w-full bg-slate-800 border-none hover:bg-slate-700 text-white font-semibold text-[10px] h-8 rounded-lg gap-2 shadow-none transition-all uppercase tracking-widest"
+                      >
+                       <Server size={12} className="text-white/60" />
+                       {isArchiving ? "Moving..." : "Archive to Local Server"}
+                      </Button>
+                    )}
                   </div>
 
                   <div className="flex-1 overflow-y-auto -mr-3 pr-3 pb-8">
@@ -529,9 +564,16 @@ export function Project360Modal({ projectId, open, onOpenChange }: Project360Mod
                                 </div>
                                 <div className="min-w-0 pr-2">
                                   <h4 className="text-[11px] font-semibold text-slate-700 truncate mb-0.5" title={file.name}>{file.name}</h4>
-                                  <p className="text-[9px] text-slate-400">
-                                    {format(new Date(file.createdAt), 'MMM dd, yyyy')}
-                                  </p>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    <p className="text-[9px] text-slate-400 leading-none">
+                                      {format(new Date(file.createdAt), 'MMM dd, yyyy')}
+                                    </p>
+                                    {file.isArchived && (
+                                      <Badge title="Stored on local server" className="bg-slate-100 text-slate-500 border-none text-[8px] font-black uppercase tracking-widest px-1.5 py-0 leading-none h-4">
+                                        Archived
+                                      </Badge>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                               <ActionIcon size={14} className="text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity group-hover:text-[#1C3384] shrink-0" />
