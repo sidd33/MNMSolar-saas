@@ -262,7 +262,7 @@ export function Project360Modal({ projectId, open, onOpenChange }: Project360Mod
             <div className="flex-1 flex flex-row overflow-hidden divide-x divide-slate-100 bg-white">
 
               {/* ZONE 1: PROJECT DNA */}
-              <div className="flex flex-col w-64 shrink-0 bg-slate-50/60 overflow-y-auto">
+              <div className="flex flex-col w-64 shrink-0 bg-slate-50/60 overflow-y-auto overscroll-contain [transform:translateZ(0)]">
                 <div className="p-5 space-y-6">
                   {/* Executive Summary */}
                   <div>
@@ -402,7 +402,7 @@ export function Project360Modal({ projectId, open, onOpenChange }: Project360Mod
                   </Badge>
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-6 pt-6 pb-10">
+                <div className="flex-1 overflow-y-auto overscroll-contain [transform:translateZ(0)] px-6 pt-6 pb-10">
                   {!project.handoffLogs || project.handoffLogs.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 opacity-40">
                       <Building2 size={40} className="text-slate-300 mb-4" />
@@ -534,7 +534,7 @@ export function Project360Modal({ projectId, open, onOpenChange }: Project360Mod
                     )}
                   </div>
 
-                  <div className="flex-1 overflow-y-auto -mr-3 pr-3 pb-8">
+                  <div className="flex-1 overflow-y-auto overscroll-contain [transform:translateZ(0)] -mr-3 pr-3 pb-8">
                     <div className="grid grid-cols-1 gap-2">
                       {!project.projectFiles || project.projectFiles.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-10 text-center opacity-40">
