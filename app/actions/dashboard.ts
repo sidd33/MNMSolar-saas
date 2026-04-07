@@ -25,6 +25,18 @@ export async function getOwnerDashboardData() {
     where: projectWhere,
     include: {
       tasks: true,
+      projectFiles: {
+        select: {
+          id: true,
+          name: true,
+          category: true,
+          fileUrl: true,
+          utFileKey: true,
+          isArchived: true,
+          uploadedAtStage: true,
+          createdAt: true
+        }
+      }
     }
   });
 
@@ -156,6 +168,18 @@ export async function getDepartmentalProjects(department: string) {
           assignee: true
         },
         orderBy: { createdAt: 'desc' } as any
+      },
+      projectFiles: {
+        select: {
+          id: true,
+          name: true,
+          category: true,
+          fileUrl: true,
+          utFileKey: true,
+          isArchived: true,
+          uploadedAtStage: true,
+          createdAt: true
+        }
       }
     } as any,
     orderBy: { updatedAt: 'desc' } as any

@@ -131,7 +131,8 @@ model ProjectFile {
   project        Project      @relation(fields: [projectId], references: [id])
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
-  createdAt      DateTime     @default(now())
+  uploadedAtStage String       @default("UNKNOWN")
+  createdAt       DateTime     @default(now())
 }
 
 model Task {

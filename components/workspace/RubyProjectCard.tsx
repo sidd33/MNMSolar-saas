@@ -51,7 +51,7 @@ export function RubyProjectCard({ project }: RubyProjectCardProps) {
 
   return (
     <Card className={cn(
-      "group relative border-2 transition-all duration-500 bg-white rounded-2xl overflow-hidden mb-4 shadow-sm",
+      "group relative border-2 transition-all duration-500 bg-white [contain:paint] will-change-transform rounded-2xl overflow-hidden mb-4 shadow-sm",
       project.isBottlenecked 
         ? "border-[#FF4D4D] shadow-[0_0_15px_rgba(255,77,77,0.1)]" 
         : "border-slate-100 hover:border-slate-200"
@@ -188,6 +188,7 @@ export function RubyProjectCard({ project }: RubyProjectCardProps) {
           projectId={project.id} 
           open={isDetailsOpen} 
           onOpenChange={setIsDetailsOpen} 
+          initialData={project}
         />
 
       </CardContent>

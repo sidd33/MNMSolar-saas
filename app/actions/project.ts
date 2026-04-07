@@ -269,6 +269,16 @@ export async function getProject360Data(projectId: string) {
         orderBy: { createdAt: 'desc' }
       },
       projectFiles: {
+        select: {
+          id: true,
+          name: true,
+          category: true,
+          fileUrl: true,
+          utFileKey: true,
+          isArchived: true,
+          uploadedAtStage: true,
+          createdAt: true
+        },
         orderBy: { createdAt: 'desc' }
       },
       tasks: {
@@ -309,6 +319,12 @@ export async function uploadProjectFile(formData: FormData) {
       } as any,
     });
   } else {
+    // Fetch current stage
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { stage: true }
+    });
+
     file = await prisma.projectFile.create({
       data: {
         name,
@@ -316,6 +332,7 @@ export async function uploadProjectFile(formData: FormData) {
         content: content || "",
         fileUrl,
         utFileKey,
+        uploadedAtStage: project?.stage || "UNKNOWN",
         projectId,
         organizationId: sync.orgId,
       } as any,

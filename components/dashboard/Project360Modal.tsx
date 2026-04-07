@@ -44,6 +44,7 @@ interface Project360ModalProps {
   projectId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialData?: any;
 }
 
 const DEPARTMENT_PIPELINE = [
@@ -56,9 +57,9 @@ const DEPARTMENT_PIPELINE = [
   { key: "HANDOVER", label: "Handover", color: "bg-green-600", ring: "ring-green-200" },
 ];
 
-export function Project360Modal({ projectId, open, onOpenChange }: Project360ModalProps) {
-  const [project, setProject] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+export function Project360Modal({ projectId, open, onOpenChange, initialData }: Project360ModalProps) {
+  const [project, setProject] = useState<any>(initialData || null);
+  const [loading, setLoading] = useState(!initialData);
   const [previewImage, setPreviewImage] = useState<{ name: string, url: string } | null>(null);
   const { user } = useUser();
   const { uploadFiles, isUploading, progress, status } = useProjectFileUpload();
@@ -80,7 +81,7 @@ export function Project360Modal({ projectId, open, onOpenChange }: Project360Mod
     }
 
     // Resolve URL to prioritize actual remote URLs but support legacy base64
-    const rawUrl = file.fileUrl || (file.content.startsWith('http') ? file.content : `data:application/octet-stream;base64,${file.content}`);
+    const rawUrl = file.fileUrl || (file.content?.startsWith('http') ? file.content : `data:application/octet-stream;base64,${file.content}`);
 
     const isBridgeLocal = rawUrl.includes('localhost') || rawUrl.includes(process.env.NEXT_PUBLIC_BRIDGE_AGENT_URL || 'never_match');
     const url = (rawUrl.startsWith('http') && !isBridgeLocal) ? `/api/files/proxy?url=${encodeURIComponent(rawUrl)}` : rawUrl;
@@ -141,9 +142,9 @@ export function Project360Modal({ projectId, open, onOpenChange }: Project360Mod
     }
   };
 
-  const fetchData = async () => {
+  const fetchData = async (isBackground = false) => {
     if (projectId) {
-      setLoading(true);
+      if (!isBackground) setLoading(true);
       try {
         const data = await getProject360Data(projectId);
         setProject(data);
@@ -157,7 +158,13 @@ export function Project360Modal({ projectId, open, onOpenChange }: Project360Mod
 
   useEffect(() => {
     if (open) {
-      fetchData();
+      if (initialData) {
+        setProject(initialData);
+        setLoading(false);
+        fetchData(true); // background update
+      } else {
+        fetchData();
+      }
     }
   }, [open, projectId]);
 

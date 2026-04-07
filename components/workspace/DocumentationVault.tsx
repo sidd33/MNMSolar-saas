@@ -10,11 +10,12 @@ import { useProjectFileUpload } from "@/hooks/useProjectFileUpload";
 
 interface DocumentationVaultProps {
   projectId: string;
+  projectStage?: string;
   initialFiles: any[];
   onFilesChange?: (hasLiaisoning: boolean) => void;
 }
 
-export function DocumentationVault({ projectId, initialFiles, onFilesChange }: DocumentationVaultProps) {
+export function DocumentationVault({ projectId, projectStage, initialFiles, onFilesChange }: DocumentationVaultProps) {
   const [files, setFiles] = useState(initialFiles);
   const { uploadFiles, isUploading, progress, status } = useProjectFileUpload();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -25,8 +26,8 @@ export function DocumentationVault({ projectId, initialFiles, onFilesChange }: D
     { id: "COMMERCIAL", label: "Commercial Docs", icon: Receipt, sub: "Agreement, Receipts" },
   ];
 
-  const hasCategory = (cat: string) => files.some(f => f.category === cat);
-  const getFileForCategory = (cat: string) => files.find(f => f.category === cat);
+  const hasCategory = (cat: string) => files.some(f => f.category === cat && f.uploadedAtStage === projectStage);
+  const getFileForCategory = (cat: string) => files.find(f => f.category === cat && f.uploadedAtStage === projectStage);
   const hasLiaisoning = hasCategory("LIAISONING");
 
   const handleUpload = async (category: string, e: React.ChangeEvent<HTMLInputElement>) => {

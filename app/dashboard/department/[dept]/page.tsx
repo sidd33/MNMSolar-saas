@@ -74,17 +74,14 @@ export default async function DepartmentDashboard({ params }: { params: Promise<
           }))}
           dept={dept}
         >
-          {await Promise.all(projectList.map(async (project: any) => {
-            const initialFiles = await getProjectFiles(project.id);
-            return (
-              <ProjectHandoffCard 
-                key={project.id} 
-                project={project} 
-                dept={dept} 
-                initialFiles={initialFiles} 
-              />
-            );
-          }))}
+          {projectList.map((project: any) => (
+            <ProjectHandoffCard 
+              key={project.id} 
+              project={project} 
+              dept={dept} 
+              initialFiles={project.projectFiles || []} 
+            />
+          ))}
         </DepartmentQueueSearch>
       )}
     </DashboardShell>

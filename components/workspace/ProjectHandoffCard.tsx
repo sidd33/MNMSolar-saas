@@ -31,7 +31,7 @@ const PIPELINE_STAGES = [
 const DEPARTMENTS = ["Sales", "Engineering", "Execution", "Accounts"];
 
 export function ProjectHandoffCard({ project, dept, initialFiles }: ProjectHandoffCardProps) {
-  const [canHandoff, setCanHandoff] = useState(initialFiles.some(f => f.category === "LIAISONING"));
+  const [canHandoff, setCanHandoff] = useState(initialFiles.some(f => f.category === "LIAISONING" && f.uploadedAtStage === project.stage));
   const [modalOpen, setModalOpen] = useState(false);
 
   async function handleHandoff(formData: FormData) {
@@ -39,7 +39,7 @@ export function ProjectHandoffCard({ project, dept, initialFiles }: ProjectHando
   }
 
   return (
-    <Card className="overflow-hidden border border-slate-100 shadow-xl bg-white/80 backdrop-blur-xl group rounded-[2.5rem] transition-all hover:shadow-2xl hover:border-[#1C3384]/20">
+    <Card className="overflow-hidden border border-slate-100 shadow-xl bg-white [contain:paint] will-change-transform group rounded-[2.5rem] transition-all hover:shadow-2xl hover:border-[#1C3384]/20">
       <div className="grid grid-cols-1 lg:grid-cols-3">
         {/* Left Section: Project Details */}
         <div className="lg:col-span-2 p-10">
@@ -111,6 +111,7 @@ export function ProjectHandoffCard({ project, dept, initialFiles }: ProjectHando
             <div className="bg-slate-50/50 p-6 rounded-[2rem] border border-slate-100 overflow-hidden relative">
               <DocumentationVault 
                 projectId={project.id} 
+                projectStage={project.stage}
                 initialFiles={initialFiles} 
                 onFilesChange={setCanHandoff}
               />
@@ -195,6 +196,7 @@ export function ProjectHandoffCard({ project, dept, initialFiles }: ProjectHando
         projectId={project.id} 
         open={modalOpen} 
         onOpenChange={setModalOpen} 
+        initialData={project}
       />
     </Card>
   );
