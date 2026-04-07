@@ -12,7 +12,6 @@ import { useTransition, useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
-import * as xlsx from "xlsx";
 import { useProjectFileUpload } from "@/hooks/useProjectFileUpload";
 
 export default function WorkspacePage() {
@@ -55,8 +54,9 @@ export default function WorkspacePage() {
     setHandoverFile(file); // Save file object to send to API
 
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
+        const xlsx = await import("xlsx");
         const bstr = evt.target?.result;
         const workbook = xlsx.read(bstr, { type: 'binary' });
         const firstSheetName = workbook.SheetNames[0];

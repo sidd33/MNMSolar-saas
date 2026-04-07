@@ -10,14 +10,23 @@ export default async function TimelinePage({
   searchParams: Promise<{ project?: string }>;
 }) {
   const { project: selectedProjectId } = await searchParams;
-  const projects = await getAllProjectsForList();
   
-  const activeProjectId = selectedProjectId || projects[0]?.id;
-  
+  let projects: any[] = [];
   let ganttData: any = null;
-  if (activeProjectId) {
-    ganttData = await getProjectGanttData(activeProjectId);
+
+  if (selectedProjectId) {
+    [projects, ganttData] = await Promise.all([
+      getAllProjectsForList(),
+      getProjectGanttData(selectedProjectId)
+    ]);
+  } else {
+    projects = await getAllProjectsForList();
+    if (projects.length > 0) {
+      ganttData = await getProjectGanttData(projects[0].id);
+    }
   }
+
+  const activeProjectId = selectedProjectId || projects[0]?.id;
 
   return (
     <div className="flex h-[calc(100vh-64px)] overflow-hidden -m-6 lg:-m-8">

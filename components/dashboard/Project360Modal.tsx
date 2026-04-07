@@ -598,7 +598,7 @@ export function Project360Modal({ projectId, open, onOpenChange, initialData }: 
           <div className="flex flex-col items-center justify-center h-full gap-3 bg-white">
             <AlertCircle size={32} className="text-red-500" />
             <p className="text-slate-700 font-bold text-sm">Dossier Access Failed</p>
-            <Button onClick={fetchData} variant="outline" className="rounded-lg h-9 px-4 text-xs font-semibold">Retry connection</Button>
+            <Button onClick={() => fetchData(false)} variant="outline" className="rounded-lg h-9 px-4 text-xs font-semibold">Retry connection</Button>
           </div>
         )}
 

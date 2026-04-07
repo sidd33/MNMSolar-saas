@@ -26,8 +26,13 @@ export async function getProjectGanttData(projectId: string) {
 
   const project = await prisma.project.findUnique({
     where: { id: projectId, organizationId: sync.orgId },
-    include: {
+    select: {
+      name: true,
+      createdAt: true,
+      stage: true,
+      isBottlenecked: true,
       handoffLogs: {
+        select: { toStage: true, createdAt: true },
         orderBy: { createdAt: 'asc' },
       },
     },

@@ -71,8 +71,28 @@ export async function getMyLeads() {
         assignedToId: user.id
     },
     orderBy: { updatedAt: 'desc' },
-    include: {
-        quotes: true
+    select: {
+      id: true,
+      name: true,
+      contactPerson: true,
+      mobile: true,
+      email: true,
+      siteAddress: true,
+      capacityKw: true,
+      estimatedValue: true,
+      status: true,
+      notes: true,
+      createdAt: true,
+      updatedAt: true,
+      quotes: {
+        select: {
+          id: true,
+          projectName: true,
+          quotedValue: true,
+          status: true,
+          updatedAt: true,
+        }
+      }
     }
   });
 }
@@ -128,8 +148,23 @@ export async function getMyQuotes() {
         assignedToId: user.id
     },
     orderBy: { updatedAt: 'desc' },
-    include: {
-        lead: true
+    select: {
+      id: true,
+      projectName: true,
+      clientName: true,
+      capacityKw: true,
+      quotedValue: true,
+      status: true,
+      fileUrl: true,
+      createdAt: true,
+      updatedAt: true,
+      lead: {
+        select: {
+          id: true,
+          name: true,
+          mobile: true,
+        }
+      }
     }
   });
 }
@@ -183,11 +218,13 @@ export async function getRecentSalesActivity() {
         prisma.lead.findMany({
             where: { organizationId: orgId, assignedToId: user.id },
             orderBy: { updatedAt: 'desc' },
+            select: { id: true, name: true, status: true, updatedAt: true },
             take: 5
         }),
         prisma.quote.findMany({
             where: { organizationId: orgId, assignedToId: user.id },
             orderBy: { updatedAt: 'desc' },
+            select: { id: true, projectName: true, status: true, updatedAt: true },
             take: 5
         })
     ]);
