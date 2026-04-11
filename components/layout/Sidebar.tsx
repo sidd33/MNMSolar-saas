@@ -150,13 +150,13 @@ export function Sidebar({ stats = {} }: SidebarProps) {
              return null;
           }
 
-          // 5. If someone isn't Sales and isn't Owner, but the item is Sales only, hide it
+          // 5. If someone isn't strictly Sales, hide Sales-only items (even from Owner)
           if (!isSales && (item as any).salesOnly) {
               return null;
           }
 
-          // 6. If someone isn't Engineering and isn't Owner, but the item is engOnly, hide it
-          if (!isEngineering && !isOwner && (item as any).engOnly) {
+          // 6. If someone isn't strictly Engineering, hide Engineering-only items (even from Owner)
+          if (!isEngineering && (item as any).engOnly) {
               return null;
           }
 
