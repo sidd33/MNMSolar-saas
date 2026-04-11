@@ -100,46 +100,6 @@ export async function getDepartmentalProjects(department: string) {
      return { error: "NO_ORG" };
   }
 
-  // 1. One-Org Self-Healing: Update all projects to the current active organization
-  const projectsToSync = await (prisma.project as any).findMany({
-    where: {
-      NOT: { organizationId: orgId }
-    }
-  });
-
-  if (projectsToSync.length > 0) {
-    console.log(`Master Sync: Aligning ${projectsToSync.length} projects to organization ${orgId}`);
-    await Promise.all(
-      projectsToSync.map((p: any) => 
-        (prisma.project as any).update({
-          where: { id: p.id },
-          data: { organization: { connect: { id: orgId } } }
-        })
-      )
-    );
-  }
-
-  // Standardize "Engineering" variants
-  if (department.toUpperCase() === "ENGINEERING") {
-    const projectsToFixDept = await (prisma.project as any).findMany({
-      where: {
-        organizationId: orgId,
-        currentDepartment: { in: ["Engineering", "engineering", "engineeing"] }
-      }
-    });
-
-    if (projectsToFixDept.length > 0) {
-      await Promise.all(
-        projectsToFixDept.map((p: any) =>
-          (prisma.project as any).update({
-            where: { id: p.id },
-            data: { currentDepartment: "ENGINEERING" }
-          })
-        )
-      );
-    }
-  }
-
   // RBAC: Standard employees can only see their department
   if (role === 'EMPLOYEE' && department.toUpperCase() !== userDept?.toUpperCase()) {
     return []; // Return empty if trying to access another dept

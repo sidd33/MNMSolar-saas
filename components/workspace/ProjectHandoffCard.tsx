@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Shield, FastForward, ArrowRight, ListTodo, AlertCircle, Clock, Building2, Eye } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Shield, FastForward, ArrowRight, ListTodo, AlertCircle, Clock, Building2, Eye, DownloadCloud, Edit3, Settings, Split } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { forwardProject } from "@/app/actions/project";
+import { forwardProject, updateSanctionedLoad } from "@/app/actions/project";
 import { DocumentationVault } from "./DocumentationVault";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Project360Modal } from "../dashboard/Project360Modal";
@@ -31,11 +33,29 @@ const PIPELINE_STAGES = [
 const DEPARTMENTS = ["Sales", "Engineering", "Execution", "Accounts"];
 
 export function ProjectHandoffCard({ project, dept, initialFiles }: ProjectHandoffCardProps) {
-  const [canHandoff, setCanHandoff] = useState(initialFiles.some(f => f.category === "LIAISONING" && f.uploadedAtStage === project.stage));
+  const [canHandoff, setCanHandoff] = useState(initialFiles.some(f => f.category === "LIAISONING" && f.uploadedAtStage === project.stage) || dept === 'ENGINEERING'); // Engineering uses technical files usually handled by the vault internally
   const [modalOpen, setModalOpen] = useState(false);
+  const [sanctionedInput, setSanctionedInput] = useState(project.sanctionedLoad?.replace(" kW", "") || "");
+  const [isSavingLoad, setIsSavingLoad] = useState(false);
+
+  const salesHandover = initialFiles.find((f: any) => f.category === "HANDOVER_SHEET");
+
+  const handleSaveLoad = async () => {
+    if (!sanctionedInput) return;
+    setIsSavingLoad(true);
+    try {
+      const formatted = `${sanctionedInput.replace(/[^\d.]/g, '')} kW`;
+      await updateSanctionedLoad(project.id, formatted);
+      toast.success("Sanctioned load updated");
+    } catch {
+      toast.error("Failed to update load");
+    } finally {
+      setIsSavingLoad(false);
+    }
+  };
 
   async function handleHandoff(formData: FormData) {
-    await forwardProject(formData);
+    const pms = await forwardProject(formData);
   }
 
   return (
@@ -61,9 +81,44 @@ export function ProjectHandoffCard({ project, dept, initialFiles }: ProjectHando
             </Button>
           </div>
 
-          <h3 className="text-3xl font-black tracking-tight mb-10 group-hover:text-[#1C3384] transition-colors text-[#0F172A] font-[family-name:var(--font-montserrat)] uppercase">
-            {project.name}
-          </h3>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
+              <h3 className="text-3xl font-black tracking-tight group-hover:text-[#1C3384] transition-colors text-[#0F172A] font-[family-name:var(--font-montserrat)] uppercase">
+                {project.name}
+              </h3>
+              
+              {dept === 'ENGINEERING' && (
+                <div className="flex flex-col gap-2 shrink-0">
+                    {salesHandover && (
+                        <a 
+                            href={salesHandover.fileUrl || `/api/files/proxy?url=${encodeURIComponent(salesHandover.content)}`}
+                            target="_blank" rel="noreferrer"
+                            className="bg-[#1C3384]/10 hover:bg-[#1C3384]/20 text-[#1C3384] px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-colors border border-[#1C3384]/10"
+                        >
+                            <DownloadCloud size={14} /> Sales Handover XML
+                        </a>
+                    )}
+                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 relative shadow-inner">
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 pl-2">Sanctioned Load</Label>
+                        <div className="flex items-center gap-1">
+                            <Input 
+                                value={sanctionedInput}
+                                onChange={(e) => setSanctionedInput(e.target.value)}
+                                className="w-16 h-7 text-xs font-bold bg-white text-center rounded-lg border-slate-200"
+                            />
+                            <span className="text-[10px] font-bold text-slate-400 mr-2">kW</span>
+                            <Button 
+                                onClick={handleSaveLoad} 
+                                disabled={isSavingLoad}
+                                size="sm" 
+                                className="h-7 w-7 p-0 rounded-lg bg-[#38A169] hover:bg-[#2F855A] text-white"
+                            >
+                                <Settings size={12} className={isSavingLoad ? "animate-spin" : ""} />
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+              )}
+          </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
             {/* Task List */}
@@ -131,6 +186,18 @@ export function ProjectHandoffCard({ project, dept, initialFiles }: ProjectHando
             </div>
             Transfer Protocol
           </h4>
+
+          {dept === 'ENGINEERING' && (
+            <div className="mb-6 p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-sm">
+                <div className="flex items-center gap-2 mb-2 text-[#FFC800]">
+                    <Split size={14} />
+                    <span className="text-[9px] font-black uppercase tracking-widest">Dual-Track Dispatch</span>
+                </div>
+                <p className="text-[10px] font-medium text-white/70 leading-relaxed">
+                    Engineering triggers a parallel workflow. Liaisoning starts grid approvals while Execution begins site work. Next target: <strong className="text-white">LIAISONING</strong> or <strong className="text-white">EXECUTION</strong>.
+                </p>
+            </div>
+          )}
 
           <form 
             action={handleHandoff} 

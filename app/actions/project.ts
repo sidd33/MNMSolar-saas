@@ -209,6 +209,9 @@ export async function forwardProject(formData: FormData) {
 
   if (!projectId || !nextStage) throw new Error("Missing required fields");
 
+  // Read BEFORE update to capture original dept/stage for handoff log
+  const previousProject = await prisma.project.findUnique({ where: { id: projectId, organizationId: sync.orgId } });
+
   // Update Project
   const project = await prisma.project.update({
     where: { id: projectId, organizationId: sync.orgId },
@@ -229,7 +232,6 @@ export async function forwardProject(formData: FormData) {
   `;
 
   // 📝 Create Handoff Log for Timeline
-  const previousProject = await prisma.project.findUnique({ where: { id: projectId } });
   await (prisma as any).handoffLog.create({
     data: {
       project: { connect: { id: projectId } },

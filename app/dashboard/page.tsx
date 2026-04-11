@@ -19,6 +19,9 @@ export default async function DashboardPage() {
     if (department === 'SALES') {
       redirect('/dashboard/sales');
     }
+    if (department === 'ENGINEERING') {
+      redirect('/dashboard/engineering');
+    }
     redirect(`/dashboard/department/${department}`);
   }
 

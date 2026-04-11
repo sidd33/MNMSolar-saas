@@ -16,7 +16,8 @@ import {
   Menu,
   X,
   CreditCard,
-  Crown
+  Crown,
+  MapPin
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -37,6 +38,12 @@ const NAV_ITEMS = [
   { label: "My Leads", icon: Users, href: "/dashboard/sales/leads", salesOnly: true },
   { label: "My Quotes", icon: Mail, href: "/dashboard/sales/quotes", salesOnly: true },
   { label: "My Projects", icon: Briefcase, href: "/dashboard/sales/projects", salesOnly: true },
+  
+  // --- ENGINEERING DEPARTMENT EXCLUSIVE ---
+  { label: "Technical Hub", icon: LayoutDashboard, href: "/dashboard/engineering", engOnly: true },
+  { label: "Survey Queue", icon: MapPin, href: "/dashboard/engineering/survey", engOnly: true },
+  { label: "Detailed Engg", icon: Briefcase, href: "/dashboard/engineering/detailed", engOnly: true },
+  { label: "Work Order Desk", icon: ShieldCheck, href: "/dashboard/engineering/work-order", engOnly: true },
 ];
 
 interface SidebarProps {
@@ -119,6 +126,7 @@ export function Sidebar({ stats = {} }: SidebarProps) {
           
           const isOwner = role === 'OWNER' || role === 'SUPER_ADMIN';
           const isSales = role === 'EMPLOYEE' && department === 'SALES';
+          const isEngineering = role === 'EMPLOYEE' && department === 'ENGINEERING';
 
           // --- ACCESS CONTROL LOGIC ---
           
@@ -127,18 +135,28 @@ export function Sidebar({ stats = {} }: SidebarProps) {
               return null;
           }
 
-          // 2. Owner-only items should only be seen by exactly Owners.
+          // 2. Engineering Employees strictly only see "engOnly" items
+          if (isEngineering && !(item as any).engOnly) {
+              return null;
+          }
+
+          // 3. Owner-only items should only be seen by exactly Owners.
           if ((item as any).ownerOnly && !isOwner) {
               return null;
           }
 
-          // 3. Admin-only Link restriction (Overall Queue)
+          // 4. Admin-only Link restriction (Overall Queue)
           if ((item as any).adminOnly && !isOwner) {
              return null;
           }
 
-          // 4. If someone isn't Sales and isn't Owner, but the item is Sales only, hide it
+          // 5. If someone isn't Sales and isn't Owner, but the item is Sales only, hide it
           if (!isSales && (item as any).salesOnly) {
+              return null;
+          }
+
+          // 6. If someone isn't Engineering and isn't Owner, but the item is engOnly, hide it
+          if (!isEngineering && !isOwner && (item as any).engOnly) {
               return null;
           }
 

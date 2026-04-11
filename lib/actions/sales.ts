@@ -107,6 +107,79 @@ export async function convertLeadToProject(leadId: string) {
     });
 }
 
+export async function initiatePreliminarySurvey(leadId: string) {
+    const { user, orgId } = await validateSalesAccess();
+    if (!orgId) throw new Error("No organization context found");
+
+    const lead = await prisma.lead.findUnique({
+        where: { id: leadId, organizationId: orgId }
+    });
+
+    if (!lead) throw new Error("Lead not found");
+
+    // Run in transaction
+    const result = await prisma.$transaction(async (tx) => {
+        // 1. Update Lead Status
+        await tx.lead.update({
+            where: { id: leadId },
+            data: { status: LeadStatus.SITE_VISIT_SCHEDULED }
+        });
+
+        // 2. Create Project (Preliminary Site Survey)
+        const project = await tx.project.create({
+            data: {
+                name: `[PRELIM] ${lead.name}`,
+                clientName: lead.contactPerson || lead.name,
+                address: lead.siteAddress || null,
+                dcCapacity: lead.capacityKw ? `${lead.capacityKw} kWp` : "0 kWp",
+                primaryContactName: lead.contactPerson || null,
+                primaryContactMobile: lead.mobile || null,
+                organizationId: orgId,
+                currentDepartment: "ENGINEERING",
+                stage: "SITE_SURVEY",
+                createdByUserId: user.id
+            }
+        });
+
+        // 3. Create Handoff Log
+        await tx.handoffLog.create({
+            data: {
+                projectId: project.id,
+                fromDept: "SALES",
+                toDept: "ENGINEERING",
+                fromStage: "PROSPECT",
+                toStage: "SITE_SURVEY",
+                userId: user.id,
+                comment: "Preliminary Site Survey initiated for quoting purposes.",
+                organizationId: orgId
+            }
+        });
+
+        return project;
+    });
+
+    revalidatePath("/dashboard/sales/leads");
+    revalidatePath("/dashboard/engineering/survey");
+    return result;
+}
+
+export async function getSurveyTrackingLeads() {
+    const { user, orgId } = await validateSalesAccess();
+    if (!orgId) return [];
+
+    return await prisma.lead.findMany({
+        where: {
+            organizationId: orgId,
+            assignedToId: user.id,
+            status: LeadStatus.SITE_VISIT_SCHEDULED
+        },
+        orderBy: { updatedAt: 'desc' },
+        include: {
+            quotes: true
+        }
+    });
+}
+
 // --- QUOTES ---
 
 export async function createQuote(data: any) {
