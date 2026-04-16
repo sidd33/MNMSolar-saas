@@ -1,6 +1,6 @@
 "use client";
 
-import { useEngineeringNexus } from "@/components/dashboard/EngineeringNexusProvider";
+import { useDashboardNexus } from "@/components/dashboard/DashboardNexusProvider";
 import { Card } from "@/components/ui/card";
 import { useState } from "react";
 import { MapPin, Zap, Search } from "lucide-react";
@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
 export default function EngineeringSurveyQueue() {
-  const { data } = useEngineeringNexus();
+  const { data } = useDashboardNexus();
   const [searchQuery, setSearchQuery] = useState("");
 
   const filterProjects = (projects: any[], stages: string[]) => {
@@ -20,8 +20,8 @@ export default function EngineeringSurveyQueue() {
     );
   };
 
-  const surveyProjects = filterProjects(data.projects, ["SITE_SURVEY", "PRELIMINARY_QUOTE"]);
-  const detailedProjects = filterProjects(data.projects, ["DETAILED_ENGG"]);
+  const surveyProjects = filterProjects(data?.projects || [], ["SITE_SURVEY", "PRELIMINARY_QUOTE"]);
+  const detailedProjects = filterProjects(data?.projects || [], ["DETAILED_ENGG"]);
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 w-full">

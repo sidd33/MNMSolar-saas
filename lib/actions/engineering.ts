@@ -28,15 +28,15 @@ async function validateEngineeringAccess() {
   return { user, orgId, isEngineering: true, isOwner: false };
 }
 
-export async function getEngineeringDashboardStats() {
-    const { orgId } = await validateEngineeringAccess();
+export async function getEngineeringDashboardStats(providedOrgId?: string) {
+    const orgId = providedOrgId || (await validateEngineeringAccess()).orgId;
     if (!orgId) return { survey: 0, detailed: 0, workOrder: 0, bottlenecks: 0 };
 
     const [surveyCount, detailedCount, workOrderCount, bottlenecksCount] = await Promise.all([
-        prisma.project.count({ where: { organizationId: orgId, currentDepartment: 'ENGINEERING', stage: { in: ['SITE_SURVEY', 'PRELIMINARY_QUOTE'] } } }),
-        prisma.project.count({ where: { organizationId: orgId, currentDepartment: 'ENGINEERING', stage: 'DETAILED_ENGG' } }),
-        prisma.project.count({ where: { organizationId: orgId, currentDepartment: 'ENGINEERING', stage: 'WORK_ORDER' } }),
-        prisma.project.count({ where: { organizationId: orgId, currentDepartment: 'ENGINEERING', isBottlenecked: true } })
+        prisma.project.count({ where: { organizationId: orgId, currentDepartment: { equals: 'Engineering', mode: 'insensitive' }, stage: { in: ['SITE_SURVEY', 'PRELIMINARY_QUOTE'] } } }),
+        prisma.project.count({ where: { organizationId: orgId, currentDepartment: { equals: 'Engineering', mode: 'insensitive' }, stage: 'DETAILED_ENGG' } }),
+        prisma.project.count({ where: { organizationId: orgId, currentDepartment: { equals: 'Engineering', mode: 'insensitive' }, stage: 'WORK_ORDER' } }),
+        prisma.project.count({ where: { organizationId: orgId, currentDepartment: { equals: 'Engineering', mode: 'insensitive' }, isBottlenecked: true } })
     ]);
 
     return {
@@ -47,13 +47,13 @@ export async function getEngineeringDashboardStats() {
     };
 }
 
-export async function getEngineeringQueue(stages?: string[]) {
-  const { orgId } = await validateEngineeringAccess();
+export async function getEngineeringQueue(stages?: string[], providedOrgId?: string) {
+  const orgId = providedOrgId || (await validateEngineeringAccess()).orgId;
   if (!orgId) return [];
 
   const whereClause: any = {
       organizationId: orgId,
-      currentDepartment: 'ENGINEERING'
+      currentDepartment: { equals: 'Engineering', mode: 'insensitive' }
   };
 
   if (stages && stages.length > 0) {
@@ -62,6 +62,7 @@ export async function getEngineeringQueue(stages?: string[]) {
 
   return await prisma.project.findMany({
       where: whereClause,
+      take: 100,
       orderBy: { updatedAt: 'desc' },
       select: {
           id: true,
@@ -72,37 +73,18 @@ export async function getEngineeringQueue(stages?: string[]) {
           updatedAt: true,
           createdAt: true,
           sanctionedLoad: true,
-          projectFiles: {
-             select: {
-                id: true,
-                name: true,
-                category: true,
-                fileUrl: true,
-                utFileKey: true,
-                uploadedAtStage: true,
-                createdAt: true
-             }
-          },
-          tasks: {
-              select: {
-                  id: true,
-                  title: true,
-                  priority: true,
-                  assignee: { select: { email: true } }
-              }
-          }
       }
   });
 }
 
-export async function getRecentEngineeringActivity() {
-    const { orgId } = await validateEngineeringAccess();
+export async function getRecentEngineeringActivity(providedOrgId?: string) {
+    const orgId = providedOrgId || (await validateEngineeringAccess()).orgId;
     if (!orgId) return [];
 
     return await prisma.handoffLog.findMany({
         where: { 
             organizationId: orgId, 
-            toDept: 'ENGINEERING' 
+            toDept: { equals: 'Engineering', mode: 'insensitive' } 
         },
         orderBy: { createdAt: 'desc' },
         take: 5,
@@ -120,15 +102,58 @@ export async function getRecentEngineeringActivity() {
         }
     });
 }
+
 export async function getEngineeringNexus() {
     const { orgId } = await validateEngineeringAccess();
     if (!orgId) return { stats: { survey: 0, detailed: 0, workOrder: 0, bottlenecks: 0 }, projects: [], activity: [] };
 
     const [stats, projects, activity] = await Promise.all([
-        getEngineeringDashboardStats(),
-        getEngineeringQueue(),
-        getRecentEngineeringActivity()
+        getEngineeringDashboardStats(orgId),
+        getEngineeringQueue(undefined, orgId),
+        getRecentEngineeringActivity(orgId)
     ]);
 
     return { stats, projects, activity };
+}
+
+/**
+ * On-Demand Detail Loader
+ * Fetches heavy data (files, tasks) for a SINGLE project.
+ * Used when a user clicks/expands a project card.
+ */
+export async function getProjectDetail(projectId: string) {
+    const { orgId } = await validateEngineeringAccess();
+    if (!orgId) return null;
+
+    return await prisma.project.findUnique({
+        where: { id: projectId, organizationId: orgId },
+        select: {
+            id: true,
+            name: true,
+            stage: true,
+            currentDepartment: true,
+            sanctionedLoad: true,
+            updatedAt: true,
+            projectFiles: {
+                select: {
+                    id: true,
+                    name: true,
+                    category: true,
+                    fileUrl: true,
+                    utFileKey: true,
+                    uploadedAtStage: true,
+                    createdAt: true
+                }
+            },
+            tasks: {
+                select: {
+                    id: true,
+                    title: true,
+                    priority: true,
+                    status: true,
+                    assignee: { select: { email: true } }
+                }
+            }
+        }
+    });
 }

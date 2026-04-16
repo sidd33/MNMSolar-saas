@@ -174,8 +174,22 @@ export async function getSurveyTrackingLeads() {
             status: LeadStatus.SITE_VISIT_SCHEDULED
         },
         orderBy: { updatedAt: 'desc' },
-        include: {
-            quotes: true
+        select: {
+            id: true,
+            name: true,
+            contactPerson: true,
+            mobile: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true,
+            quotes: {
+                select: {
+                    id: true,
+                    projectName: true,
+                    quotedValue: true,
+                    status: true,
+                }
+            }
         }
     });
 }
@@ -254,8 +268,21 @@ export async function getMyProjects() {
         createdByUserId: user.id
     },
     orderBy: { createdAt: 'desc' },
-    include: {
-        tasks: true
+    select: {
+      id: true,
+      name: true,
+      clientName: true,
+      stage: true,
+      currentDepartment: true,
+      updatedAt: true,
+      createdAt: true,
+      tasks: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+        }
+      }
     }
   });
 }

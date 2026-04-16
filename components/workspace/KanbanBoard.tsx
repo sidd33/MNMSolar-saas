@@ -57,7 +57,7 @@ export function KanbanBoard({ projects }: KanbanBoardProps) {
             </div>
 
             {/* Column Body */}
-            <div className="bg-slate-50/50 rounded-2xl p-3 flex-1 border border-slate-100/50 backdrop-blur-sm shadow-inner">
+            <div className="bg-slate-50/50 rounded-2xl p-3 flex-1 border border-slate-100/50 shadow-inner">
               <div className="flex flex-col gap-4">
                 {columnProjects.map((project) => (
                   <ProjectCard key={project.id} project={project} />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEngineeringNexus } from "@/components/dashboard/EngineeringNexusProvider";
+import { useDashboardNexus } from "@/components/dashboard/DashboardNexusProvider";
 import { 
   Briefcase, 
   Settings, 
@@ -18,12 +18,16 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 
 export default function EngineeringDashboardPage() {
-  const { data, isLoading } = useEngineeringNexus();
-  const { stats, activity } = data;
+  const { data, isLoading } = useDashboardNexus();
+  
+  // Safe extraction from Nexus data
+  const stats = data?.stats || { survey: 0, detailed: 0, workOrder: 0, bottlenecks: 0 };
+  const activity = data?.activity || [];
 
   return (
     <div className="p-8 space-y-8 max-w-7xl mx-auto">
@@ -42,54 +46,41 @@ export default function EngineeringDashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="group bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-          <div className="flex items-start justify-between mb-4">
-            <div className="h-12 w-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition-colors duration-300">
-              <MapPin size={24} />
+        {[
+          { label: "Survey Inbox", value: stats.survey, icon: MapPin, color: "amber", subtitle: "Waiting for preliminary checks" },
+          { label: "Detailed Engg", value: stats.detailed, icon: Zap, color: "blue", subtitle: "Drafting SLD & Layouts" },
+          { label: "Work Order Desk", value: stats.workOrder, icon: ListTodo, color: "emerald", subtitle: "Quality check & dispatch" },
+          { label: "Bottlenecks", value: stats.bottlenecks, icon: AlertTriangle, color: "red", subtitle: "Delayed >72 Hours", dark: true }
+        ].map((item, i) => (
+          <div key={i} className={cn(
+            "group p-8 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden",
+            item.dark ? "bg-[#1C3384]" : "bg-white"
+          )}>
+            <div className="flex items-start justify-between mb-4 relative z-10">
+              <div className={cn(
+                "h-12 w-12 rounded-2xl flex items-center justify-center transition-colors duration-300",
+                item.dark ? "bg-white/10 text-red-400 group-hover:bg-red-500 group-hover:text-white" : `bg-${item.color}-50 text-${item.color}-600 group-hover:bg-${item.color}-600 group-hover:text-white`
+              )}>
+                <item.icon size={24} />
+              </div>
+              {isLoading && <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />}
             </div>
-            <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+            <p className={cn(
+              "font-bold uppercase tracking-widest text-[10px] mb-1 relative z-10",
+              item.dark ? "text-blue-200" : "text-slate-500"
+            )}>{item.label}</p>
+            {isLoading ? (
+               <Skeleton className={cn("h-10 w-16 mb-1 rounded-lg", item.dark ? "bg-white/5" : "bg-slate-100")} />
+            ) : (
+               <h3 className={cn("text-4xl font-black relative z-10", item.dark ? "text-white" : "text-slate-900")}>
+                 {item.value}
+               </h3>
+            )}
+            <p className={cn("text-xs mt-2 font-medium relative z-10", item.dark ? "text-blue-200/50" : "text-slate-400")}>
+              {item.subtitle}
+            </p>
           </div>
-          <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mb-1">Survey Inbox</p>
-          <h3 className="text-4xl font-black text-slate-900">{stats.survey}</h3>
-          <p className="text-xs text-slate-400 mt-2 font-medium">Waiting for preliminary checks</p>
-        </div>
-
-        <div className="group bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-          <div className="flex items-start justify-between mb-4">
-            <div className="h-12 w-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
-              <Zap size={24} />
-            </div>
-            <TrendingUp size={16} className="text-blue-500" />
-          </div>
-          <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mb-1">Detailed Engg</p>
-          <h3 className="text-4xl font-black text-slate-900">{stats.detailed}</h3>
-          <p className="text-xs text-slate-400 mt-2 font-medium">Drafting SLD & Layouts</p>
-        </div>
-
-        <div className="group bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
-          <div className="absolute -right-4 -bottom-4 text-slate-50 opacity-50 scale-150 pointer-events-none">
-            <CheckCircle2 size={100} />
-          </div>
-          <div className="flex items-start justify-between mb-4 relative z-10">
-            <div className="h-12 w-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors duration-300">
-              <ListTodo size={24} />
-            </div>
-          </div>
-          <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mb-1 relative z-10">Work Order Desk</p>
-          <h3 className="text-4xl font-black text-slate-900 relative z-10">{stats.workOrder}</h3>
-          <p className="text-xs text-slate-400 mt-2 font-medium relative z-10">Quality check & dispatch</p>
-        </div>
-
-        <div className="group bg-[#1C3384] p-8 rounded-[2rem] shadow-lg shadow-blue-900/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
-          <div className="flex items-start justify-between mb-4">
-            <div className="h-12 w-12 rounded-2xl bg-white/10 flex items-center justify-center text-red-400 group-hover:bg-red-500 group-hover:text-white transition-colors duration-300">
-              <AlertTriangle size={24} />
-            </div>
-          </div>
-          <p className="text-blue-200 font-bold uppercase tracking-widest text-[10px] mb-1">Bottlenecks</p>
-          <h3 className="text-4xl font-black text-white">{stats.bottlenecks}</h3>
-          <p className="text-xs text-blue-200/50 mt-2 font-medium">Delayed &gt;72 Hours</p>
-        </div>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -137,23 +128,33 @@ export default function EngineeringDashboardPage() {
             <Badge variant="outline" className="text-[9px] font-bold tracking-widest uppercase">Live Activity</Badge>
           </div>
           <div className="flex-1 p-6 space-y-6">
-            {activity.length === 0 ? (
+            {isLoading ? (
+               Array(3).fill(0).map((_, i) => (
+                 <div key={i} className="flex gap-4 items-center animate-pulse">
+                    <div className="h-10 w-10 rounded-xl bg-slate-100 shrink-0" />
+                    <div className="space-y-2 w-full">
+                       <Skeleton className="h-4 w-1/2" />
+                       <Skeleton className="h-2 w-1/3" />
+                    </div>
+                 </div>
+               ))
+            ) : activity.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 text-center opacity-30">
                     <Clock size={40} className="mb-4" />
                     <p className="font-bold uppercase tracking-widest text-[10px]">No recent intake found</p>
                 </div>
             ) : (
                 activity.map((act: any) => (
-                    <div key={act.id} className="flex gap-4 group">
+                    <div key={act.id} className="flex gap-4 group text-wrap">
                         <div className="relative">
-                            <div className="h-10 w-10 rounded-xl flex items-center justify-center shadow-sm bg-blue-50 text-blue-600">
+                            <div className="h-10 w-10 rounded-xl flex items-center justify-center shadow-sm bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">
                                 <MapPin size={18} />
                             </div>
                         </div>
                         <div className="flex-1 space-y-0.5">
-                            <div className="flex items-center justify-between">
-                                <h4 className="text-sm font-bold text-slate-800 group-hover:text-[#1C3384] transition-colors">{act.project.name}</h4>
-                                <span className="text-[10px] text-slate-400 font-medium">
+                            <div className="flex items-center justify-between gap-2 overflow-hidden">
+                                <h4 className="text-sm font-bold text-slate-800 group-hover:text-[#1C3384] transition-colors truncate">{act.project.name}</h4>
+                                <span className="text-[10px] text-slate-400 font-medium shrink-0">
                                     {formatDistanceToNow(new Date(act.createdAt), { addSuffix: true })}
                                 </span>
                             </div>
@@ -178,4 +179,9 @@ export default function EngineeringDashboardPage() {
       </div>
     </div>
   );
+}
+
+// Utility function for conditional classes if not already global
+function cn(...classes: any[]) {
+  return classes.filter(Boolean).join(' ');
 }

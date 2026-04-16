@@ -46,11 +46,12 @@ const NAV_ITEMS = [
   { label: "Work Order Desk", icon: ShieldCheck, href: "/dashboard/engineering/work-order", engOnly: true },
 ];
 
-interface SidebarProps {
-  stats?: Record<string, number>;
-}
+import { useGlobalUI } from "@/components/dashboard/GlobalUIProvider";
 
-export function Sidebar({ stats = {} }: SidebarProps) {
+interface SidebarProps {}
+
+export function Sidebar({}: SidebarProps) {
+  const { stats } = useGlobalUI();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);

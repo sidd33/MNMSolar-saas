@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { createQuote, getMyLeads } from "@/lib/actions/sales";
 import { 
   FileText, 
@@ -31,7 +31,7 @@ import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function NewQuotePage() {
+function NewQuotePageContent() {
   const [loading, setLoading] = useState(false);
   const [leads, setLeads] = useState<any[]>([]);
   const router = useRouter();
@@ -218,5 +218,17 @@ export default function NewQuotePage() {
         </div>
       </form>
     </div>
+  );
+}
+
+export default function NewQuotePage() {
+  return (
+    <Suspense fallback={
+       <div className="p-8 max-w-4xl mx-auto flex items-center justify-center h-64">
+           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1C3384]"></div>
+       </div>
+    }>
+      <NewQuotePageContent />
+    </Suspense>
   );
 }

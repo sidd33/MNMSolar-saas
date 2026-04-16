@@ -21,34 +21,40 @@ export async function getOwnerDashboardData() {
     }
   }
 
-  const projects = await prisma.project.findMany({
-    where: projectWhere,
-    include: {
-      tasks: true,
-      projectFiles: {
-        select: {
-          id: true,
-          name: true,
-          category: true,
-          fileUrl: true,
-          utFileKey: true,
-          isArchived: true,
-          uploadedAtStage: true,
-          createdAt: true
+  // SELECTIVE FETCHING: Only pull essential fields to minimize payload and compute costs, AND run queries in parallel.
+  const [projects, auditLogs] = await Promise.all([
+    prisma.project.findMany({
+      where: projectWhere,
+      take: 100,
+      orderBy: { updatedAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        stage: true,
+        currentDepartment: true,
+        updatedAt: true,
+        clientName: true,
+        isBottlenecked: true,
+      }
+    }),
+    prisma.auditLog.findMany({
+      where: { organizationId: sync.orgId },
+      orderBy: { createdAt: 'desc' },
+      take: 12,
+      select: {
+        id: true,
+        action: true,
+        newValue: true,
+        createdAt: true,
+        user: { select: { email: true } },
+        task: {
+          select: {
+            project: { select: { name: true } }
+          }
         }
       }
-    }
-  });
-
-  const auditLogs = await prisma.auditLog.findMany({
-    where: { organizationId: sync.orgId },
-    orderBy: { createdAt: 'desc' },
-    take: 20,
-    include: {
-      user: true,
-      task: true,
-    }
-  });
+    })
+  ]);
 
   // Pipeline Heatmap
   const heatmap: Record<string, number> = {};
@@ -73,15 +79,13 @@ export async function getOwnerDashboardData() {
     }
   });
 
-  // Bottlenecks (> 72 hours without update)
-  const seventyTwoHoursAgo = new Date(Date.now() - 72 * 60 * 60 * 1000);
-  const bottlenecks = projects.filter(p => (p as any).updatedAt < seventyTwoHoursAgo);
+  // Bottlenecks are now derived on the client from projects.filter(p => p.isBottlenecked)
+  // No duplicate payload needed.
 
   return {
     projects,
     heatmap,
     workload,
-    bottlenecks,
     auditLogs
   };
 }
@@ -122,10 +126,25 @@ export async function getDepartmentalProjects(department: string) {
 
   return await (prisma.project as any).findMany({
     where: whereClause,
-    include: {
+    take: 100,
+    orderBy: { updatedAt: 'desc' } as any,
+    select: {
+      id: true,
+      name: true,
+      stage: true,
+      clientName: true,
+      currentDepartment: true,
+      updatedAt: true,
+      createdAt: true,
+      isBottlenecked: true,
+      sanctionedLoad: true,
       tasks: {
-        include: {
-          assignee: true
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          priority: true,
+          assignee: { select: { email: true } }
         },
         orderBy: { createdAt: 'desc' } as any
       },
@@ -141,29 +160,13 @@ export async function getDepartmentalProjects(department: string) {
           createdAt: true
         }
       }
-    } as any,
-    orderBy: { updatedAt: 'desc' } as any
+    } as any
   });
 }
 
-export async function getSidebarStats() {
-  const sync = await syncUserAndOrg();
-  if (!sync?.orgId) return null;
-
-  const departments = ["SALES", "ENGINEERING", "EXECUTION", "ACCOUNTS"];
-  const stats: Record<string, number> = {};
-
-  for (const dept of departments) {
-    stats[dept] = await (prisma.project as any).count({
-      where: {
-        organizationId: sync.orgId,
-        currentDepartment: {
-          equals: dept,
-          mode: 'insensitive'
-        }
-      }
-    });
-  }
-
-  return stats;
-}
+/**
+ * getSidebarStats — REMOVED.
+ * Sidebar counts are now derived locally from the Nexus project list.
+ * This eliminates 4 sequential COUNT(*) queries that ran every 60 seconds.
+ * See: GlobalUIProvider.tsx → useEffect that reads from DashboardNexus.
+ */

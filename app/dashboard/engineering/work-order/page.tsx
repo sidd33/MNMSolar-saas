@@ -1,6 +1,6 @@
 "use client";
 
-import { useEngineeringNexus } from "@/components/dashboard/EngineeringNexusProvider";
+import { useDashboardNexus } from "@/components/dashboard/DashboardNexusProvider";
 import { Card } from "@/components/ui/card";
 import { ListTodo } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
@@ -8,9 +8,8 @@ import { EngineeringHandoffCard } from "@/components/workspace/EngineeringHandof
 import { DepartmentQueueSearch } from "@/components/dashboard/DepartmentQueueSearch";
 
 export default function WorkOrderDesk() {
-  const { data } = useEngineeringNexus();
-
-  const projects = data.projects.filter(p => p.stage === "WORK_ORDER");
+  const { data } = useDashboardNexus();
+  const projects = data?.projects?.filter((p: any) => p.stage === "WORK_ORDER") || [];
 
   return (
     <DashboardShell 

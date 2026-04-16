@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { ShieldCheck, Zap, Receipt, CheckCircle2, Eye, Upload, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getProjectFiles } from "@/app/actions/project";
@@ -30,6 +30,12 @@ export function DocumentationVault({ projectId, projectStage, initialFiles, onFi
   const getFileForCategory = (cat: string) => files.find(f => f.category === cat && f.uploadedAtStage === projectStage);
   const hasLiaisoning = hasCategory("LIAISONING");
 
+  useEffect(() => {
+    if (onFilesChange) {
+      onFilesChange(hasLiaisoning);
+    }
+  }, [hasLiaisoning, onFilesChange]);
+
   const handleUpload = async (category: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -55,10 +61,6 @@ export function DocumentationVault({ projectId, projectStage, initialFiles, onFi
                 newFiles.push(saved);
               }
             });
-            
-            if (onFilesChange) {
-              onFilesChange(newFiles.some(f => f.category === "LIAISONING"));
-            }
             return newFiles;
           });
         }

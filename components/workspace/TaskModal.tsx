@@ -137,7 +137,7 @@ export default function TaskModal({ task }: { task: any }) {
 
            {/* Tabs for Interactions */}
            <Tabs defaultValue="comments" className="flex-1 flex flex-col bg-background relative z-10">
-              <div className="px-6 border-b shrink-0 bg-background/80 backdrop-blur-md sticky top-0">
+              <div className="px-6 border-b shrink-0 bg-background/80 sticky top-0">
                  <TabsList className="bg-transparent border-none gap-8 h-12">
                     <TabsTrigger value="comments" className="data-[state=active]:border-b-2 data-[state=active]:border-accent data-[state=active]:text-accent rounded-none px-0 shadow-none text-xs font-bold uppercase tracking-wider transition-all">
                       <MessageSquare className="h-3.5 w-3.5 mr-2" /> Discussion

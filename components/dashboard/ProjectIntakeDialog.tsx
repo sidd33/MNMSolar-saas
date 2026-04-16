@@ -33,6 +33,8 @@ interface ProjectIntakeDialogProps {
   trigger?: React.ReactNode;
 }
 
+import { useDashboardNexus } from "./DashboardNexusProvider";
+
 export function ProjectIntakeDialog({
   projectName = "",
   clientName = "",
@@ -43,17 +45,36 @@ export function ProjectIntakeDialog({
 }: ProjectIntakeDialogProps) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
+  const { updateLocalData, data } = useDashboardNexus();
 
   async function handleCreateProject(formData: FormData) {
+    const name = formData.get("name") as string;
+    const client = formData.get("clientName") as string;
+    const dept = formData.get("department") as string;
+
+    // Optimistic Update
+    const optimisticProject = {
+      id: "temp-" + Date.now(),
+      name,
+      clientName: client,
+      currentDepartment: dept.toUpperCase(),
+      stage: "INTAKE",
+      createdAt: new Date().toISOString(),
+      isOptimistic: true
+    };
+
+    updateLocalData({
+      projects: [optimisticProject, ...data.projects]
+    });
+
     startTransition(async () => {
       try {
         await createProject(formData);
         toast.success("Project launched successfully!");
         setOpen(false);
-        router.refresh(); // Refresh dashboard data
       } catch (error: any) {
         toast.error(error.message || "Failed to create project");
+        // Rollback (Optional: In a full implementation we'd filter out the temp ID)
       }
     });
   }

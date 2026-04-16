@@ -188,7 +188,7 @@ export function ProjectHandoffCard({ project, dept, initialFiles }: ProjectHando
           </h4>
 
           {dept === 'ENGINEERING' && (
-            <div className="mb-6 p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-sm">
+            <div className="mb-6 p-4 bg-white/10 rounded-2xl border border-white/10">
                 <div className="flex items-center gap-2 mb-2 text-[#FFC800]">
                     <Split size={14} />
                     <span className="text-[9px] font-black uppercase tracking-widest">Dual-Track Dispatch</span>
@@ -207,7 +207,7 @@ export function ProjectHandoffCard({ project, dept, initialFiles }: ProjectHando
             <div className="space-y-2">
               <Label htmlFor="nextStage" className="text-[9px] font-black uppercase tracking-widest text-blue-200 opacity-60">Strategic Milestone</Label>
               <Select key={project.stage} name="nextStage" defaultValue={project.stage}>
-                <SelectTrigger id="nextStage" className="bg-white/10 border-white/10 text-white rounded-2xl h-11 backdrop-blur-md">
+                <SelectTrigger id="nextStage" className="bg-white/10 border-white/10 text-white rounded-2xl h-11">
                   <SelectValue placeholder="Select Stage" />
                 </SelectTrigger>
                 <SelectContent className="rounded-2xl border-none shadow-2xl">
@@ -221,7 +221,7 @@ export function ProjectHandoffCard({ project, dept, initialFiles }: ProjectHando
             <div className="space-y-2">
               <Label htmlFor="department" className="text-[9px] font-black uppercase tracking-widest text-blue-200 opacity-60">Target Directive</Label>
               <Select key={dept} name="department" defaultValue={dept}>
-                <SelectTrigger id="department" className="bg-white/10 border-white/10 text-white rounded-2xl h-11 backdrop-blur-md">
+                <SelectTrigger id="department" className="bg-white/10 border-white/10 text-white rounded-2xl h-11">
                   <SelectValue placeholder="Select Dept" />
                 </SelectTrigger>
                 <SelectContent className="rounded-2xl border-none shadow-2xl">
