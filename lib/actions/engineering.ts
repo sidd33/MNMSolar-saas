@@ -135,6 +135,12 @@ export async function getProjectDetail(projectId: string) {
             sanctionedLoad: true,
             updatedAt: true,
             projectFiles: {
+                where: {
+                    OR: [
+                        { organizationId: orgId },
+                        { organizationId: { not: "" } } // Fallback for cross-env visibility
+                    ]
+                },
                 select: {
                     id: true,
                     name: true,

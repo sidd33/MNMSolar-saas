@@ -2,12 +2,13 @@
 
 import { useDashboardNexus } from "@/components/dashboard/DashboardNexusProvider";
 import { Card } from "@/components/ui/card";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MapPin, Zap, Search } from "lucide-react";
 import { EngineeringHandoffCard } from "@/components/workspace/EngineeringHandoffCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { getProjectDetail } from "@/lib/actions/engineering";
 
 export default function EngineeringSurveyQueue() {
   const { data } = useDashboardNexus();
@@ -22,6 +23,41 @@ export default function EngineeringSurveyQueue() {
 
   const surveyProjects = filterProjects(data?.projects || [], ["SITE_SURVEY", "PRELIMINARY_QUOTE"]);
   const detailedProjects = filterProjects(data?.projects || [], ["DETAILED_ENGG"]);
+  const allVisibleProjects = [...surveyProjects, ...detailedProjects];
+
+  const [detailCache, setDetailCache] = useState<Record<string, any>>({});
+  const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (allVisibleProjects.length === 0) return;
+
+    const uncachedProjects = allVisibleProjects.filter((p: any) => !detailCache[p.id] && !loadingIds.has(p.id));
+    if (uncachedProjects.length === 0) return;
+
+    const newLoadingIds = new Set(loadingIds);
+    uncachedProjects.forEach((p: any) => newLoadingIds.add(p.id));
+    setLoadingIds(newLoadingIds);
+
+    Promise.all(
+      uncachedProjects.map(async (p: any) => {
+        try {
+          const detail = await getProjectDetail(p.id);
+          return { id: p.id, detail };
+        } catch {
+          return { id: p.id, detail: null };
+        }
+      })
+    ).then((results) => {
+      setDetailCache(prev => {
+        const updated = { ...prev };
+        results.forEach(({ id, detail }) => {
+          if (detail) updated[id] = detail;
+        });
+        return updated;
+      });
+      setLoadingIds(new Set());
+    });
+  }, [allVisibleProjects.length, searchQuery]);
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 w-full">
@@ -72,14 +108,21 @@ export default function EngineeringSurveyQueue() {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 gap-6">
-                    {surveyProjects.map((project: any) => (
-                        <EngineeringHandoffCard 
-                            key={project.id} 
-                            project={project} 
-                            dept="ENGINEERING" 
-                            initialFiles={project.projectFiles || []} 
-                        />
-                    ))}
+                    {surveyProjects.map((project: any) => {
+                        const detail = detailCache[project.id];
+                        const mergedProject = detail 
+                          ? { ...project, ...detail }
+                          : { ...project, tasks: [], projectFiles: [] };
+
+                        return (
+                            <EngineeringHandoffCard 
+                                key={project.id} 
+                                project={mergedProject} 
+                                dept="ENGINEERING" 
+                                initialFiles={detail?.projectFiles || []} 
+                            />
+                        );
+                    })}
                 </div>
             )}
         </TabsContent>
@@ -92,14 +135,21 @@ export default function EngineeringSurveyQueue() {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 gap-6">
-                    {detailedProjects.map((project: any) => (
-                        <EngineeringHandoffCard 
-                            key={project.id} 
-                            project={project} 
-                            dept="ENGINEERING" 
-                            initialFiles={project.projectFiles || []} 
-                        />
-                    ))}
+                    {detailedProjects.map((project: any) => {
+                        const detail = detailCache[project.id];
+                        const mergedProject = detail 
+                          ? { ...project, ...detail }
+                          : { ...project, tasks: [], projectFiles: [] };
+
+                        return (
+                            <EngineeringHandoffCard 
+                                key={project.id} 
+                                project={mergedProject} 
+                                dept="ENGINEERING" 
+                                initialFiles={detail?.projectFiles || []} 
+                            />
+                        );
+                    })}
                 </div>
             )}
         </TabsContent>

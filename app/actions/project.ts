@@ -395,3 +395,27 @@ export async function updateSanctionedLoad(projectId: string, sanctionedLoad: st
   revalidatePath("/dashboard/owner");
   return project;
 }
+
+export async function deleteProjectFile(fileId: string, projectId: string) {
+  const sync = await syncUserAndOrg();
+  if (!sync?.orgId) throw new Error("Unauthorized");
+
+  // Verify file belongs to project and org for security
+  const file = await prisma.projectFile.findUnique({
+    where: { 
+      id: fileId, 
+      projectId: projectId, 
+      organizationId: sync.orgId 
+    }
+  });
+
+  if (!file) throw new Error("File not found or unauthorized");
+
+  await prisma.projectFile.delete({
+    where: { id: fileId }
+  });
+
+  revalidatePath(`/dashboard/projects`);
+  revalidatePath(`/dashboard/department`);
+  return { success: true };
+}

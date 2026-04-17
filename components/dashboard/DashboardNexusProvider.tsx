@@ -96,11 +96,11 @@ export function DashboardNexusProvider({ children, initialData = null, userId = 
         const now = Date.now();
         const inactiveTime = now - lastActivityRef.current;
         const staleTime = now - lastFetchRef.current;
-        // Relaxed pulse: check every 2 minutes, only fetch if stale > 5 minutes
-        if (userId && inactiveTime < 300000 && !document.hidden && staleTime > 300000) {
+        // High-frequency pulse: check every 30 seconds, sync if stale > 60 seconds
+        if (userId && inactiveTime < 600000 && !document.hidden && staleTime > 60000) {
           fetchData(true);
         }
-    }, 120000);
+    }, 30000);
 
     return () => {
       isMounted.current = false;

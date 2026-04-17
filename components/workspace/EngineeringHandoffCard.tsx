@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,10 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Shield, FastForward, ArrowRight, ListTodo, Clock, Eye, DownloadCloud, Settings, Split, CheckCircle2, UploadCloud, AlertCircle, FileText, Receipt } from "lucide-react";
+import { Shield, FastForward, ArrowRight, ListTodo, Clock, Eye, DownloadCloud, Settings, Split, CheckCircle2, UploadCloud, AlertCircle, FileText, Receipt, Trash2, Edit3, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
-import { forwardProject, updateSanctionedLoad } from "@/app/actions/project";
+import { forwardProject, updateSanctionedLoad, deleteProjectFile } from "@/app/actions/project";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -25,15 +25,6 @@ interface EngineeringHandoffCardProps {
   initialFiles: any[];
 }
 
-const PIPELINE_STAGES = [
-  "PROSPECT", "SITE_SURVEY", "PRELIMINARY_QUOTE", "DETAILED_ENGG",
-  "WORK_ORDER", "HANDOVER_TO_EXECUTION", "MATERIAL_PROCUREMENT",
-  "STRUCTURE_ERECTION", "PV_PANEL_INSTALLATION", "AC_DC_INSTALLATION",
-  "NET_METERING", "FINAL_HANDOVER"
-];
-
-const DEPARTMENTS = ["Sales", "Engineering", "Execution", "Accounts"];
-
 export function EngineeringHandoffCard({ project, dept, initialFiles }: EngineeringHandoffCardProps) {
   const { refresh, updateLocalProject } = useDashboardNexus();
   const [files, setFiles] = useState(initialFiles);
@@ -45,6 +36,19 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
   const [uploadingTag, setUploadingTag] = useState<string | null>(null);
   const [uploadCategory, setUploadCategory] = useState<"TECHNICAL" | "LIAISONING">("TECHNICAL");
 
+  // Sync state with props for lazy loading - with safety check to prevent wipes
+  useEffect(() => {
+    if (initialFiles && initialFiles.length > 0) {
+        setFiles(initialFiles);
+    } else if (files.length === 0 && initialFiles) {
+        setFiles(initialFiles);
+    }
+  }, [initialFiles]);
+
+  useEffect(() => {
+    setSanctionedInput(project.sanctionedLoad?.replace(" kW", "") || "");
+  }, [project.sanctionedLoad]);
+
   const salesHandover = files.find((f: any) => f.category === "HANDOVER_SHEET");
 
   // Category counts
@@ -54,36 +58,37 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
   // Detect stage type
   const isSiteSurveyStage = ["SITE_SURVEY", "PRELIMINARY_QUOTE"].includes(project.stage);
 
-  // Survey Report file (for site survey stage)
-  const surveyReportFile = files.find((f: any) => f.name.includes("[SURVEY_REPORT]"));
+  // Survey Report file - Lenient Detection
+  const surveyReportFile = files.find((f: any) => f.name.includes("[SURVEY_REPORT]") || f.name.toUpperCase().includes("SURVEY"));
 
-  // Derive Checklist State (for detailed engineering stage)
+  // 1. Technical Files - Lenient Detection (Brackets OR Keywords)
+  const sldFile = files.find(f => f.name.includes("[SLD]") || f.name.toUpperCase().includes("SLD"));
+  const layoutFile = files.find(f => f.name.includes("[LAYOUT]") || f.name.toUpperCase().includes("LAYOUT"));
+  const structuralFile = files.find(f => f.name.includes("[STRUCTURAL]") || f.name.toUpperCase().includes("STRUCTURAL"));
+  const bomFile = files.find(f => f.name.includes("[BOM]") || f.name.toUpperCase().includes("BOM"));
   const surveyVerified = !!project.sanctionedLoad && project.sanctionedLoad !== " kW" && project.sanctionedLoad !== "";
-  const sldUploaded = files.some(f => f.name.includes("[SLD]"));
-  const layoutUploaded = files.some(f => f.name.includes("[LAYOUT]"));
-  const structuralVerified = files.some(f => f.name.includes("[STRUCTURAL]"));
-  const bomReady = files.some(f => f.name.includes("[BOM]"));
 
-  // Liaisoning track requirements
-  const testrecordUploaded = files.some(f => f.name.includes("[TEST_RECORDS]"));
-  const workcompUploaded = files.some(f => f.name.includes("[WORK_COMP]"));
-  const agreementUploaded = files.some(f => f.name.includes("[AGREEMENT]"));
-  const earthtestUploaded = files.some(f => f.name.includes("[EARTH_TEST]"));
+  // 2. Liaisoning Files - Lenient Detection
+  const agreementFile = files.find(f => f.name.includes("[AGREEMENT]") || f.name.toUpperCase().includes("AGREEMENT"));
+  const testRecordFile = files.find(f => f.name.includes("[TEST_RECORD]") || f.name.toUpperCase().includes("TEST_RECORD") || f.name.toUpperCase().includes("TEST_RECORDS"));
+  const earthTestFile = files.find(f => f.name.includes("[EARTH_TEST]") || f.name.toUpperCase().includes("EARTH_TEST"));
+  const workCompFile = files.find(f => f.name.includes("[WORK_COMP]") || f.name.toUpperCase().includes("WORK_COMP") || f.name.toUpperCase().includes("WORK COMPLETION"));
 
-  // Annexure Logic
-  const annexureFiles = files.filter(f => f.category === "LIAISONING" && f.name.includes("Annexure"));
+  // 3. Annexure Logic - Check name keyword even if category is mismatched
+  const annexureFiles = files.filter(f => f.name.toLowerCase().includes("annexure"));
   const annexureCount = annexureFiles.length;
-  const isAnnexuresComplete = annexureCount === 5;
+  const isAnnexuresComplete = annexureCount >= 5;
 
-  const technicalComplete = surveyVerified && sldUploaded && layoutUploaded && structuralVerified && bomReady;
-  const liaisoningComplete = testrecordUploaded && workcompUploaded && agreementUploaded && earthtestUploaded && isAnnexuresComplete;
+  // 4. Completion States
+  const technicalComplete = surveyVerified && !!sldFile && !!layoutFile && !!structuralFile && !!bomFile;
+  const liaisoningComplete = !!agreementFile && !!testRecordFile && !!earthTestFile && !!workCompFile && isAnnexuresComplete;
 
   const checklistComplete = isSiteSurveyStage
     ? !!surveyReportFile
     : (technicalComplete && liaisoningComplete);
 
-  const completedCount = [surveyVerified, sldUploaded, layoutUploaded, structuralVerified, bomReady].filter(Boolean).length;
-  const liaisoningCompletedCount = [testrecordUploaded, workcompUploaded, agreementUploaded, earthtestUploaded].filter(Boolean).length + annexureCount;
+  const completedCount = [surveyVerified, !!sldFile, !!layoutFile, !!structuralFile, !!bomFile].filter(Boolean).length;
+  const liaisoningCompletedCount = [!!agreementFile, !!testRecordFile, !!earthTestFile, !!workCompFile].filter(Boolean).length + annexureCount;
 
   const handleSaveLoad = async () => {
     if (!sanctionedInput) return;
@@ -91,10 +96,9 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
     try {
       const formatted = `${sanctionedInput.replace(/[^\d.]/g, '')} kW`;
       await updateSanctionedLoad(project.id, formatted);
-      // Let's optimistic update the local sanctioned load variable so the checklist updates instantly
       updateLocalProject(project.id, { sanctionedLoad: formatted });
       toast.success("Sanctioned load verified");
-      refresh(); // Background sync to ensure all stats reflect the change
+      refresh();
     } catch {
       toast.error("Failed to update load");
     } finally {
@@ -109,10 +113,10 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
     }
     await forwardProject(formData);
     toast.success("Project dispatched successfully");
-    refresh(); // Global sync after handoff
+    refresh();
   }
 
-  const handleFileUpload = async (tag: string, event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (tag: string, event: React.ChangeEvent<HTMLInputElement>, existingFileId: string | null = null) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -124,18 +128,23 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
         finalName = `Annexure_${annexureCount + 1}_${project.name}.pdf`;
     }
 
-    // Create new renamed file with tag so we can easily track it
     const taggedFile = new File([file], `[${tag}]_${finalName}`, { type: file.type });
 
     try {
-      // Ensure we send a valid database category (LIAISONING) even for the ANNEXURE tag
       const dbCategory = tag === "ANNEXURE" ? "LIAISONING" : (uploadCategory as any);
       
-      await uploadFiles(project.id, [taggedFile], dbCategory, null, (savedFiles) => {
-        const updatedFiles = [...files, ...savedFiles];
+      await uploadFiles(project.id, [taggedFile], dbCategory, existingFileId, (savedFiles) => {
+        // If it was a replacement, we need to remove the old one from state
+        let updatedFiles;
+        if (existingFileId) {
+            updatedFiles = files.map(f => f.id === existingFileId ? savedFiles[0] : f);
+        } else {
+            updatedFiles = [...files, ...savedFiles];
+        }
+        
         setFiles(updatedFiles);
         updateLocalProject(project.id, { projectFiles: updatedFiles });
-        toast.success(`${tag} verified and attached`);
+        toast.success(existingFileId ? `${tag} replaced successfully` : `${tag} verified and attached`);
         refresh();
       });
     } catch (e) {
@@ -145,37 +154,79 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
     }
   };
 
-  const DropSlot = ({ label, tag, isComplete }: { label: string, tag: string, isComplete: boolean }) => (
-    <div className={cn(
-      "relative border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center transition-all min-h-24",
-      isComplete ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-slate-50 border-slate-200 hover:bg-slate-100 hover:border-[#1C3384]/50 cursor-pointer text-slate-500"
-    )}>
-      {isComplete ? (
-        <>
-          <CheckCircle2 size={24} className="mb-2 text-emerald-500" />
-          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">{label} DONE</p>
-        </>
-      ) : uploadingTag === tag ? (
-        <>
-          <Settings size={24} className="mb-2 animate-spin text-[#1C3384]" />
-          <p className="text-[10px] font-black uppercase tracking-widest text-[#1C3384]">Uploading...</p>
-        </>
-      ) : (
-        <>
-          <UploadCloud size={24} className="mb-2 text-slate-400 group-hover:text-[#1C3384] transition-colors" />
-          <p className="text-[10px] font-black uppercase tracking-widest text-[#0F172A]">{label}</p>
-        </>
-      )}
-      {!isComplete && uploadingTag !== tag && (
-        <input
-          type="file"
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-          disabled={uploadingTag !== null}
-          onChange={(e) => handleFileUpload(tag, e)}
-        />
-      )}
-    </div>
-  );
+  const handleDeleteFile = async (fileId: string, tag: string) => {
+    if (!confirm(`Are you sure you want to delete the uploaded ${tag} documentation?`)) return;
+    
+    const loadingToast = toast.loading(`Deleting ${tag}...`);
+    try {
+        await deleteProjectFile(fileId, project.id);
+        const updatedFiles = files.filter(f => f.id !== fileId);
+        setFiles(updatedFiles);
+        updateLocalProject(project.id, { projectFiles: updatedFiles });
+        toast.success(`${tag} deleted successfully`, { id: loadingToast });
+        refresh();
+    } catch (e) {
+        toast.error(`Failed to delete ${tag}`, { id: loadingToast });
+    }
+  };
+
+  const DropSlot = ({ label, tag, fileObject }: { label: string, tag: string, fileObject?: any }) => {
+    const isComplete = !!fileObject;
+    
+    return (
+        <div className={cn(
+            "relative border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center transition-all min-h-24 group/slot",
+            isComplete ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-slate-50 border-slate-200 hover:bg-slate-100 hover:border-[#1C3384]/50 cursor-pointer text-slate-500"
+        )}>
+            {isComplete ? (
+                <>
+                    <CheckCircle2 size={24} className="mb-2 text-emerald-500" />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">{label} DONE</p>
+                    
+                    {/* Utility Overlay for Replacement/Deletion - Adjusted for visibility */}
+                    <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                        <div className="relative">
+                            <Button size="icon" variant="ghost" className="h-7 w-7 rounded-full bg-white text-blue-600 shadow-md border border-blue-100 hover:scale-110 transition-transform">
+                                <Edit3 size={12} />
+                            </Button>
+                            <input 
+                                type="file" 
+                                className="absolute inset-0 opacity-0 cursor-pointer" 
+                                onChange={(e) => handleFileUpload(tag, e, fileObject.id)}
+                            />
+                        </div>
+                        <Button 
+                            size="icon" 
+                            variant="ghost" 
+                            onClick={() => handleDeleteFile(fileObject.id, tag)}
+                            className="h-7 w-7 rounded-full bg-white text-rose-600 shadow-md border border-rose-100 hover:scale-110 transition-transform"
+                        >
+                            <Trash2 size={12} />
+                        </Button>
+                    </div>
+                </>
+            ) : uploadingTag === tag ? (
+                <>
+                    <Settings size={24} className="mb-2 animate-spin text-[#1C3384]" />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[#1C3384]">Uploading...</p>
+                </>
+            ) : (
+                <>
+                    <UploadCloud size={24} className="mb-2 text-slate-400 group-hover:text-[#1C3384] transition-colors" />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[#0F172A]">{label}</p>
+                </>
+            )}
+            {!isComplete && uploadingTag !== tag && (
+                <input
+                    type="file"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    disabled={uploadingTag !== null}
+                    onChange={(e) => handleFileUpload(tag, e)}
+                />
+            )}
+        </div>
+    );
+  };
 
   return (
     <Card className="overflow-hidden border border-slate-100 shadow-xl bg-white [contain:paint] will-change-transform group rounded-[2.5rem] transition-all hover:shadow-2xl hover:border-[#1C3384]/20">
@@ -189,6 +240,11 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
               </Badge>
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
                 REF: <span className="text-slate-900 font-black">{project.name.split(' ')[0]}</span>
+                {files.length > 0 && (
+                    <span className="ml-2 px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-md border border-blue-100 italic">
+                        {files.length} Assets Linked
+                    </span>
+                )}
               </span>
             </div>
             <Button
@@ -236,8 +292,8 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
                 </div>
 
                 {surveyReportFile ? (
-                  /* Green confirmed state */
-                  <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-5 flex items-center justify-between">
+                  /* Green confirmed state with replacement option */
+                  <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-5 flex items-center justify-between group/survey relative">
                     <div className="flex items-center gap-3 min-w-0">
                       <CheckCircle2 size={24} className="text-emerald-500 shrink-0" />
                       <div className="min-w-0">
@@ -245,43 +301,34 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
                         <p className="text-[10px] font-bold text-emerald-600/70 uppercase tracking-widest mt-0.5">Survey Report Confirmed</p>
                       </div>
                     </div>
-                    <div className="relative shrink-0">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 px-3 rounded-lg text-[9px] font-black uppercase tracking-widest border-emerald-300 text-emerald-700 hover:bg-emerald-100"
-                      >
-                        Replace
+                    <div className="relative shrink-0 flex items-center gap-2">
+                      <div className="relative">
+                        <Button variant="outline" size="sm" className="h-8 px-3 rounded-lg text-[9px] font-black uppercase tracking-widest border-emerald-300 text-emerald-700 hover:bg-emerald-100 bg-white/50">
+                          Replace
+                        </Button>
+                        <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleFileUpload("SURVEY_REPORT", e, surveyReportFile.id)} />
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => handleDeleteFile(surveyReportFile.id, "SURVEY_REPORT")} className="h-8 w-8 p-0 text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg bg-white/50 border border-rose-100">
+                        <Trash2 size={14} />
                       </Button>
-                      <input
-                        type="file"
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        onChange={(e) => handleFileUpload("SURVEY_REPORT", e)}
-                      />
                     </div>
                   </div>
                 ) : uploadingTag === "SURVEY_REPORT" ? (
-                  /* Uploading state */
                   <div className="border-2 border-dashed border-[#1C3384]/30 bg-[#1C3384]/5 rounded-xl p-6 flex flex-col items-center justify-center gap-2">
                     <Settings size={28} className="animate-spin text-[#1C3384]" />
                     <p className="text-[10px] font-black uppercase tracking-widest text-[#1C3384]">Uploading Report...</p>
                   </div>
                 ) : (
-                  /* Empty upload slot */
                   <div className="relative border-2 border-dashed border-slate-200 hover:border-[#1C3384]/50 bg-slate-50 hover:bg-slate-100 rounded-xl p-8 flex flex-col items-center justify-center gap-3 transition-all cursor-pointer group">
                     <UploadCloud size={32} className="text-slate-400 group-hover:text-[#1C3384] transition-colors" />
                     <p className="text-xs font-black uppercase tracking-widest text-slate-600 group-hover:text-[#1C3384] transition-colors">Upload Site Survey Report</p>
                     <p className="text-[10px] text-slate-400 font-medium">PDF, Image, or Document</p>
-                    <input
-                      type="file"
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      onChange={(e) => handleFileUpload("SURVEY_REPORT", e)}
-                    />
+                    <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={(e) => handleFileUpload("SURVEY_REPORT", e)} />
                   </div>
                 )}
               </>
             ) : (
-              /* ── DETAILED ENGINEERING: Full 5-Item Checklist ── */
+              /* ── DETAILED ENGINEERING: Full Multi-item Checklist ── */
               <>
                 <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                   <div className="flex items-center gap-2">
@@ -295,99 +342,45 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
                   </div>
                 </div>
 
-                {/* 🎨 DUAL-MODE TOGGLE */}
                 <div className="bg-slate-50 border border-slate-200/60 p-1.5 rounded-2xl flex items-center gap-2 relative">
-                  <button
-                    onClick={() => setUploadCategory("TECHNICAL")}
-                    className={cn(
-                      "flex-1 flex items-center justify-center gap-2 h-11 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all relative z-10",
-                      uploadCategory === "TECHNICAL" ? "text-white" : "text-slate-400 hover:text-slate-600"
-                    )}
-                  >
-                    <FileText size={14} />
-                    Technical ({technicalCount})
+                  <button onClick={() => setUploadCategory("TECHNICAL")} className={cn("flex-1 flex items-center justify-center gap-2 h-11 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all relative z-10", uploadCategory === "TECHNICAL" ? "text-white" : "text-slate-400 hover:text-slate-600")}>
+                    <FileText size={14} /> Technical ({technicalCount})
                   </button>
-                  <button
-                    onClick={() => setUploadCategory("LIAISONING")}
-                    className={cn(
-                      "flex-1 flex items-center justify-center gap-2 h-11 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all relative z-10",
-                      uploadCategory === "LIAISONING" ? "text-[#1C3384]" : "text-slate-400 hover:text-slate-600"
-                    )}
-                  >
-                    <Receipt size={14} />
-                    Liaisoning ({liaisoningCount})
+                  <button onClick={() => setUploadCategory("LIAISONING")} className={cn("flex-1 flex items-center justify-center gap-2 h-11 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all relative z-10", uploadCategory === "LIAISONING" ? "text-[#1C3384]" : "text-slate-400 hover:text-slate-600")}>
+                    <Receipt size={14} /> Liaisoning ({liaisoningCount})
                   </button>
-                  <motion.div
-                    layoutId="activeTab"
-                    className={cn(
-                      "absolute top-1.5 bottom-1.5 rounded-xl shadow-lg z-0",
-                      uploadCategory === "TECHNICAL" ? "bg-[#1C3384] left-1.5 w-[calc(50%-0.5rem)]" : "bg-[#FFC800] left-[calc(50%+0.25rem)] w-[calc(50%-0.5rem)]"
-                    )}
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                  />
+                  <motion.div layoutId="activeTab" className={cn("absolute top-1.5 bottom-1.5 rounded-xl shadow-lg z-0", uploadCategory === "TECHNICAL" ? "bg-[#1C3384] left-1.5 w-[calc(50%-0.5rem)]" : "bg-[#FFC800] left-[calc(50%+0.25rem)] w-[calc(50%-0.5rem)]")} transition={{ type: "spring", stiffness: 400, damping: 30 }} />
                 </div>
 
                 <AnimatePresence mode="wait">
-                  <motion.div
-                    key={uploadCategory}
-                    initial={{ x: 10, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    exit={{ x: -10, opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                    className="grid grid-cols-1 md:grid-cols-2 gap-6"
-                  >
+                  <motion.div key={uploadCategory} initial={{ x: 10, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -10, opacity: 0 }} transition={{ duration: 0.15 }} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {uploadCategory === "TECHNICAL" ? (
                       <>
-                        {/* Box 1: Survey Validation (Input) */}
-                        <div className={cn(
-                          "border rounded-xl p-4 transition-all min-h-24 flex flex-col justify-center",
-                          surveyVerified ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-200"
-                        )}>
+                        <div className={cn("border rounded-xl p-4 transition-all min-h-24 flex flex-col justify-center", surveyVerified ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-200")}>
                           <div className="flex items-center justify-between mb-3">
                             <Label className={cn("text-[10px] font-black uppercase tracking-widest", surveyVerified ? "text-emerald-700" : "text-slate-500")}>1. System Capacity</Label>
                             {surveyVerified && <CheckCircle2 size={16} className="text-emerald-500" />}
                           </div>
                           <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-2 py-1 shadow-inner h-11">
-                            <Input
-                              value={sanctionedInput}
-                              onChange={(e) => setSanctionedInput(e.target.value)}
-                              placeholder="Enter Load"
-                              className="h-full text-xs font-bold border-none bg-transparent focus-visible:ring-0 px-2"
-                            />
+                            <Input value={sanctionedInput} onChange={(e) => setSanctionedInput(e.target.value)} placeholder="Enter Load" className="h-full text-xs font-bold border-none bg-transparent focus-visible:ring-0 px-2" />
                             <span className="text-[10px] font-bold text-slate-400">kW</span>
-                            <Button
-                              onClick={handleSaveLoad}
-                              disabled={isSavingLoad || surveyVerified}
-                              size="sm"
-                              variant={surveyVerified ? "secondary" : "default"}
-                              className={cn("h-7 px-3 rounded-lg font-black text-[9px] uppercase tracking-wider", surveyVerified ? "bg-slate-100 text-slate-400" : "bg-[#38A169] hover:bg-[#2F855A] text-white")}
-                            >
+                            <Button onClick={handleSaveLoad} disabled={isSavingLoad || surveyVerified} size="sm" variant={surveyVerified ? "secondary" : "default"} className={cn("h-7 px-3 rounded-lg font-black text-[9px] uppercase tracking-wider", surveyVerified ? "bg-slate-100 text-slate-400" : "bg-[#38A169] hover:bg-[#2F855A] text-white")}>
                               {isSavingLoad ? <Settings size={12} className="animate-spin" /> : surveyVerified ? "LOCKED" : "VERIFY"}
                             </Button>
                           </div>
                         </div>
-
-                        {/* Box 2: SLD */}
-                        <DropSlot label="2. Single Line Diag." tag="SLD" isComplete={sldUploaded} />
-
-                        {/* Box 3: Layout */}
-                        <DropSlot label="3. Structure Layout" tag="LAYOUT" isComplete={layoutUploaded} />
-
-                        {/* Box 4: Struct Verified */}
-                        <DropSlot label="4. Structural Val." tag="STRUCTURAL" isComplete={structuralVerified} />
-
-                        {/* Box 5: BOM Ready */}
-                        <DropSlot label="5. BoM Release" tag="BOM" isComplete={bomReady} />
+                        <DropSlot label="2. Single Line Diag." tag="SLD" fileObject={sldFile} />
+                        <DropSlot label="3. Structure Layout" tag="LAYOUT" fileObject={layoutFile} />
+                        <DropSlot label="4. Structural Val." tag="STRUCTURAL" fileObject={structuralFile} />
+                        <DropSlot label="5. BoM Release" tag="BOM" fileObject={bomFile} />
                       </>
                     ) : (
                       <>
-                        {/* Liaisoning Track */}
-                        <DropSlot label="1. Agreement" tag="AGREEMENT" isComplete={agreementUploaded} />
-                        <DropSlot label="2. Test Record" tag="TEST_RECORD" isComplete={testrecordUploaded} />
-                        <DropSlot label="3. Earth Test" tag="EARTH_TEST" isComplete={earthtestUploaded} />
-                        <DropSlot label="4. Work Completion" tag="WORK_COMP" isComplete={workcompUploaded} />
+                        <DropSlot label="1. Agreement" tag="AGREEMENT" fileObject={agreementFile} />
+                        <DropSlot label="2. Test Record" tag="TEST_RECORD" fileObject={testRecordFile} />
+                        <DropSlot label="3. Earth Test" tag="EARTH_TEST" fileObject={earthTestFile} />
+                        <DropSlot label="4. Work Completion" tag="WORK_COMP" fileObject={workCompFile} />
 
-                        {/* Annexure Incremental Slot */}
                         <div className="md:col-span-2 space-y-3">
                             <div className="flex items-center justify-between px-1">
                                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Section B: Annexures ({annexureCount}/5)</span>
@@ -395,11 +388,7 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
                             </div>
                             
                             {annexureCount < 5 ? (
-                                <DropSlot 
-                                    label={`Drop Annexure ${annexureCount + 1} here`} 
-                                    tag="ANNEXURE" 
-                                    isComplete={false} 
-                                />
+                                <DropSlot label={`Drop Annexure ${annexureCount + 1} here`} tag="ANNEXURE" />
                             ) : (
                                 <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-6 flex flex-col items-center justify-center gap-2 transition-all">
                                     <CheckCircle2 size={32} className="text-emerald-500" />
@@ -407,15 +396,23 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
                                 </div>
                             )}
 
-                            {/* List of Uploaded Annexures */}
                             {annexureCount > 0 && (
                                 <div className="grid grid-cols-2 gap-2 mt-2">
                                     {annexureFiles.map((file, idx) => (
-                                        <div key={idx} className="flex items-center gap-2 bg-slate-50 border border-slate-100 p-2 rounded-lg">
-                                            <CheckCircle2 size={12} className="text-emerald-500" />
-                                            <span className="text-[10px] font-bold text-slate-600 truncate uppercase tracking-tighter">
-                                                Annexure {idx + 1} ✅
-                                            </span>
+                                        <div key={idx} className="flex items-center justify-between gap-2 bg-slate-50 border border-slate-100 p-2 px-3 rounded-lg group/annexure">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
+                                                <span className="text-[10px] font-bold text-slate-600 truncate uppercase tracking-tighter">
+                                                    Annexure {idx + 1} ✅
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="relative">
+                                                    <Edit3 size={12} className="text-blue-500 hover:text-blue-700 cursor-pointer transition-colors" />
+                                                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleFileUpload("ANNEXURE", e, file.id)} />
+                                                </div>
+                                                <Trash2 size={12} className="text-rose-500 hover:text-rose-700 cursor-pointer transition-colors" onClick={() => handleDeleteFile(file.id, `Annexure ${idx + 1}`)} />
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -460,52 +457,16 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
             </p>
           </div>
 
-          <form
-            action={handleHandoff}
-            className="space-y-6 relative z-10"
-          >
+          <form action={handleHandoff} className="space-y-6 relative z-10">
             <input type="hidden" name="projectId" value={project.id} />
-
-            {/* The actual routing is "WORK_ORDER" to Execution/Liaisoning, so passing generic targets is fine. It will just continue down the pipe */}
-            <div className="space-y-2 hidden">
-              <Select name="nextStage" defaultValue="HANDOVER_TO_EXECUTION">
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="HANDOVER_TO_EXECUTION">X</SelectItem></SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2 hidden">
-              <Select name="department" defaultValue="Execution">
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="Execution">X</SelectItem></SelectContent>
-              </Select>
-            </div>
-
             <div className="space-y-2">
               <Label htmlFor="comment" className="text-[9px] font-black uppercase tracking-widest text-blue-200 opacity-80">Final Observations</Label>
-              <Textarea
-                name="comment"
-                id="comment"
-                placeholder="Log final engineering directives..."
-                className="text-xs bg-white/10 border-white/10 text-white h-24 rounded-[1.5rem] resize-none focus:ring-0 placeholder:text-white/30 transition-all font-medium leading-relaxed"
-                required
-              />
+              <Textarea name="comment" id="comment" placeholder="Log final engineering directives..." className="text-xs bg-white/10 border-white/10 text-white h-24 rounded-[1.5rem] resize-none focus:ring-0 placeholder:text-white/30 transition-all font-medium leading-relaxed" required />
             </div>
 
-            <Tooltip
-              content={isSiteSurveyStage ? "Upload the site survey report before dispatching." : "Upload all technical documents before dispatching."}
-              enabled={!checklistComplete}
-            >
+            <Tooltip content={isSiteSurveyStage ? "Upload the site survey report before dispatching." : "Upload all technical documents before dispatching."} enabled={!checklistComplete}>
               <div className="relative">
-                <Button
-                  type="submit"
-                  disabled={!checklistComplete}
-                  className={cn(
-                    "w-full h-14 font-black rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all",
-                    checklistComplete
-                      ? "bg-[#10B981] hover:bg-[#059669] text-white active:scale-95 group"
-                      : "bg-white/5 text-white/20 disabled:opacity-100 border border-white/10"
-                  )}
-                >
+                <Button type="submit" disabled={!checklistComplete} className={cn("w-full h-14 font-black rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all", checklistComplete ? "bg-[#10B981] hover:bg-[#059669] text-white active:scale-95 group" : "bg-white/5 text-white/20 disabled:opacity-100 border border-white/10")}>
                   {checklistComplete ? "CERTIFY & DISPATCH" : (isSiteSurveyStage ? "REPORT MISSING" : "CHECKLIST INCOMPLETE")}
                   {checklistComplete ? <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" /> : <AlertCircle size={18} className="opacity-40" />}
                 </Button>
@@ -514,12 +475,7 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
           </form>
         </div>
       </div>
-      <Project360Modal
-        projectId={project.id}
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        initialData={project}
-      />
+      <Project360Modal projectId={project.id} open={modalOpen} onOpenChange={setModalOpen} initialData={project} />
     </Card>
   );
 }
