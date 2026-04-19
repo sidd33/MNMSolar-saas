@@ -17,6 +17,7 @@ export function useProjectFileUpload() {
     projectId: "", 
     category: "GENERAL" as "GENERAL" | "TECHNICAL" | "LIAISONING" | "COMMERCIAL" | "HANDOVER_SHEET" | "EXECUTION", 
     fileId: null as string | null,
+    stage: null as string | null,
     onSuccess: null as ((files: any[]) => void) | null
   });
 
@@ -29,7 +30,7 @@ export function useProjectFileUpload() {
       console.log("Handoff upload complete:", res);
       if (!res || res.length === 0) return;
       
-      const { projectId, category, fileId, onSuccess } = uploadMeta.current;
+      const { projectId, category, fileId, stage, onSuccess } = uploadMeta.current;
       
       const savedFiles = [];
       for (const uploaded of res) {
@@ -48,6 +49,7 @@ export function useProjectFileUpload() {
          if (fileUrl) formData.append("fileUrl", fileUrl);
          if (utFileKey) formData.append("utFileKey", utFileKey);
          if (fileId) formData.append("id", fileId);
+         if (stage) formData.append("stage", stage);
 
          const savedFile = await uploadProjectFile(formData);
          savedFiles.push(savedFile);
@@ -136,7 +138,7 @@ export function useProjectFileUpload() {
     onSuccess?: (files: any[]) => void,
     customStage: string | null = null
   ) => {
-    uploadMeta.current = { projectId, category, fileId, onSuccess: onSuccess || null };
+    uploadMeta.current = { projectId, category, fileId, stage: customStage, onSuccess: onSuccess || null };
     setProgress(0);
     
     // STEP: Pre-processing Compression

@@ -13,7 +13,8 @@ export const ourFileRouter = {
   })
     .input(z.object({ 
       projectId: z.string(),
-      category: z.string()
+      category: z.string(),
+      stage: z.string().optional()
     }))
     .middleware(async ({ req, input }) => {
       const { userId } = await auth();
@@ -23,7 +24,8 @@ export const ourFileRouter = {
       return { 
         userId,
         projectId: input.projectId,
-        category: input.category
+        category: input.category,
+        stage: input.stage
       };
     })
     .onUploadComplete(async ({ metadata, file }) => {
@@ -36,7 +38,8 @@ export const ourFileRouter = {
           uploadedBy: metadata.userId, 
           fileUrl: file.url,
           projectId: metadata.projectId,
-          category: metadata.category
+          category: metadata.category,
+          stage: metadata.stage
         };
       } catch (error) {
         console.error("onUploadComplete execution error:", error);
