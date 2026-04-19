@@ -303,6 +303,7 @@ export async function uploadProjectFile(formData: FormData) {
   const fileUrl = formData.get("fileUrl") as string | null;
   const utFileKey = formData.get("utFileKey") as string | null;
   const fileId = formData.get("id") as string | null;
+  const customStage = formData.get("stage") as string | null;
 
   if (!projectId || !name || !category) {
     throw new Error("Missing file data");
@@ -321,7 +322,7 @@ export async function uploadProjectFile(formData: FormData) {
       } as any,
     });
   } else {
-    // Fetch current stage
+    // Fetch current stage as fallback
     const project = await prisma.project.findUnique({
       where: { id: projectId },
       select: { stage: true }
@@ -334,7 +335,7 @@ export async function uploadProjectFile(formData: FormData) {
         content: content || "",
         fileUrl,
         utFileKey,
-        uploadedAtStage: project?.stage || "UNKNOWN",
+        uploadedAtStage: customStage || project?.stage || "UNKNOWN",
         projectId,
         organizationId: sync.orgId,
       } as any,

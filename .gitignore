@@ -30,7 +30,7 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files 
 .env*
 
 # vercel
@@ -40,5 +40,12 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# clerk configuration (can include secrets)
+# clerk configuration 
 /.clerk/
+
+# Graphify & AI Agent Data
+graphify-out/
+.agent/
+.claude/
+graph.json
+*.html

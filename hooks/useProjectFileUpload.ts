@@ -15,7 +15,7 @@ export function useProjectFileUpload() {
   // High-performance tracker for dynamic execution metadata natively bypassing async React state queues
   const uploadMeta = useRef({ 
     projectId: "", 
-    category: "GENERAL", 
+    category: "GENERAL" as "GENERAL" | "TECHNICAL" | "LIAISONING" | "COMMERCIAL" | "HANDOVER_SHEET" | "EXECUTION", 
     fileId: null as string | null,
     onSuccess: null as ((files: any[]) => void) | null
   });
@@ -131,9 +131,10 @@ export function useProjectFileUpload() {
   const uploadFiles = async (
     projectId: string, 
     files: File[], 
-    category: "GENERAL" | "TECHNICAL" | "LIAISONING" | "COMMERCIAL" | "HANDOVER_SHEET" = "GENERAL",
+    category: "GENERAL" | "TECHNICAL" | "LIAISONING" | "COMMERCIAL" | "HANDOVER_SHEET" | "EXECUTION" = "GENERAL",
     fileId: string | null = null,
-    onSuccess?: (files: any[]) => void
+    onSuccess?: (files: any[]) => void,
+    customStage: string | null = null
   ) => {
     uploadMeta.current = { projectId, category, fileId, onSuccess: onSuccess || null };
     setProgress(0);
@@ -145,7 +146,7 @@ export function useProjectFileUpload() {
     const processedFiles = await Promise.all(files.map(f => compressFile(f)));
     
     setIsCompressing(false);
-    return await startUpload(processedFiles, { projectId, category });
+    return await startUpload(processedFiles, { projectId, category, stage: customStage || undefined });
   };
 
   return { 

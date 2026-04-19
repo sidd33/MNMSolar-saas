@@ -17,7 +17,11 @@ import {
   X,
   CreditCard,
   Crown,
-  MapPin
+  MapPin,
+  Hammer,
+  Package,
+  Flag,
+  ShieldAlert
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -44,6 +48,14 @@ const NAV_ITEMS = [
   { label: "Survey Queue", icon: MapPin, href: "/dashboard/engineering/survey", engOnly: true },
   { label: "Detailed Engg", icon: Briefcase, href: "/dashboard/engineering/detailed", engOnly: true },
   { label: "Work Order Desk", icon: ShieldCheck, href: "/dashboard/engineering/work-order", engOnly: true },
+
+  // --- EXECUTION DEPARTMENT EXCLUSIVE ---
+  { label: "Execution Hub", icon: LayoutDashboard, href: "/dashboard/execution", execOnly: true },
+  { label: "Procurement", icon: Package, href: "/dashboard/execution/procurement", execOnly: true },
+  { label: "Site Work", icon: Hammer, href: "/dashboard/execution/sitework", execOnly: true },
+  { label: "Quality & Punch", icon: ShieldCheck, href: "/dashboard/execution/quality", execOnly: true },
+  { label: "Handover", icon: Flag, href: "/dashboard/execution/handover", execOnly: true },
+  { label: "Safety/HSE", icon: ShieldAlert, href: "/dashboard/execution/safety", execOnly: true },
 ];
 
 import { useGlobalUI } from "@/components/dashboard/GlobalUIProvider";
@@ -57,6 +69,9 @@ export function Sidebar({}: SidebarProps) {
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const { user, isLoaded } = useUser();
+  const role = (user?.publicMetadata as any)?.role;
+  const department = (user?.publicMetadata as any)?.department;
+  const isOwner = role === 'OWNER' || role === 'SUPER_ADMIN';
 
   useEffect(() => {
     setMounted(true);
@@ -96,7 +111,7 @@ export function Sidebar({}: SidebarProps) {
           </button>
         </div>
 
-        {!collapsed && mounted && (
+        {!collapsed && mounted && (isOwner) && (
           <div className="mt-2 border border-white/10 rounded-lg overflow-hidden bg-white/5">
             <OrganizationSwitcher 
               appearance={{
@@ -122,12 +137,9 @@ export function Sidebar({}: SidebarProps) {
                 <div className="h-10 w-full bg-white/5 rounded-xl animate-pulse" />
             </div>
         ) : NAV_ITEMS.map((item, index) => {
-          const role = (user?.publicMetadata as any)?.role;
-          const department = (user?.publicMetadata as any)?.department;
-          
-          const isOwner = role === 'OWNER' || role === 'SUPER_ADMIN';
           const isSales = role === 'EMPLOYEE' && department === 'SALES';
           const isEngineering = role === 'EMPLOYEE' && department === 'ENGINEERING';
+          const isExecution = role === 'EMPLOYEE' && department === 'EXECUTION';
 
           // --- ACCESS CONTROL LOGIC ---
           
@@ -138,6 +150,11 @@ export function Sidebar({}: SidebarProps) {
 
           // 2. Engineering Employees strictly only see "engOnly" items
           if (isEngineering && !(item as any).engOnly) {
+              return null;
+          }
+
+          // 2.5 Execution Employees strictly only see "execOnly" items
+          if (isExecution && !(item as any).execOnly) {
               return null;
           }
 
@@ -161,12 +178,18 @@ export function Sidebar({}: SidebarProps) {
               return null;
           }
 
+          // 7. If someone isn't strictly Execution, hide Execution-only items
+          if (!isExecution && (item as any).execOnly) {
+              return null;
+          }
+
           const isActive = pathname === item.href || (item.href === "/dashboard" && pathname === "/dashboard/owner");
           const isOwnerLink = index === 0 && isOwner;
           const Icon = isOwnerLink ? Crown : item.icon;
           const label = isOwnerLink ? "Owner Command Center" : item.label;
 
           const isPriorityLink = (item as any).priority;
+          const isExecLink = (item as any).execOnly && item.href !== "/dashboard/execution";
 
           return (
             <Link
@@ -174,17 +197,25 @@ export function Sidebar({}: SidebarProps) {
               href={item.href}
               onClick={() => setMobileOpen(false)}
               className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition-all duration-200 group relative",
+                "flex items-center gap-3 rounded-xl px-3 text-sm font-bold transition-all duration-200 group relative min-h-[48px]",
                 isActive 
                   ? (isOwnerLink ? "bg-red-600 text-white shadow-lg shadow-red-600/20" : "bg-accent text-accent-foreground shadow-lg shadow-yellow-400/20") 
-                  : (isOwnerLink ? "text-red-400/70 hover:bg-red-600/5 hover:text-red-400" : isPriorityLink ? "text-[#FFC800] hover:bg-white/5" : "text-[#4A5568] hover:bg-white/5 hover:text-white")
+                  : (isOwnerLink ? "text-red-400/70 hover:bg-red-600/5 hover:text-red-400" : isPriorityLink ? "text-[#FFC800] hover:bg-white/5" : "text-white/60 hover:bg-white/5 hover:text-white")
               )}
             >
               <Icon size={20} className={cn(
                 "shrink-0",
-                isActive ? (isOwnerLink ? "text-white" : "text-[#1A365D]") : (isOwnerLink ? "text-red-500/50 group-hover:text-red-400" : isPriorityLink ? "text-[#FFC800]" : "text-slate-500 group-hover:text-white")
+                isActive ? (isOwnerLink ? "text-white" : "text-[#1A365D]") : (isOwnerLink ? "text-red-500/50 group-hover:text-red-400" : isPriorityLink ? "text-[#FFC800]" : "text-slate-400 group-hover:text-white")
               )} />
-              {!collapsed && <span>{label}</span>}
+              {!collapsed && <span>{item.label}</span>}
+              
+              {/* Status Pip for Execution items */}
+              {!collapsed && isExecLink && (
+                <div className="ml-auto flex items-center gap-1.5">
+                   <div className="h-2 w-2 rounded-full bg-slate-500/30" />
+                </div>
+              )}
+
               {!collapsed && item.dept && stats[item.dept] > 0 && (
                 <span className={cn(
                   "ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-full",

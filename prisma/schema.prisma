@@ -44,6 +44,7 @@ enum FileCategory {
   TECHNICAL
   COMMERCIAL
   HANDOVER_SHEET
+  EXECUTION
 }
 
 enum LeadStatus {
@@ -117,6 +118,7 @@ model Project {
   createdAt            DateTime       @default(now())
   projectFiles         ProjectFile[]
   handoffLogs          HandoffLog[]
+  executionMetadata    Json?
 
   @@index([organizationId])
   @@index([currentDepartment])

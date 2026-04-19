@@ -6,6 +6,7 @@ import { DashboardNexusProvider } from "@/components/dashboard/DashboardNexusPro
 import { currentUser } from "@clerk/nextjs/server";
 import { getOwnerDashboardData } from "@/app/actions/dashboard";
 import { getEngineeringNexus } from "@/lib/actions/engineering";
+import { getExecutionNexus } from "@/lib/actions/execution";
 
 /**
  * DASHBOARD LAYOUT: Zero-Latency Hybrid Shell
@@ -24,6 +25,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         initialData = await getOwnerDashboardData();
     } else if (department === 'ENGINEERING') {
         initialData = await getEngineeringNexus();
+    } else if (department === 'EXECUTION') {
+        initialData = await getExecutionNexus();
     } else {
         initialData = await getOwnerDashboardData(); // Fallback to safe structure
     }

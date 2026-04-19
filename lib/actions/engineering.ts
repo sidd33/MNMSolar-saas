@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { currentUser, auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
+import { syncUserAndOrg } from "@/app/actions/sync";
 
 /**
  * Security middleware for Engineering actions
@@ -17,15 +18,19 @@ async function validateEngineeringAccess() {
   const role = metadata?.role;
   const department = metadata?.department;
 
+  // Resilience: Always sync to ensure new users are bootstrapped in the DB
+  const syncResult = await syncUserAndOrg();
+  const finalOrgId = syncResult?.orgId || null;
+
   if (role === "OWNER" || role === "SUPER_ADMIN") {
-      return { user, orgId, isEngineering: false, isOwner: true };
+      return { user, orgId: finalOrgId, isEngineering: false, isOwner: true };
   }
 
-  if (role !== "EMPLOYEE" || (department !== "ENGINEERING" && department !== "SALES")) {
-    throw new Error("Access Denied: Engineering or Sales Access Required");
+  if (role !== "EMPLOYEE" || (department !== "ENGINEERING" && department !== "SALES" && department !== "EXECUTION")) {
+    throw new Error("Access Denied: Engineering, Sales, or Execution Access Required");
   }
 
-  return { user, orgId, isEngineering: true, isOwner: false };
+  return { user, orgId: finalOrgId, isEngineering: true, isOwner: false };
 }
 
 export async function getEngineeringDashboardStats(providedOrgId?: string) {
