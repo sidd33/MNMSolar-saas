@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { currentUser, auth } from "@clerk/nextjs/server";
 import { LeadStatus, QuoteStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
 /**
  * Security middleware for Sales actions
@@ -30,15 +31,42 @@ async function validateSalesAccess() {
   return { user, orgId, isSales: true, isOwner: false };
 }
 
+// --- ZOD SCHEMAS ---
+const leadSchema = z.object({
+  name: z.string().min(1),
+  contactPerson: z.string().optional(),
+  mobile: z.string().optional(),
+  email: z.string().email().optional().or(z.literal("")),
+  siteAddress: z.string().optional(),
+  capacityKw: z.number().optional(),
+  estimatedValue: z.number().optional(),
+  status: z.nativeEnum(LeadStatus).optional(),
+  notes: z.string().optional()
+});
+
+const quoteSchema = z.object({
+  leadId: z.string().optional(),
+  projectName: z.string().min(1),
+  clientName: z.string().min(1),
+  capacityKw: z.number().optional(),
+  quotedValue: z.number().optional(),
+  status: z.nativeEnum(QuoteStatus).optional(),
+  notes: z.string().optional(),
+  fileUrl: z.string().optional(),
+  utFileKey: z.string().optional()
+});
+
 // --- LEADS ---
 
 export async function createLead(data: any) {
   const { user, orgId } = await validateSalesAccess();
   if (!orgId) throw new Error("No organization context found");
 
+  const validated = leadSchema.parse(data);
+
   const lead = await prisma.lead.create({
     data: {
-      ...data,
+      ...validated,
       assignedToId: user.id,
       organizationId: orgId,
     },
@@ -52,24 +80,28 @@ export async function updateLead(id: string, data: any) {
   const { orgId } = await validateSalesAccess();
   if (!orgId) throw new Error("No organization context found");
   
+  const validated = leadSchema.partial().parse(data);
+
   const lead = await prisma.lead.update({
     where: { id, organizationId: orgId },
-    data,
+    data: validated,
   });
 
   revalidatePath("/dashboard/sales/leads");
   return lead;
 }
 
-export async function getMyLeads() {
+export async function getMyLeads(page: number = 1) {
   const { user, orgId } = await validateSalesAccess();
-  if (!orgId) return [];
+  if (!orgId) return Object.assign([], { page, hasMore: false }) as any;
 
-  return await prisma.lead.findMany({
+  const data = await prisma.lead.findMany({
     where: { 
         organizationId: orgId,
         assignedToId: user.id
     },
+    take: 50,
+    skip: (page - 1) * 50,
     orderBy: { updatedAt: 'desc' },
     select: {
       id: true,
@@ -95,6 +127,8 @@ export async function getMyLeads() {
       }
     }
   });
+
+  return Object.assign(data, { page, hasMore: data.length === 50 }) as any;
 }
 
 export async function convertLeadToProject(leadId: string) {
@@ -200,9 +234,11 @@ export async function createQuote(data: any) {
   const { user, orgId } = await validateSalesAccess();
   if (!orgId) throw new Error("No organization context found");
 
+  const validated = quoteSchema.parse(data);
+
   const quote = await prisma.quote.create({
     data: {
-      ...data,
+      ...validated,
       assignedToId: user.id,
       organizationId: orgId,
     },
@@ -216,24 +252,28 @@ export async function updateQuote(id: string, data: any) {
   const { orgId } = await validateSalesAccess();
   if (!orgId) throw new Error("No organization context found");
   
+  const validated = quoteSchema.partial().parse(data);
+
   const quote = await prisma.quote.update({
     where: { id, organizationId: orgId },
-    data,
+    data: validated,
   });
 
   revalidatePath("/dashboard/sales/quotes");
   return quote;
 }
 
-export async function getMyQuotes() {
+export async function getMyQuotes(page: number = 1) {
   const { user, orgId } = await validateSalesAccess();
-  if (!orgId) return [];
+  if (!orgId) return Object.assign([], { page, hasMore: false }) as any;
 
-  return await prisma.quote.findMany({
+  const data = await prisma.quote.findMany({
     where: { 
         organizationId: orgId,
         assignedToId: user.id
     },
+    take: 50,
+    skip: (page - 1) * 50,
     orderBy: { updatedAt: 'desc' },
     select: {
       id: true,
@@ -254,19 +294,23 @@ export async function getMyQuotes() {
       }
     }
   });
+
+  return Object.assign(data, { page, hasMore: data.length === 50 }) as any;
 }
 
 // --- PROJECTS ---
 
-export async function getMyProjects() {
+export async function getMyProjects(page: number = 1) {
   const { user, orgId } = await validateSalesAccess();
-  if (!orgId) return [];
+  if (!orgId) return Object.assign([], { page, hasMore: false }) as any;
 
-  return await prisma.project.findMany({
+  const data = await prisma.project.findMany({
     where: { 
         organizationId: orgId,
         createdByUserId: user.id
     },
+    take: 50,
+    skip: (page - 1) * 50,
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,
@@ -285,6 +329,8 @@ export async function getMyProjects() {
       }
     }
   });
+
+  return Object.assign(data, { page, hasMore: data.length === 50 }) as any;
 }
 
 export async function getSalesDashboardStats() {

@@ -49,3 +49,6 @@ graphify-out/
 .claude/
 graph.json
 *.html
+
+tests/
+test-results/

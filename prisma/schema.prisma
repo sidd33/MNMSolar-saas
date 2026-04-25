@@ -92,6 +92,8 @@ model User {
   handoffLogs    HandoffLog[]
   assignedLeads  Lead[]
   assignedQuotes Quote[]
+
+  @@index([organizationId])
 }
 
 model Project {
@@ -135,11 +137,14 @@ model ProjectFile {
   utFileKey      String?
   isArchived     Boolean      @default(false)
   projectId      String
-  project        Project      @relation(fields: [projectId], references: [id])
+  project        Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
   uploadedAtStage String       @default("UNKNOWN")
   createdAt       DateTime     @default(now())
+
+  @@index([projectId])
+  @@index([organizationId])
 }
 
 model Task {
@@ -153,12 +158,16 @@ model Task {
   assigneeId     String?
   assignee       User?        @relation("AssignedTasks", fields: [assigneeId], references: [id])
   projectId      String?
-  project        Project?     @relation(fields: [projectId], references: [id])
+  project        Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
   auditLogs      AuditLog[]
   updatedAt      DateTime     @updatedAt
   createdAt      DateTime     @default(now())
+
+  @@index([projectId])
+  @@index([assigneeId])
+  @@index([organizationId])
 }
 
 model AuditLog {
@@ -173,12 +182,16 @@ model AuditLog {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
   createdAt      DateTime     @default(now())
+
+  @@index([taskId])
+  @@index([userId])
+  @@index([organizationId])
 }
 
 model HandoffLog {
   id             String       @id @default(cuid())
   projectId      String
-  project        Project      @relation(fields: [projectId], references: [id])
+  project        Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   fromDept       String
   toDept         String
   fromStage      String
@@ -189,6 +202,10 @@ model HandoffLog {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
   createdAt      DateTime     @default(now())
+
+  @@index([projectId])
+  @@index([userId])
+  @@index([organizationId])
 }
 
 model StageConfig {
@@ -217,6 +234,9 @@ model Lead {
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
   quotes         Quote[]
+
+  @@index([assignedToId])
+  @@index([organizationId])
 }
 
 model Quote {
@@ -237,4 +257,8 @@ model Quote {
   utFileKey      String?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
+
+  @@index([leadId])
+  @@index([assignedToId])
+  @@index([organizationId])
 }

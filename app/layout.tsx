@@ -37,18 +37,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
-      <html lang="en" suppressHydrationWarning>
-        <body
-          className={`${geistSans.variable} ${geistMono.variable} ${montserrat.variable} antialiased`}
-        >
+    <html lang="en" suppressHydrationWarning>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} ${montserrat.variable} antialiased`}
+      >
+        <ClerkProvider>
           <Toaster position="top-right" expand={false} richColors />
           <Suspense fallback={null}>
             <OrganizationSync />
           </Suspense>
           {children}
-        </body>
-      </html>
-    </ClerkProvider>
+        </ClerkProvider>
+      </body>
+    </html>
   );
 }

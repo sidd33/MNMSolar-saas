@@ -5,6 +5,9 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { syncUserAndOrg } from "./sync";
 import { PipelineStage } from "@/lib/types";
+import { UTApi } from "uploadthing/server";
+
+const utapi = new UTApi();
 
 function calculateBottleneck(liasoningStage: string, executionStage: string): boolean {
   // Rule 1: If executionStage is STRUCTURE or higher but liasoningStage is NOT_STARTED or FEASIBILITY
@@ -209,16 +212,30 @@ export async function forwardProject(formData: FormData) {
 
   if (!projectId || !nextStage) throw new Error("Missing required fields");
 
-  // Read BEFORE update to capture original dept/stage for handoff log
-  const previousProject = await prisma.project.findUnique({ where: { id: projectId, organizationId: sync.orgId } });
+  const expectedCurrentStage = formData.get("currentStage") as string | null;
 
-  // Update Project
-  const project = await prisma.project.update({
-    where: { id: projectId, organizationId: sync.orgId },
-    data: {
-      stage: nextStage,
-      currentDepartment: department || null,
+  let previousProject: any;
+  let project: any;
+
+  // Run in transaction for optimistic concurrency guard
+  project = await prisma.$transaction(async (tx) => {
+    previousProject = await tx.project.findUnique({ 
+      where: { id: projectId, organizationId: sync.orgId } 
+    });
+
+    if (!previousProject) throw new Error("Project not found");
+
+    if (expectedCurrentStage && previousProject.stage !== expectedCurrentStage) {
+      throw new Error("Stage has changed — please refresh and try again.");
     }
+
+    return await tx.project.update({
+      where: { id: projectId, organizationId: sync.orgId },
+      data: {
+        stage: nextStage,
+        currentDepartment: department || null,
+      }
+    });
   });
 
   // Create Audit Log
@@ -411,6 +428,15 @@ export async function deleteProjectFile(fileId: string, projectId: string) {
   });
 
   if (!file) throw new Error("File not found or unauthorized");
+
+  // Fix 5: Clean up UploadThing before DB delete
+  if (file.utFileKey) {
+    try {
+      await utapi.deleteFiles(file.utFileKey);
+    } catch (e) {
+      console.error("Failed to delete from UploadThing:", e);
+    }
+  }
 
   await prisma.projectFile.delete({
     where: { id: fileId }
