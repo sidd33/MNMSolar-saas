@@ -6,52 +6,46 @@ import { Zap } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { EngineeringHandoffCard } from "@/components/workspace/EngineeringHandoffCard";
 import { DepartmentQueueSearch } from "@/components/dashboard/DepartmentQueueSearch";
-import { getProjectDetail } from "@/lib/actions/engineering";
+import { getProjectDetail, getBulkProjectDetails } from "@/lib/actions/engineering";
 import { useState, useEffect } from "react";
 
 /**
  * Detailed Engineering Queue — Ultra-Lean Edition
  * 
  * The Nexus now only provides lightweight project metadata.
- * Files & Tasks are fetched on-demand per project via getProjectDetail().
+ * Files & Tasks are fetched in bulk for all visible projects.
  */
 export default function DetailedEnggQueue() {
   const { data } = useDashboardNexus();
   const projects = data?.projects?.filter((p: any) => p.stage === "DETAILED_ENGG") || [];
   const [detailCache, setDetailCache] = useState<Record<string, any>>({});
-  const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  // Fetch details for all visible projects (lazy batch)
+  // Fetch details for all visible projects (batch)
   useEffect(() => {
-    if (projects.length === 0) return;
+    if (projects.length === 0 || isSyncing) return;
 
-    const uncachedProjects = projects.filter((p: any) => !detailCache[p.id] && !loadingIds.has(p.id));
-    if (uncachedProjects.length === 0) return;
+    const uncachedIds = projects
+      .filter((p: any) => !detailCache[p.id])
+      .map((p: any) => p.id);
 
-    const newLoadingIds = new Set(loadingIds);
-    uncachedProjects.forEach((p: any) => newLoadingIds.add(p.id));
-    setLoadingIds(newLoadingIds);
+    if (uncachedIds.length === 0) return;
 
-    // Fetch details for each project in parallel
-    Promise.all(
-      uncachedProjects.map(async (p: any) => {
-        try {
-          const detail = await getProjectDetail(p.id);
-          return { id: p.id, detail };
-        } catch {
-          return { id: p.id, detail: null };
-        }
-      })
-    ).then((results) => {
-      setDetailCache(prev => {
-        const updated = { ...prev };
-        results.forEach(({ id, detail }) => {
-          if (detail) updated[id] = detail;
+    setIsSyncing(true);
+
+    getBulkProjectDetails(uncachedIds)
+      .then((results) => {
+        setDetailCache(prev => {
+          const updated = { ...prev };
+          results.forEach((detail: any) => {
+            if (detail) updated[detail.id] = detail;
+          });
+          return updated;
         });
-        return updated;
+      })
+      .finally(() => {
+        setIsSyncing(false);
       });
-      setLoadingIds(new Set());
-    });
   }, [projects.length]); // Only re-run when the count changes
 
   return (

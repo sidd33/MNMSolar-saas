@@ -4,13 +4,12 @@ import { useState, useMemo } from "react";
 import { RubyProjectCard } from "@/components/workspace/RubyProjectCard";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp, Search, Loader2 } from "lucide-react";
-import { useDashboardNexus } from "./DashboardNexusProvider";
+import { usePipelineNexus } from "./DashboardNexusProvider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 export function MasterPipeline() {
-  const { data, isLoading } = useDashboardNexus();
-  const projects = data?.projects || [];
+  const { projects, isLoading } = usePipelineNexus();
   const [showAll, setShowAll] = useState(false);
   const [search, setSearch] = useState("");
   

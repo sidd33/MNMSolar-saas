@@ -42,6 +42,16 @@ export async function getAccountsQueue(){
                     "FINAL_HANDOVER"
                 ]
             }
+        },
+        select: {
+            id: true,
+            name: true,
+            clientName: true,
+            dcCapacity: true,
+            orderValue: true,
+            stage: true,
+            updatedAt: true,
+            currentDepartment: true,
         }
     })
 }

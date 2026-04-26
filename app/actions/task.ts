@@ -16,11 +16,8 @@ export async function getMyPriorities() {
 
   const tasks = await prisma.task.findMany({
     where: {
-      projectId: {
-        in: (await prisma.project.findMany({
-          where: { organizationId: orgId },
-          select: { id: true }
-        })).map((p: { id: string }) => p.id)
+      project: {
+        organizationId: orgId,
       },
       assigneeId: userId,
       dueDate: {
@@ -31,8 +28,18 @@ export async function getMyPriorities() {
         notIn: ["DONE"]
       }
     },
-    include: {
-      project: true,
+    select: {
+      id: true,
+      title: true,
+      dueDate: true,
+      status: true,
+      priority: true,
+      project: {
+        select: {
+          id: true,
+          name: true
+        }
+      }
     },
     orderBy: {
       dueDate: "asc", 
@@ -54,19 +61,33 @@ export async function getTeamPulse() {
       action: "CHANGED_STATUS",
       newValue: "DONE",
       task: {
-        projectId: {
-          in: (await prisma.project.findMany({
-            where: { organizationId: orgId },
-            select: { id: true }
-          })).map((p: { id: string }) => p.id)
+        project: {
+          organizationId: orgId,
         }
       }
     },
-    include: {
-      user: true,
+    select: {
+      id: true,
+      action: true,
+      newValue: true,
+      createdAt: true,
+      user: {
+        select: {
+          id: true,
+          email: true,
+          role: true
+        }
+      },
       task: {
-        include: {
-          project: true
+        select: {
+          id: true,
+          title: true,
+          project: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
         }
       }
     },

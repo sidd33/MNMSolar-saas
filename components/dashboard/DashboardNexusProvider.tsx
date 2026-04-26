@@ -14,8 +14,10 @@ import { cn } from "@/lib/utils";
  * It ensures data stays 'Locked' during navigation to prevent full resets.
  */
 
-interface DashboardNexusContextType {
-  data: any;
+interface PipelineContextType {
+  projects: any[];
+  stats: any;
+  activity?: any[]; // Engineering specific activity
   isLoading: boolean;
   isRefreshing: boolean;
   lastSyncedAt: Date | null;
@@ -26,10 +28,38 @@ interface DashboardNexusContextType {
   department: string | null;
 }
 
-const DashboardNexusContext = createContext<DashboardNexusContextType | undefined>(undefined);
+interface AuditContextType {
+  auditLogs: any[];
+  isLoading: boolean;
+  isRefreshing: boolean;
+}
 
-export function DashboardNexusProvider({ children, initialData = null, userId = null, role = null, department = null }: { children: React.ReactNode; initialData?: any; userId?: string | null; role?: string | null; department?: string | null; }) {
-  const [data, setData] = useState<any>(initialData);
+const PipelineContext = createContext<PipelineContextType | undefined>(undefined);
+const AuditContext = createContext<AuditContextType | undefined>(undefined);
+
+export function DashboardNexusProvider({ 
+  children, 
+  initialData = null, 
+  userId = null, 
+  role = null, 
+  department = null 
+}: { 
+  children: React.ReactNode; 
+  initialData?: any; 
+  userId?: string | null; 
+  role?: string | null; 
+  department?: string | null; 
+}) {
+  // Split state to allow selective re-renders
+  const [pipelineData, setPipelineData] = useState<any>(initialData ? { 
+    projects: initialData.projects, 
+    stats: initialData.stats,
+    activity: initialData.activity
+  } : null);
+  const [auditData, setAuditData] = useState<any>(initialData ? { 
+    auditLogs: initialData.auditLogs 
+  } : null);
+  
   const [isLoading, setIsLoading] = useState(!initialData);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(initialData ? new Date() : null);
@@ -42,11 +72,11 @@ export function DashboardNexusProvider({ children, initialData = null, userId = 
   const fetchData = useCallback(async (isSilent = false) => {
     if (!userId || !isMounted.current) return;
     
-    if (!isSilent && !data) setIsLoading(true);
+    if (!isSilent && !pipelineData) setIsLoading(true);
     if (!isSilent && isMounted.current) setIsRefreshing(true);
     
     try {
-      let result;
+      let result: any;
       if (role === 'OWNER' || role === 'SUPER_ADMIN') {
         result = await getOwnerDashboardData();
       } else if (department === 'ENGINEERING') {
@@ -56,7 +86,15 @@ export function DashboardNexusProvider({ children, initialData = null, userId = 
       }
 
       if (result && isMounted.current) {
-        setData(result);
+        setPipelineData({ 
+          projects: result.projects || [], 
+          stats: result.stats || null,
+          activity: result.activity || undefined
+        });
+        setAuditData({ 
+          auditLogs: result.auditLogs || [] 
+        });
+        
         const now = new Date();
         setLastSyncedAt(now);
         lastFetchRef.current = now.getTime();
@@ -69,16 +107,15 @@ export function DashboardNexusProvider({ children, initialData = null, userId = 
         setIsLoading(false);
       }
     }
-  }, [userId, role, department]);
+  }, [userId, role, department, pipelineData]);
 
   // Global Pulse System
   useEffect(() => {
     isMounted.current = true;
     
-    // Skip initial fetch if we have server-side data natively injected.
     if (!hasInitializedRender.current) {
         hasInitializedRender.current = true;
-        if (userId && !data) {
+        if (userId && !pipelineData) {
            fetchData();
         }
     }
@@ -96,7 +133,6 @@ export function DashboardNexusProvider({ children, initialData = null, userId = 
         const now = Date.now();
         const inactiveTime = now - lastActivityRef.current;
         const staleTime = now - lastFetchRef.current;
-        // High-frequency pulse: check every 30 seconds, sync if stale > 60 seconds
         if (userId && inactiveTime < 600000 && !document.hidden && staleTime > 60000) {
           fetchData(true);
         }
@@ -110,7 +146,7 @@ export function DashboardNexusProvider({ children, initialData = null, userId = 
   }, [fetchData, userId]);
 
   const updateLocalProject = useCallback((projectId: string, updates: any) => {
-    setData((prev: any) => {
+    setPipelineData((prev: any) => {
       if (!prev) return prev;
       const projects = prev.projects || [];
       return {
@@ -121,7 +157,16 @@ export function DashboardNexusProvider({ children, initialData = null, userId = 
   }, []);
 
   const updateLocalData = useCallback((updates: any) => {
-    setData((prev: any) => ({ ...prev, ...updates }));
+    if (updates.projects) {
+        setPipelineData((prev: any) => ({ ...prev, projects: updates.projects }));
+    }
+    if (updates.auditLogs) {
+        setAuditData((prev: any) => ({ ...prev, auditLogs: updates.auditLogs }));
+    }
+    // Fallback for other generic updates
+    if (!updates.projects && !updates.auditLogs) {
+        setPipelineData((prev: any) => ({ ...prev, ...updates }));
+    }
   }, []);
 
   const refresh = useCallback(async () => {
@@ -129,8 +174,10 @@ export function DashboardNexusProvider({ children, initialData = null, userId = 
     toast.success("Operational Intel Updated");
   }, [fetchData]);
 
-  const value = useMemo(() => ({
-    data,
+  const pipelineValue = useMemo(() => ({
+    projects: pipelineData?.projects || [],
+    stats: pipelineData?.stats || null,
+    activity: pipelineData?.activity,
     isLoading,
     isRefreshing,
     lastSyncedAt,
@@ -139,23 +186,28 @@ export function DashboardNexusProvider({ children, initialData = null, userId = 
     updateLocalData,
     role,
     department
-  }), [data, isLoading, isRefreshing, lastSyncedAt, refresh, updateLocalProject, updateLocalData, role, department]);
+  }), [pipelineData, isLoading, isRefreshing, lastSyncedAt, refresh, updateLocalProject, updateLocalData, role, department]);
+
+  const auditValue = useMemo(() => ({
+    auditLogs: auditData?.auditLogs || [],
+    isLoading,
+    isRefreshing
+  }), [auditData, isLoading, isRefreshing]);
 
   return (
-    <DashboardNexusContext.Provider value={value}>
-      <div className="relative min-h-screen">
-        <GlobalNexusPulse />
-        {children}
-      </div>
-    </DashboardNexusContext.Provider>
+    <PipelineContext.Provider value={pipelineValue}>
+      <AuditContext.Provider value={auditValue}>
+        <div className="relative min-h-screen">
+          <GlobalNexusPulse />
+          {children}
+        </div>
+      </AuditContext.Provider>
+    </PipelineContext.Provider>
   );
 }
 
-/**
- * Global Nexus Pulse: Sub-HUD
- */
 function GlobalNexusPulse() {
-    const context = useContext(DashboardNexusContext);
+    const context = useContext(PipelineContext);
     if (!context) return null;
     const { lastSyncedAt, isRefreshing, refresh } = context;
 
@@ -181,12 +233,26 @@ function GlobalNexusPulse() {
     );
 }
 
+export function usePipelineNexus() {
+  const context = useContext(PipelineContext);
+  if (!context) throw new Error("usePipelineNexus must be used within DashboardNexusProvider");
+  return context;
+}
+
+export function useAuditNexus() {
+  const context = useContext(AuditContext);
+  if (!context) throw new Error("useAuditNexus must be used within DashboardNexusProvider");
+  return context;
+}
+
+// Legacy hook for backward compatibility
 export function useDashboardNexus() {
-  const context = useContext(DashboardNexusContext);
-  if (!context) {
-    // Return safe fallback for during SSR or before mount
+  const pipeline = useContext(PipelineContext);
+  const audit = useContext(AuditContext);
+  
+  if (!pipeline || !audit) {
     return {
-      data: null,
+      data: { projects: [], stats: null, auditLogs: [], activity: [] },
       isLoading: true,
       isRefreshing: false,
       lastSyncedAt: null,
@@ -197,5 +263,23 @@ export function useDashboardNexus() {
       department: null
     };
   }
-  return context;
+
+  return {
+    data: {
+      projects: pipeline.projects,
+      stats: pipeline.stats,
+      auditLogs: audit.auditLogs,
+      activity: pipeline.activity || []
+    },
+    isLoading: pipeline.isLoading,
+    isRefreshing: pipeline.isRefreshing,
+    lastSyncedAt: pipeline.lastSyncedAt,
+    refresh: pipeline.refresh,
+    updateLocalProject: pipeline.updateLocalProject,
+    updateLocalData: pipeline.updateLocalData,
+    role: pipeline.role,
+    department: pipeline.department
+  };
 }
+
+

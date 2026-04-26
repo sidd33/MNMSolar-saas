@@ -8,7 +8,7 @@ import { EngineeringHandoffCard } from "@/components/workspace/EngineeringHandof
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { getProjectDetail } from "@/lib/actions/engineering";
+import { getProjectDetail, getBulkProjectDetails } from "@/lib/actions/engineering";
 
 export default function EngineeringSurveyQueue() {
   const { data } = useDashboardNexus();
@@ -26,37 +26,32 @@ export default function EngineeringSurveyQueue() {
   const allVisibleProjects = [...surveyProjects, ...detailedProjects];
 
   const [detailCache, setDetailCache] = useState<Record<string, any>>({});
-  const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
-    if (allVisibleProjects.length === 0) return;
+    if (allVisibleProjects.length === 0 || isSyncing) return;
 
-    const uncachedProjects = allVisibleProjects.filter((p: any) => !detailCache[p.id] && !loadingIds.has(p.id));
-    if (uncachedProjects.length === 0) return;
+    const uncachedIds = allVisibleProjects
+      .filter((p: any) => !detailCache[p.id])
+      .map((p: any) => p.id);
 
-    const newLoadingIds = new Set(loadingIds);
-    uncachedProjects.forEach((p: any) => newLoadingIds.add(p.id));
-    setLoadingIds(newLoadingIds);
+    if (uncachedIds.length === 0) return;
 
-    Promise.all(
-      uncachedProjects.map(async (p: any) => {
-        try {
-          const detail = await getProjectDetail(p.id);
-          return { id: p.id, detail };
-        } catch {
-          return { id: p.id, detail: null };
-        }
-      })
-    ).then((results) => {
-      setDetailCache(prev => {
-        const updated = { ...prev };
-        results.forEach(({ id, detail }) => {
-          if (detail) updated[id] = detail;
+    setIsSyncing(true);
+
+    getBulkProjectDetails(uncachedIds)
+      .then((results) => {
+        setDetailCache(prev => {
+          const updated = { ...prev };
+          results.forEach((detail: any) => {
+            if (detail) updated[detail.id] = detail;
+          });
+          return updated;
         });
-        return updated;
+      })
+      .finally(() => {
+        setIsSyncing(false);
       });
-      setLoadingIds(new Set());
-    });
   }, [allVisibleProjects.length, searchQuery]);
 
   return (

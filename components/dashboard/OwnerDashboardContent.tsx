@@ -1,6 +1,6 @@
 "use client";
 
-import { useDashboardNexus } from "./DashboardNexusProvider";
+import { usePipelineNexus, useAuditNexus } from "./DashboardNexusProvider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,13 +18,12 @@ import { cn } from "@/lib/utils";
 import { MasterPipeline } from "./MasterPipeline";
 
 export function OwnerDashboardContent() {
-  const { data, isLoading } = useDashboardNexus();
+  const { projects, stats: nexusStats, isLoading: isPipelineLoading, role, department } = usePipelineNexus();
+  const { auditLogs, isLoading: isAuditLoading } = useAuditNexus();
   
-  // Safe extraction from Nexus data
-  const projects = data?.projects || [];
+  const isLoading = isPipelineLoading || isAuditLoading;
   const bottlenecks = projects.filter((p: any) => p.isBottlenecked);
-  const workload = data?.workload || {};
-  const auditLogs = data?.auditLogs || [];
+  const workload = nexusStats?.workload || {};
 
   const stats = [
     { 

@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
 
 export async function archiveProjectFiles(projectId: string) {
   const project = await prisma.project.findUnique({
@@ -23,7 +24,7 @@ export async function archiveProjectFiles(projectId: string) {
   let failed = 0;
   let errors: string[] = [];
 
-  for (const file of files) {
+  const archivePromises = files.map(async (file) => {
     try {
       // Safely resolve the URL whether it's in the new fileUrl field or legacy content field
       let targetUrl = file.fileUrl;
@@ -34,7 +35,7 @@ export async function archiveProjectFiles(projectId: string) {
       // If it's pure base64 (no URL), we can't 'fetch' it, so we skip it (it's already in DB anyway)
       if (!targetUrl || !targetUrl.startsWith('http')) {
           console.log(`Skipping non-URL file: ${file.name}`);
-          continue;
+          return { status: 'skipped', name: file.name };
       }
 
       const response = await fetch(`${process.env.BRIDGE_AGENT_URL}/archive`, {
@@ -77,28 +78,38 @@ export async function archiveProjectFiles(projectId: string) {
         }
       });
 
-      archived++;
       console.log(`Archived: ${file.name}`);
+      return { status: 'archived', name: file.name };
     } catch (error: any) {
       console.error(`Failed to archive ${file.name}:`, error);
+      throw new Error(`${file.name}: ${error.message}`);
+    }
+  });
+
+  const results = await Promise.allSettled(archivePromises);
+
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      if (result.value.status === 'archived') archived++;
+    } else {
       failed++;
-      errors.push(`${file.name}: ${error.message}`);
+      errors.push(result.reason.message);
     }
   }
 
+  revalidatePath('/dashboard');
   return { archived, failed, errors };
 }
 
 export async function getArchiveStatus(projectId: string) {
-  const files = await prisma.projectFile.findMany({
-    where: { projectId }
-  });
+  const [total, archived] = await Promise.all([
+    prisma.projectFile.count({ where: { projectId } }),
+    prisma.projectFile.count({ where: { projectId, isArchived: true } })
+  ]);
 
-  const archived = files.filter(f => f.isArchived).length;
-  
   return { 
-    total: files.length, 
-    archived: archived, 
-    pending: files.length - archived 
+    total, 
+    archived, 
+    pending: total - archived 
   };
 }

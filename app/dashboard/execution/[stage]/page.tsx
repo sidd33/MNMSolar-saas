@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { HardHat, Search, Layers, Truck, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { getProjectDetail } from "@/lib/actions/engineering";
+import { getProjectDetail, getBulkProjectDetails } from "@/lib/actions/engineering";
 import { ExecutionProjectManager } from "@/components/workspace/ExecutionProjectManager";
 import { ExecutionSection } from "@/components/workspace/ExecutionProjectSidebar";
 
@@ -16,7 +16,7 @@ export default function ExecutionStagePage() {
   const { data } = useDashboardNexus();
   const [searchQuery, setSearchQuery] = useState("");
   const [detailCache, setDetailCache] = useState<Record<string, any>>({});
-  const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Map slug to internal section ID
   const slugMap: Record<string, ExecutionSection> = {
@@ -36,35 +36,31 @@ export default function ExecutionStagePage() {
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
 
-  // Lazy loading details in background
+  // Batch loading details
   useEffect(() => {
-    if (baseProjects.length === 0) return;
-    const uncachedProjects = baseProjects.filter((p: any) => !detailCache[p.id] && !loadingIds.has(p.id));
-    if (uncachedProjects.length === 0) return;
+    if (baseProjects.length === 0 || isSyncing) return;
+    
+    const uncachedIds = baseProjects
+      .filter((p: any) => !detailCache[p.id])
+      .map((p: any) => p.id);
 
-    const newLoadingIds = new Set(loadingIds);
-    uncachedProjects.forEach((p: any) => newLoadingIds.add(p.id));
-    setLoadingIds(newLoadingIds);
+    if (uncachedIds.length === 0) return;
 
-    Promise.all(
-      uncachedProjects.map(async (p: any) => {
-        try {
-          const detail = await getProjectDetail(p.id);
-          return { id: p.id, detail };
-        } catch {
-          return { id: p.id, detail: null };
-        }
-      })
-    ).then((results) => {
-      setDetailCache(prev => {
-        const updated = { ...prev };
-        results.forEach(({ id, detail }) => {
-          if (detail) updated[id] = detail;
+    setIsSyncing(true);
+
+    getBulkProjectDetails(uncachedIds)
+      .then((results) => {
+        setDetailCache(prev => {
+          const updated = { ...prev };
+          results.forEach((detail: any) => {
+            if (detail) updated[detail.id] = detail;
+          });
+          return updated;
         });
-        return updated;
+      })
+      .finally(() => {
+        setIsSyncing(false);
       });
-      setLoadingIds(new Set());
-    });
   }, [baseProjects.length, searchQuery]);
 
   return (

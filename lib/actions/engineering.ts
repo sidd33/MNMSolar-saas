@@ -168,3 +168,47 @@ export async function getProjectDetail(projectId: string) {
         }
     });
 }
+/**
+ * Bulk Detail Loader
+ * Fetches heavy data (files, tasks) for MULTIPLE projects in one query.
+ * Replaces N+1 loops in dashboard pages.
+ */
+export async function getBulkProjectDetails(projectIds: string[]) {
+    const { orgId } = await validateEngineeringAccess();
+    if (!orgId || projectIds.length === 0) return [];
+
+    return await prisma.project.findMany({
+        where: { 
+            id: { in: projectIds }, 
+            organizationId: orgId 
+        },
+        select: {
+            id: true,
+            name: true,
+            stage: true,
+            currentDepartment: true,
+            sanctionedLoad: true,
+            updatedAt: true,
+            projectFiles: {
+                select: {
+                    id: true,
+                    name: true,
+                    category: true,
+                    fileUrl: true,
+                    utFileKey: true,
+                    uploadedAtStage: true,
+                    createdAt: true
+                }
+            },
+            tasks: {
+                select: {
+                    id: true,
+                    title: true,
+                    priority: true,
+                    status: true,
+                    assignee: { select: { email: true } }
+                }
+            }
+        }
+    });
+}

@@ -34,11 +34,29 @@ export async function getProjectsWithTasks(showOnlyMyTasks?: boolean) {
 
   const projects = await prisma.project.findMany({
     where: { organizationId: orgId },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      stage: true,
+      currentDepartment: true,
+      updatedAt: true,
+      isBottlenecked: true,
+      clientName: true,
       tasks: {
         where: showOnlyMyTasks ? { assigneeId: userId } : undefined,
-        include: {
-          assignee: true,
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          priority: true,
+          dueDate: true,
+          assigneeId: true,
+          assignee: {
+            select: {
+              id: true,
+              email: true,
+            },
+          },
         },
         orderBy: { dueDate: 'asc' }
       }
@@ -282,9 +300,39 @@ export async function getProject360Data(projectId: string) {
 
   const project = await prisma.project.findUnique({
     where: { id: projectId, organizationId: sync.orgId },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      stage: true,
+      liasoningStage: true,
+      executionStage: true,
+      currentDepartment: true,
+      clientName: true,
+      address: true,
+      dcCapacity: true,
+      sanctionedLoad: true,
+      orderValue: true,
+      projectType: true,
+      primaryContactName: true,
+      primaryContactMobile: true,
+      updatedAt: true,
+      createdAt: true,
       handoffLogs: {
-        include: { user: true },
+        select: {
+          id: true,
+          fromDept: true,
+          toDept: true,
+          fromStage: true,
+          toStage: true,
+          comment: true,
+          createdAt: true,
+          user: {
+            select: {
+              id: true,
+              email: true
+            }
+          }
+        },
         orderBy: { createdAt: 'desc' }
       },
       projectFiles: {
@@ -301,8 +349,19 @@ export async function getProject360Data(projectId: string) {
         orderBy: { createdAt: 'desc' }
       },
       tasks: {
-        orderBy: [{ createdAt: 'desc' }] as any,
-        include: { assignee: true }
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          priority: true,
+          assignee: {
+            select: {
+              id: true,
+              email: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
       }
     }
   });
