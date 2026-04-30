@@ -1,21 +1,7 @@
 "use client";
 
 import { useDashboardNexus } from "@/components/dashboard/DashboardNexusProvider";
-import { 
-  Briefcase, 
-  Settings, 
-  MapPin, 
-  AlertTriangle, 
-  ArrowUpRight, 
-  Clock, 
-  CheckCircle2,
-  ListTodo,
-  TrendingUp,
-  CircleArrowRight,
-  Zap,
-  FolderLock,
-  Loader2
-} from "lucide-react";
+import { Settings, MapPin, AlertTriangle, Clock, ListTodo, CircleArrowRight, Zap, FolderLock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";

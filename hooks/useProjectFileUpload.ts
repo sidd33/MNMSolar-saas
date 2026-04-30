@@ -27,7 +27,6 @@ export function useProjectFileUpload() {
       setProgress(p);
     },
     onClientUploadComplete: async (res) => {
-      console.log("Handoff upload complete:", res);
       if (!res || res.length === 0) return;
       
       const { projectId, category, fileId, stage, onSuccess } = uploadMeta.current;
@@ -39,7 +38,6 @@ export function useProjectFileUpload() {
          const utFileKey = uploaded.key;
          const fileName = uploaded.name;
          
-         console.log(`Saving to DB - fileUrl: ${fileUrl} for project: ${projectId}`);
          
          const formData = new FormData();
          formData.append("projectId", projectId);
@@ -53,7 +51,6 @@ export function useProjectFileUpload() {
 
          const savedFile = await uploadProjectFile(formData);
          savedFiles.push(savedFile);
-         console.log("Successfully saved fileUrl:", fileUrl);
       }
       
       if (onSuccess) {
@@ -127,7 +124,6 @@ export function useProjectFileUpload() {
     const reduction = ((original - compressed) / original * 100).toFixed(1);
     const originMB = (original / (1024 * 1024)).toFixed(2);
     const compMB = (compressed / (1024 * 1024)).toFixed(2);
-    console.log(`[Compression] ${name}: ${originMB}MB → ${compMB}MB (${reduction}% reduction)`);
   };
 
   const uploadFiles = async (

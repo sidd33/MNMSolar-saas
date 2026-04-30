@@ -6,6 +6,8 @@ import { revalidatePath } from "next/cache";
 import { syncUserAndOrg } from "./sync";
 import { PipelineStage } from "@/lib/types";
 import { UTApi } from "uploadthing/server";
+import { z } from "zod";
+import { QuoteStatus, LeadStatus } from "@prisma/client";
 
 const utapi = new UTApi();
 
@@ -133,9 +135,16 @@ export async function createProject(formData: FormData) {
   const executionStage = (formData.get("executionStage") as string) || "SURVEY";
   const isBottlenecked = calculateBottleneck(liasoningStage, executionStage);
 
+  const department = formData.get("department") as string || "Sales";
+  const deptEnum = z.enum(["Sales", "Engineering", "Execution", "Accounts"]);
+  const validatedDept = deptEnum.parse(department);
+
+  const projectCount = await prisma.project.count({ where: { organizationId: orgId } });
+  const projectCode = `PROJ-${1000 + projectCount + 1}`;
+
   const project = await prisma.project.create({
     data: {
-      name,
+      name: `[${projectCode}] ${name}`,
       clientName: clientName || null,
       address: address || null,
       dcCapacity: dcCapacity || "50 kWp",
@@ -144,7 +153,7 @@ export async function createProject(formData: FormData) {
       primaryContactName: primaryContactName || null,
       primaryContactMobile: primaryContactMobile || null,
       organizationId: orgId,
-      currentDepartment: "Sales",
+      currentDepartment: validatedDept,
       liasoningStage: liasoningStage as any,
       executionStage: executionStage as any,
       isBottlenecked,
@@ -175,7 +184,7 @@ export async function createProject(formData: FormData) {
       fromDept: "CLIENT",
       toDept: "SALES",
       fromStage: "LAUNCH",
-      toStage: "PROSPECT",
+      toStage: "SITE_SURVEY",
       userId: sync.userId,
       comment: "Project Initialized: Solar OS operational pipeline launched.",
       organizationId: orgId
@@ -247,11 +256,111 @@ export async function forwardProject(formData: FormData) {
       throw new Error("Stage has changed — please refresh and try again.");
     }
 
+    // FIX 3: Linear Stage Enforcement
+    const PIPELINE_ORDER = [
+      "SITE_SURVEY", "DETAILED_ENGG",
+      "WORK_ORDER", "HANDOVER_TO_EXECUTION", "MATERIAL_PROCUREMENT",
+      "STRUCTURE_ERECTION", "PV_PANEL_INSTALLATION", "AC_DC_INSTALLATION",
+      "NET_METERING", "FINAL_HANDOVER"
+    ];
+
+    const currentIndex = PIPELINE_ORDER.indexOf(previousProject.stage);
+    const nextIndex = PIPELINE_ORDER.indexOf(nextStage);
+    const isOwner = sync.user?.role === 'OWNER' || sync.user?.role === 'SUPER_ADMIN';
+
+    if (!isOwner && nextIndex !== currentIndex + 1) {
+      throw new Error("Cannot advance past one stage at a time");
+    }
+
+    // FIX 4: Technical Gate Enforcement
+    const projectFiles = await tx.projectFile.findMany({ where: { projectId, organizationId: sync.orgId } });
+    const hasFile = (pattern: string) => projectFiles.some(f => f.name.includes(`[${pattern}]`) || f.name.toUpperCase().includes(pattern));
+
+    if (previousProject.stage === "SITE_SURVEY") {
+      const surveyReport = projectFiles.some(f => f.name.includes("[SURVEY_REPORT]") || f.name.toUpperCase().includes("SURVEY"));
+      if (!surveyReport) throw new Error("Technical Gate: Survey Report missing. Engineering must upload it before dispatch.");
+    }
+
+    if (previousProject.stage === "DETAILED_ENGG") {
+      const sld = hasFile("SLD");
+      const layout = hasFile("LAYOUT");
+      const structural = hasFile("STRUCTURAL");
+      const bom = hasFile("BOM");
+      const surveyVerified = !!previousProject.sanctionedLoad && previousProject.sanctionedLoad !== " kW" && previousProject.sanctionedLoad !== "";
+      
+      if (!surveyVerified || !sld || !layout || !structural || !bom) {
+          throw new Error("Technical Gate: Engineering checklist incomplete (SLD, Layout, Structural, or BoM missing).");
+      }
+      
+      const agreement = hasFile("AGREEMENT");
+      const testRecord = hasFile("TEST_RECORD") || hasFile("TEST_RECORDS");
+      const earthTest = hasFile("EARTH_TEST");
+      const workComp = hasFile("WORK_COMP") || hasFile("WORK COMPLETION") || hasFile("WORK_COMPLETION");
+      const annexures = projectFiles.filter(f => f.name.toLowerCase().includes("annexure")).length;
+      
+      if (!agreement || !testRecord || !earthTest || !workComp || annexures < 5) {
+          throw new Error("Technical Gate: Liaisoning documentation incomplete (Agreement, Test Records, or Annexures missing).");
+      }
+    }
+
+    // Determine track stage updates
+    const trackUpdates: any = {};
+    if (nextStage === "DETAILED_ENGG") trackUpdates.liasoningStage = "FEASIBILITY";
+    if (nextStage === "WORK_ORDER") trackUpdates.liasoningStage = "L1_APPROVED";
+    if (nextStage === "NET_METERING") trackUpdates.liasoningStage = "AGREEMENT";
+    if (nextStage === "FINAL_HANDOVER") trackUpdates.liasoningStage = "COMMISSIONED";
+
+    if (nextStage === "SITE_SURVEY") trackUpdates.executionStage = "SURVEY";
+    if (nextStage === "STRUCTURE_ERECTION") trackUpdates.executionStage = "STRUCTURE";
+    if (nextStage === "PV_PANEL_INSTALLATION") trackUpdates.executionStage = "PANEL_INSTALL";
+    if (nextStage === "AC_DC_INSTALLATION") trackUpdates.executionStage = "INVERTER_WIRING";
+
+    let finalNextStage = nextStage;
+
+    // SPECIAL CASE: SITE_SURVEY completion for Preliminary Projects
+    // Preliminary surveys stay at SITE_SURVEY but return to Sales for quoting
+    if (previousProject.stage === "SITE_SURVEY" && previousProject.isPreliminary) {
+        // 1. Create Quote record for Sales
+        const dcCapacityValue = previousProject.dcCapacity ? parseFloat(previousProject.dcCapacity.replace(/[^\d.]/g, '')) : null;
+        
+        await tx.quote.create({
+            data: {
+                projectName: previousProject.name,
+                clientName: previousProject.clientName || previousProject.name,
+                capacityKw: (dcCapacityValue && !isNaN(dcCapacityValue)) ? dcCapacityValue : null,
+                quotedValue: null,
+                status: QuoteStatus.DRAFT,
+                notes: 'Auto-generated from preliminary site survey completion.',
+                assignedToId: previousProject.originatedByUserId,
+                leadId: previousProject.leadId,
+                organizationId: sync.orgId,
+            }
+        });
+
+        // 2. Update Lead Status
+        if (previousProject.leadId) {
+            await tx.lead.update({
+                where: { id: previousProject.leadId },
+                data: { status: LeadStatus.QUOTE_SENT }
+            });
+        }
+
+        // 3. Force Department back to Sales and KEEP stage at SITE_SURVEY
+        trackUpdates.currentDepartment = 'Sales';
+        finalNextStage = "SITE_SURVEY" as any;
+    }
+
+    const newLiasoningStage = trackUpdates.liasoningStage || previousProject.liasoningStage;
+    const newExecutionStage = trackUpdates.executionStage || previousProject.executionStage;
+    const isBottlenecked = calculateBottleneck(newLiasoningStage, newExecutionStage);
+
     return await tx.project.update({
       where: { id: projectId, organizationId: sync.orgId },
       data: {
-        stage: nextStage,
-        currentDepartment: department || null,
+        stage: finalNextStage,
+        currentDepartment: trackUpdates.currentDepartment || department || null,
+        ...trackUpdates,
+        isBottlenecked
       }
     });
   });
@@ -267,13 +376,14 @@ export async function forwardProject(formData: FormData) {
   `;
 
   // 📝 Create Handoff Log for Timeline
+  const isPrelimHandoff = previousProject.stage === "SITE_SURVEY" && previousProject.isPreliminary;
   await (prisma as any).handoffLog.create({
     data: {
       project: { connect: { id: projectId } },
       fromDept: previousProject?.currentDepartment || "Sales",
-      toDept: department || nextStage,
-      fromStage: previousProject?.stage || "PROSPECT",
-      toStage: nextStage,
+      toDept: isPrelimHandoff ? "Sales" : (department || nextStage),
+      fromStage: previousProject?.stage || "SITE_SURVEY",
+      toStage: isPrelimHandoff ? "SITE_SURVEY" : nextStage,
       user: { connect: { id: sync.userId } },
       comment: comment || "Standard departmental handoff",
       organization: { connect: { id: sync.orgId } }
@@ -284,12 +394,14 @@ export async function forwardProject(formData: FormData) {
     import('@/lib/actions/archive').then(({ archiveProjectFiles }) => {
       archiveProjectFiles(projectId).catch(e => console.error("Auto-archive failed:", e));
     });
-    console.log(`Archive triggered for project: ${projectId}`);
   }
 
   revalidatePath(`/dashboard/projects`);
   revalidatePath(`/dashboard/owner`);
   revalidatePath(`/dashboard/department/${department}`);
+  revalidatePath('/dashboard/sales/quotes');
+  revalidatePath('/dashboard/sales');
+  revalidatePath('/dashboard/sales/leads');
   
   return project;
 }

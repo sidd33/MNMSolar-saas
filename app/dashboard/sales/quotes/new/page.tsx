@@ -2,20 +2,8 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { createQuote, getMyLeads } from "@/lib/actions/sales";
-import { 
-  FileText, 
-  Target, 
-  User, 
-  Zap, 
-  ArrowLeft,
-  ChevronRight,
-  ShieldCheck,
-  CheckCircle2,
-  Sparkles,
-  Link as LinkIcon,
-  Plus,
-  TrendingUp
-} from "lucide-react";
+import { FileText, User, Zap, ArrowLeft, ChevronRight, ShieldCheck, CheckCircle2, TrendingUp, Link2 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -180,7 +168,8 @@ function NewQuotePageContent() {
             <div className="space-y-2">
               <Label htmlFor="fileUrl" className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Proposal PDF Link (e.g. Google Drive/Dropbox)</Label>
               <div className="relative">
-                <LinkIcon size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                <Link2 size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+
                 <Input 
                   id="fileUrl" 
                   name="fileUrl" 

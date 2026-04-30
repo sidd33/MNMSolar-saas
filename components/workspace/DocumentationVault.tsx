@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { ShieldCheck, Zap, Receipt, CheckCircle2, Eye, Upload, Loader2 } from "lucide-react";
+import { ShieldCheck, Zap, Receipt, CheckCircle2, Eye, Upload, Loader2, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getProjectFiles } from "@/app/actions/project";
 import { toast } from "sonner";
@@ -24,6 +24,7 @@ export function DocumentationVault({ projectId, projectStage, initialFiles, onFi
     { id: "LIAISONING", label: "Liaisoning Docs", icon: ShieldCheck, sub: "Feasibility, DISCOM App" },
     { id: "TECHNICAL", label: "Technical Docs", icon: Zap, sub: "Site Survey, SLD Drawings" },
     { id: "COMMERCIAL", label: "Commercial Docs", icon: Receipt, sub: "Agreement, Receipts" },
+    ...(projectStage === "SITE_SURVEY" ? [{ id: "HANDOVER_SHEET", label: "Handover Sheet", icon: FileText, sub: "Capacity, Price, Payment Terms" }] : [])
   ];
 
   const hasCategory = (cat: string) => files.some(f => f.category === cat && f.uploadedAtStage === projectStage);

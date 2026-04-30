@@ -2,22 +2,24 @@
 
 import { useState } from "react";
 import { SharedAnnexureModule } from "./SharedAnnexureModule";
-import { 
-    Package, 
-    FileText, 
-    FileUp, 
-    CheckCircle2, 
-    Truck, 
-    Box, 
-    Zap, 
-    Layers 
-} from "lucide-react";
+import { Package, FileText, FileUp, CheckCircle2, Truck, Box, Zap, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { updateExecutionMetadata } from "@/lib/actions/execution";
 import { useDashboardNexus } from "../dashboard/DashboardNexusProvider";
+import { forwardProject } from "@/app/actions/project";
+import { 
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface ProcurementModuleProps {
     project: any;
@@ -26,6 +28,7 @@ interface ProcurementModuleProps {
 export function ProcurementModule({ project }: ProcurementModuleProps) {
     const { updateLocalProject } = useDashboardNexus();
     const [view, setView] = useState<"material" | "liaisoning">("material");
+    const [isOpen, setIsOpen] = useState(false);
     
     // Extract metadata or use defaults
     const metadata = project.executionMetadata || {};
@@ -52,6 +55,22 @@ export function ProcurementModule({ project }: ProcurementModuleProps) {
             toast.success("Inventory updated");
         } catch (e) {
             toast.error("Failed to sync inventory");
+        }
+    };
+
+    const handleForward = async () => {
+        const formData = new FormData();
+        formData.append("projectId", project.id);
+        formData.append("nextStage", "STRUCTURE_ERECTION");
+        formData.append("department", "Execution");
+        formData.append("currentStage", project.stage);
+
+        try {
+            await forwardProject(formData);
+            toast.success("Project forwarded to Structure Erection");
+            setIsOpen(false);
+        } catch (e: any) {
+            toast.error(e.message || "Failed to forward project");
         }
     };
 
@@ -89,6 +108,41 @@ export function ProcurementModule({ project }: ProcurementModuleProps) {
                         <FileText size={14} /> Liaisoning Docs
                     </button>
                 </div>
+
+                <Dialog open={isOpen} onOpenChange={setIsOpen}>
+                    <DialogTrigger render={
+                        <Button 
+                            className="bg-[#1C3384] hover:bg-[#0F172A] text-white font-black uppercase tracking-widest text-[10px] h-12 px-6 rounded-2xl shadow-lg shadow-blue-900/20 gap-2"
+                        >
+                            <CheckCircle2 size={16} />
+                            Complete & Forward
+                        </Button>
+                    } />
+                    <DialogContent className="rounded-[2rem] border-none shadow-2xl">
+                        <DialogHeader>
+                            <DialogTitle className="font-black uppercase tracking-tight text-xl text-[#1C3384]">Confirm Procurement Completion</DialogTitle>
+                            <DialogDescription className="text-slate-500 font-medium">
+                                This will formally close the Procurement stage and move the project to **Structure Erection**. 
+                                Ensure all critical materials are verified at site.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter className="gap-3 mt-4">
+                            <Button 
+                                variant="outline" 
+                                onClick={() => setIsOpen(false)}
+                                className="rounded-xl font-bold uppercase text-[10px] tracking-widest border-slate-200"
+                            >
+                                Cancel
+                            </Button>
+                            <Button 
+                                onClick={handleForward}
+                                className="bg-[#1C3384] hover:bg-[#0F172A] text-white rounded-xl font-bold uppercase text-[10px] tracking-widest px-8"
+                            >
+                                Dispatch to Site
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
 
             {view === "material" ? (

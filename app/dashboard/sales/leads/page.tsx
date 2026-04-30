@@ -1,7 +1,7 @@
 import { getMyLeads, getSurveyTrackingLeads } from "@/lib/actions/sales";
 import LeadsClient from "./LeadsClient";
 import { Suspense } from "react";
-import { Target } from "lucide-react";
+;
 
 export default async function MyLeadsPage() {
   const [allLeads, surveyLeads] = await Promise.all([

@@ -72,11 +72,8 @@ export default function WorkspacePage() {
         let contactName = "";
         let contactMobile = "";
 
-        console.log("----- EXCEL PARSER DEBUG: START -----");
-
         for (let i = 0; i < Math.min(10, json.length); i++) {
           const row = json[i] || [];
-          console.log(`[Row ${i + 1}, Col A]:`, row[0]);
         }
 
         // 1 & 2. Client Name and Address (Strictly Col A, stop at row 15)
@@ -155,8 +152,6 @@ export default function WorkspacePage() {
             if (exactVal.includes("OPEX")) projectType = "OPEX";
           }
         }
-
-        console.log("----- EXCEL PARSER DEBUG: END -----");
 
         const newName = customerName ? (capacity ? `${customerName} ${capacity}KW` : customerName) : "";
         let filled: string[] = [];

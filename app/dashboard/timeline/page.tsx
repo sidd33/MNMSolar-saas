@@ -1,5 +1,5 @@
 import { getAllProjectsForList, getProjectGanttData } from "@/lib/actions/gantt";
-import { ProjectGantt } from "@/components/gantt/ProjectGantt";
+import { GanttClientWrapper } from "@/components/gantt/GanttClientWrapper";
 import { GanttSummaryStrip } from "@/components/gantt/GanttSummaryStrip";
 import Link from "next/link";
 import { Calendar } from "lucide-react";
@@ -92,7 +92,7 @@ export default async function TimelinePage({
             
             {/* Gantt Chart — fills ALL remaining space */}
             <div className="flex-1 overflow-auto min-h-0">
-              <ProjectGantt tasks={ganttData.ganttData} />
+              <GanttClientWrapper tasks={ganttData.ganttData} />
             </div>
           </>
         ) : (

@@ -1,5 +1,8 @@
 "use client";
 
+import dynamic from "next/dynamic";
+
+
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,14 +11,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Shield, FastForward, ArrowRight, ListTodo, Clock, Eye, DownloadCloud, Settings, Split, CheckCircle2, UploadCloud, AlertCircle, FileText, Receipt, Trash2, Edit3, X } from "lucide-react";
+import { Shield, FastForward, ArrowRight, Clock, Eye, DownloadCloud, Settings, Split, CheckCircle2, UploadCloud, AlertCircle, FileText, Receipt, Trash2, Edit3 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
 import { forwardProject, updateSanctionedLoad, deleteProjectFile } from "@/app/actions/project";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Tooltip } from "@/components/ui/tooltip";
-import { Project360Modal } from "../dashboard/Project360Modal";
+const Project360Modal = dynamic(() => import("@/components/dashboard/Project360Modal").then(mod => mod.Project360Modal), { ssr: false });
 import { useProjectFileUpload } from "@/hooks/useProjectFileUpload";
 import { useDashboardNexus } from "../dashboard/DashboardNexusProvider";
 
@@ -56,7 +59,7 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
   const liaisoningCount = files.filter((f: any) => f.category === "LIAISONING").length;
 
   // Detect stage type
-  const isSiteSurveyStage = ["SITE_SURVEY", "PRELIMINARY_QUOTE"].includes(project.stage);
+  const isSiteSurveyStage = project.stage === "SITE_SURVEY";
 
   // Survey Report file - Lenient Detection
   const surveyReportFile = files.find((f: any) => f.name.includes("[SURVEY_REPORT]") || f.name.toUpperCase().includes("SURVEY"));
@@ -107,13 +110,44 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
   };
 
   async function handleHandoff(formData: FormData) {
-    if (!checklistComplete) {
-      toast.error(isSiteSurveyStage ? "Upload the site survey report first" : "Engineering checklist incomplete");
+    if (isSiteSurveyStage && !surveyReportFile) {
+      toast.error("Survey Report missing. Please upload before dispatching.");
       return;
     }
-    await forwardProject(formData);
-    toast.success("Project dispatched successfully");
-    refresh();
+
+    if (!checklistComplete) {
+      toast.error(isSiteSurveyStage ? "Upload the site survey report and verify load first" : "Engineering checklist incomplete");
+      return;
+    }
+
+    const PIPELINE_STAGES = [
+      "SITE_SURVEY", "DETAILED_ENGG",
+      "WORK_ORDER", "HANDOVER_TO_EXECUTION", "MATERIAL_PROCUREMENT",
+      "STRUCTURE_ERECTION", "PV_PANEL_INSTALLATION", "AC_DC_INSTALLATION",
+      "NET_METERING", "FINAL_HANDOVER"
+    ];
+
+    const currentIndex = PIPELINE_STAGES.indexOf(project.stage);
+    const nextStage = PIPELINE_STAGES[currentIndex + 1] || project.stage;
+    
+    // Determine target department
+    let targetDept = "Engineering";
+    const executionIndex = PIPELINE_STAGES.indexOf("HANDOVER_TO_EXECUTION");
+    if (PIPELINE_STAGES.indexOf(nextStage) >= executionIndex) {
+      targetDept = "Execution";
+    }
+
+    formData.append("nextStage", nextStage);
+    formData.append("department", targetDept);
+    formData.append("currentStage", project.stage);
+
+    try {
+      await forwardProject(formData);
+      toast.success(`Project dispatched successfully to ${targetDept}`);
+      refresh();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to dispatch project");
+    }
   }
 
   const handleFileUpload = async (tag: string, event: React.ChangeEvent<HTMLInputElement>, existingFileId: string | null = null) => {

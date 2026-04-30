@@ -5,15 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
-import { 
-  AlertTriangle, 
-  Users, 
-  Activity,
-  Zap,
-  PieChart,
-  RefreshCw,
-  Clock,
-} from "lucide-react";
+import { AlertTriangle, Users, Activity, Zap, PieChart, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MasterPipeline } from "./MasterPipeline";
 

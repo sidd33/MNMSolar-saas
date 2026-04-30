@@ -1,5 +1,8 @@
 "use client";
 
+import dynamic from "next/dynamic";
+
+
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,14 +11,15 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Shield, FastForward, ArrowRight, ListTodo, AlertCircle, Clock, Building2, Eye, DownloadCloud, Edit3, Settings, Split } from "lucide-react";
+import { Shield, FastForward, ArrowRight, ListTodo, Clock, Eye, DownloadCloud, Settings, Split } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { forwardProject, updateSanctionedLoad } from "@/app/actions/project";
 import { DocumentationVault } from "./DocumentationVault";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Tooltip } from "@/components/ui/tooltip";
-import { Project360Modal } from "../dashboard/Project360Modal";
+const Project360Modal = dynamic(() => import("@/components/dashboard/Project360Modal").then(mod => mod.Project360Modal), { ssr: false });
+import { useUser } from "@clerk/nextjs";
 
 interface ProjectHandoffCardProps {
   project: any;
@@ -24,7 +28,7 @@ interface ProjectHandoffCardProps {
 }
 
 const PIPELINE_STAGES = [
-  "PROSPECT", "SITE_SURVEY", "PRELIMINARY_QUOTE", "DETAILED_ENGG",
+  "SITE_SURVEY", "DETAILED_ENGG",
   "WORK_ORDER", "HANDOVER_TO_EXECUTION", "MATERIAL_PROCUREMENT",
   "STRUCTURE_ERECTION", "PV_PANEL_INSTALLATION", "AC_DC_INSTALLATION",
   "NET_METERING", "FINAL_HANDOVER"
@@ -37,25 +41,45 @@ export function ProjectHandoffCard({ project, dept, initialFiles }: ProjectHando
   const [modalOpen, setModalOpen] = useState(false);
   const [sanctionedInput, setSanctionedInput] = useState(project.sanctionedLoad?.replace(" kW", "") || "");
   const [isSavingLoad, setIsSavingLoad] = useState(false);
+  const [isForwarding, setIsForwarding] = useState(false);
+
+  const { user } = useUser();
+  const role = user?.publicMetadata?.role as string;
+  const isOwner = role === 'OWNER' || role === 'SUPER_ADMIN';
+
+  const currentIndex = PIPELINE_STAGES.indexOf(project.stage);
+  const selectableStages = isOwner 
+    ? PIPELINE_STAGES 
+    : [project.stage, PIPELINE_STAGES[currentIndex + 1]].filter(Boolean);
 
   const salesHandover = initialFiles.find((f: any) => f.category === "HANDOVER_SHEET");
 
-  const handleSaveLoad = async () => {
-    if (!sanctionedInput) return;
+  const handleUpdateSanctioned = async () => {
     setIsSavingLoad(true);
+    const toastId = toast.loading("Updating sanctioned load...");
     try {
-      const formatted = `${sanctionedInput.replace(/[^\d.]/g, '')} kW`;
-      await updateSanctionedLoad(project.id, formatted);
-      toast.success("Sanctioned load updated");
-    } catch {
-      toast.error("Failed to update load");
+      const val = sanctionedInput.trim() ? `${sanctionedInput.trim()} kW` : null;
+      await updateSanctionedLoad(project.id, val);
+      toast.success("Sanctioned load updated", { id: toastId });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update sanctioned load", { id: toastId });
     } finally {
       setIsSavingLoad(false);
     }
   };
 
   async function handleHandoff(formData: FormData) {
-    const pms = await forwardProject(formData);
+    setIsForwarding(true);
+    const toastId = toast.loading("Authorizing project relay...");
+    formData.append("currentStage", project.stage);
+    try {
+      await forwardProject(formData);
+      toast.success("Project successfully forwarded", { id: toastId });
+    } catch (e: any) {
+      toast.error(e.message || "Failed to forward project", { id: toastId });
+    } finally {
+      setIsForwarding(false);
+    }
   }
 
   return (
@@ -107,7 +131,7 @@ export function ProjectHandoffCard({ project, dept, initialFiles }: ProjectHando
                             />
                             <span className="text-[10px] font-bold text-slate-400 mr-2">kW</span>
                             <Button 
-                                onClick={handleSaveLoad} 
+                                onClick={handleUpdateSanctioned} 
                                 disabled={isSavingLoad}
                                 size="sm" 
                                 className="h-7 w-7 p-0 rounded-lg bg-[#38A169] hover:bg-[#2F855A] text-white"
@@ -211,7 +235,7 @@ export function ProjectHandoffCard({ project, dept, initialFiles }: ProjectHando
                   <SelectValue placeholder="Select Stage" />
                 </SelectTrigger>
                 <SelectContent className="rounded-2xl border-none shadow-2xl">
-                  {PIPELINE_STAGES.map(stage => (
+                  {selectableStages.map(stage => (
                     <SelectItem key={stage} value={stage} className="text-xs font-bold uppercase tracking-tight">{stage.replace(/_/g, ' ')}</SelectItem>
                   ))}
                 </SelectContent>
@@ -249,11 +273,11 @@ export function ProjectHandoffCard({ project, dept, initialFiles }: ProjectHando
             >
               <Button 
                 type="submit" 
-                disabled={!canHandoff}
+                disabled={!canHandoff || isForwarding}
                 className="w-full h-14 font-black rounded-2xl bg-[#FFC800] text-[#1C3384] hover:bg-[#FFD700] transition-all active:scale-95 group shadow-xl flex items-center justify-center gap-3 disabled:bg-white/5 disabled:text-white/20 disabled:shadow-none"
               >
-                {canHandoff ? "AUTHORIZE RELAY" : "LOCKED BY VAULT"} 
-                {canHandoff ? <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" /> : <Shield size={18} className="opacity-20" />}
+                {isForwarding ? "PROCESSING..." : (canHandoff ? "AUTHORIZE RELAY" : "LOCKED BY VAULT")} 
+                {isForwarding ? <Settings className="h-5 w-5 animate-spin" /> : (canHandoff ? <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" /> : <Shield size={18} className="opacity-20" />)}
               </Button>
             </Tooltip>
           </form>

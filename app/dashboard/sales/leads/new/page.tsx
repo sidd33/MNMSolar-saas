@@ -2,21 +2,7 @@
 
 import { useState } from "react";
 import { createLead } from "@/lib/actions/sales";
-import { 
-  Plus, 
-  Target, 
-  User, 
-  Phone, 
-  Mail, 
-  MapPin, 
-  Zap, 
-  Briefcase, 
-  ArrowLeft,
-  ChevronRight,
-  ShieldCheck,
-  CheckCircle2,
-  Sparkles
-} from "lucide-react";
+import { Target, User, Phone, Mail, MapPin, Zap, ArrowLeft, ChevronRight, ShieldCheck, CheckCircle2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

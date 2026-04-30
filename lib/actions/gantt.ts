@@ -43,7 +43,7 @@ export async function getProjectGanttData(projectId: string) {
   const stageConfigs: any[] = await prisma.$queryRaw`SELECT * FROM "StageConfig"`;
 
   const stages = [
-    "PROSPECT", "SITE_SURVEY", "PRELIMINARY_QUOTE", "DETAILED_ENGG", 
+    "SITE_SURVEY", "DETAILED_ENGG", 
     "WORK_ORDER", "HANDOVER_TO_EXECUTION", "MATERIAL_PROCUREMENT", 
     "STRUCTURE_ERECTION", "PV_PANEL_INSTALLATION", "AC_DC_INSTALLATION", 
     "NET_METERING", "FINAL_HANDOVER"

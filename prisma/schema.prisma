@@ -1,18 +1,220 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
+model Organization {
+  id           String        @id @default(cuid())
+  name         String
+  auditLogs    AuditLog[]
+  handoffLogs  HandoffLog[]
+  leads        Lead[]
+  projects     Project[]
+  projectFiles ProjectFile[]
+  quotes       Quote[]
+  tasks        Task[]
+  users        User[]
 }
 
+model User {
+  id             String       @id
+  email          String       @unique
+  role           String?
+  isSuperAdmin   Boolean      @default(false)
+  department     String?
+  organizationId String
+  auditLogs      AuditLog[]
+  handoffLogs    HandoffLog[]
+  assignedLeads  Lead[]
+  assignedQuotes Quote[]
+  tasks          Task[]       @relation("AssignedTasks")
+  organization   Organization @relation(fields: [organizationId], references: [id])
 
+  @@index([organizationId])
+}
+
+model Project {
+  id                   String         @id @default(cuid())
+  name                 String
+  stage                PipelineStage  @default(SITE_SURVEY)
+  liasoningStage       LiasoningStage @default(NOT_STARTED)
+  executionStage       ExecutionStage @default(SURVEY)
+  isBottlenecked       Boolean        @default(false)
+  isPreliminary        Boolean        @default(false)
+  currentDepartment    String?
+  organizationId       String
+  clientName           String?
+  address              String?
+  dcCapacity           String?        @default("50 kWp")
+  sanctionedLoad       String?        @default("40 kW")
+  orderValue           String?
+  projectType          String?
+  primaryContactName   String?
+  primaryContactMobile String?
+  createdByUserId      String?
+  updatedAt            DateTime       @updatedAt
+  createdAt            DateTime       @default(now())
+  executionMetadata    Json?
+  leadId               String?
+  originatedByUserId   String?
+  handoffLogs          HandoffLog[]
+  lead                 Lead?          @relation(fields: [leadId], references: [id])
+  organization         Organization   @relation(fields: [organizationId], references: [id])
+  projectFiles         ProjectFile[]
+  tasks                Task[]
+
+  @@index([organizationId])
+  @@index([currentDepartment])
+  @@index([stage])
+  @@index([isBottlenecked])
+}
+
+model ProjectFile {
+  id              String       @id @default(cuid())
+  name            String
+  category        FileCategory
+  content         String
+  fileUrl         String?
+  utFileKey       String?
+  isArchived      Boolean      @default(false)
+  projectId       String
+  organizationId  String
+  uploadedAtStage String       @default("UNKNOWN")
+  createdAt       DateTime     @default(now())
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  project         Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([organizationId])
+}
+
+model Task {
+  id             String       @id @default(cuid())
+  title          String
+  description    String?
+  status         String       @default("TODO")
+  priority       String       @default("MEDIUM")
+  department     String?
+  dueDate        DateTime?
+  assigneeId     String?
+  projectId      String?
+  organizationId String
+  updatedAt      DateTime     @updatedAt
+  createdAt      DateTime     @default(now())
+  auditLogs      AuditLog[]
+  assignee       User?        @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  project        Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([assigneeId])
+  @@index([organizationId])
+}
+
+model AuditLog {
+  id             String       @id @default(cuid())
+  action         String
+  oldValue       String?
+  newValue       String?
+  userId         String
+  taskId         String?
+  organizationId String
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  task           Task?        @relation(fields: [taskId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+
+  @@index([taskId])
+  @@index([userId])
+  @@index([organizationId])
+}
+
+model HandoffLog {
+  id             String       @id @default(cuid())
+  projectId      String
+  fromDept       String
+  toDept         String
+  fromStage      String
+  toStage        String
+  userId         String
+  comment        String?
+  organizationId String
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  project        Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id])
+
+  @@index([projectId])
+  @@index([userId])
+  @@index([organizationId])
+}
+
+model StageConfig {
+  id           String   @id @default(cuid())
+  stage        String   @unique
+  expectedDays Int
+  label        String
+  updatedAt    DateTime @updatedAt
+}
+
+model Lead {
+  id             String       @id @default(cuid())
+  name           String
+  contactPerson  String?
+  mobile         String?
+  email          String?
+  siteAddress    String?
+  capacityKw     Float?
+  estimatedValue Float?
+  status         LeadStatus   @default(NEW)
+  notes          String?
+  assignedToId   String?
+  organizationId String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  assignedTo     User?        @relation(fields: [assignedToId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  projects       Project[]
+  quotes         Quote[]
+
+  @@index([assignedToId])
+  @@index([organizationId])
+}
+
+model Quote {
+  id                   String       @id @default(cuid())
+  leadId               String?
+  projectName          String
+  clientName           String
+  capacityKw           Float?
+  quotedValue          Float?
+  status               QuoteStatus  @default(DRAFT)
+  notes                String?
+  assignedToId         String?
+  organizationId       String
+  fileUrl              String?
+  utFileKey            String?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  paymentTermsAdvance  Int?
+  paymentTermsFinal    Int?
+  paymentTermsMaterial Int?
+  scopeOfWork          String?
+  assignedTo           User?        @relation(fields: [assignedToId], references: [id])
+  lead                 Lead?        @relation(fields: [leadId], references: [id])
+  organization         Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([leadId])
+  @@index([assignedToId])
+  @@index([organizationId])
+}
 
 enum PipelineStage {
-  PROSPECT
   SITE_SURVEY
-  PRELIMINARY_QUOTE
   DETAILED_ENGG
   WORK_ORDER
   HANDOVER_TO_EXECUTION
@@ -64,201 +266,4 @@ enum QuoteStatus {
   APPROVED
   REJECTED
   CONVERTED
-}
-
-model Organization {
-  id           String        @id @default(cuid())
-  name         String
-  users        User[]
-  projects     Project[]
-  tasks        Task[]
-  auditLogs    AuditLog[]
-  projectFiles ProjectFile[]
-  handoffLogs  HandoffLog[]
-  leads        Lead[]
-  quotes       Quote[]
-}
-
-model User {
-  id             String       @id
-  email          String       @unique
-  role           String?
-  isSuperAdmin   Boolean      @default(false)
-  department     String?
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  tasks          Task[]       @relation("AssignedTasks")
-  auditLogs      AuditLog[]
-  handoffLogs    HandoffLog[]
-  assignedLeads  Lead[]
-  assignedQuotes Quote[]
-
-  @@index([organizationId])
-}
-
-model Project {
-  id                String         @id @default(cuid())
-  name              String
-  stage             PipelineStage  @default(PROSPECT)
-  liasoningStage    LiasoningStage @default(NOT_STARTED)
-  executionStage    ExecutionStage @default(SURVEY)
-  isBottlenecked    Boolean        @default(false)
-  currentDepartment String? // Sales, Engineering, Execution, Accounts
-  organizationId    String
-  organization      Organization   @relation(fields: [organizationId], references: [id])
-  tasks             Task[]
-  clientName           String?
-  address              String?
-  dcCapacity           String?        @default("50 kWp")
-  sanctionedLoad       String?        @default("40 kW")
-  orderValue           String?
-  projectType          String?
-  primaryContactName   String?
-  primaryContactMobile String?
-  createdByUserId      String?
-  updatedAt            DateTime       @updatedAt
-  createdAt            DateTime       @default(now())
-  projectFiles         ProjectFile[]
-  handoffLogs          HandoffLog[]
-  executionMetadata    Json?
-
-  @@index([organizationId])
-  @@index([currentDepartment])
-  @@index([stage])
-  @@index([isBottlenecked])
-}
-
-model ProjectFile {
-  id             String       @id @default(cuid())
-  name           String
-  category       FileCategory
-  content        String       @db.Text
-  fileUrl        String?
-  utFileKey      String?
-  isArchived     Boolean      @default(false)
-  projectId      String
-  project        Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  uploadedAtStage String       @default("UNKNOWN")
-  createdAt       DateTime     @default(now())
-
-  @@index([projectId])
-  @@index([organizationId])
-}
-
-model Task {
-  id             String       @id @default(cuid())
-  title          String
-  description    String?
-  status         String       @default("TODO")
-  priority       String       @default("MEDIUM")
-  department     String? // Sales, Engineering, Execution, Purchase, Accounts
-  dueDate        DateTime?
-  assigneeId     String?
-  assignee       User?        @relation("AssignedTasks", fields: [assigneeId], references: [id])
-  projectId      String?
-  project        Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  auditLogs      AuditLog[]
-  updatedAt      DateTime     @updatedAt
-  createdAt      DateTime     @default(now())
-
-  @@index([projectId])
-  @@index([assigneeId])
-  @@index([organizationId])
-}
-
-model AuditLog {
-  id             String       @id @default(cuid())
-  action         String
-  oldValue       String?
-  newValue       String?
-  userId         String
-  user           User         @relation(fields: [userId], references: [id])
-  taskId         String?
-  task           Task?        @relation(fields: [taskId], references: [id])
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  createdAt      DateTime     @default(now())
-
-  @@index([taskId])
-  @@index([userId])
-  @@index([organizationId])
-}
-
-model HandoffLog {
-  id             String       @id @default(cuid())
-  projectId      String
-  project        Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  fromDept       String
-  toDept         String
-  fromStage      String
-  toStage        String
-  userId         String
-  user           User         @relation(fields: [userId], references: [id])
-  comment        String?      @db.Text
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  createdAt      DateTime     @default(now())
-
-  @@index([projectId])
-  @@index([userId])
-  @@index([organizationId])
-}
-
-model StageConfig {
-  id           String   @id @default(cuid())
-  stage        String   @unique
-  expectedDays Int
-  label        String
-  updatedAt    DateTime @updatedAt
-}
-
-model Lead {
-  id             String     @id @default(cuid())
-  name           String
-  contactPerson  String?
-  mobile         String?
-  email          String?
-  siteAddress    String?
-  capacityKw     Float?
-  estimatedValue Float?
-  status         LeadStatus @default(NEW)
-  notes          String?
-  assignedToId   String?
-  assignedTo     User?      @relation(fields: [assignedToId], references: [id])
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-  quotes         Quote[]
-
-  @@index([assignedToId])
-  @@index([organizationId])
-}
-
-model Quote {
-  id             String      @id @default(cuid())
-  leadId         String?
-  lead           Lead?       @relation(fields: [leadId], references: [id])
-  projectName    String
-  clientName     String
-  capacityKw     Float?
-  quotedValue    Float?
-  status         QuoteStatus @default(DRAFT)
-  notes          String?
-  assignedToId   String?
-  assignedTo     User?       @relation(fields: [assignedToId], references: [id])
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  fileUrl        String?
-  utFileKey      String?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-
-  @@index([leadId])
-  @@index([assignedToId])
-  @@index([organizationId])
 }

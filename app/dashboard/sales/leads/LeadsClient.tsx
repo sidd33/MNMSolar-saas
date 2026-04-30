@@ -1,16 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { 
-    Plus, 
-    Search, 
-    Target, 
-    User, 
-    Phone, 
-    MapPin, 
-    Map as MapIcon,
-    LayoutGrid,
-} from "lucide-react";
+import { Plus, Search, Target, User, Phone, MapPin, LayoutGrid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -93,7 +84,8 @@ export default function LeadsClient({ initialLeads, initialSurveyLeads }: LeadsC
                     Active Pipeline
                 </TabsTrigger>
                 <TabsTrigger value="survey" className="rounded-lg px-6 font-black uppercase tracking-widest text-[10px] data-[state=active]:bg-[#FFC800] data-[state=active]:text-[#1C3384] transition-all h-full gap-2 flex-1 md:flex-none">
-                    <MapIcon size={14} />
+                    <MapPin size={14} />
+
                     Survey Tracking
                 </TabsTrigger>
             </TabsList>

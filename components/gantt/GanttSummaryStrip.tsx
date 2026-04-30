@@ -1,6 +1,4 @@
-"use client";
-
-import { Zap, Clock, TrendingUp, AlertCircle } from "lucide-react";
+import { Zap, Clock, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface GanttSummaryProps {

@@ -20,7 +20,6 @@ export function OrganizationSync() {
 
     if (userMemberships.data && userMemberships.data.length > 0) {
       const firstOrgId = userMemberships.data[0].organization.id;
-      console.log("Auto-selecting organization:", firstOrgId);
       setActive({ organization: firstOrgId });
     }
   }, [isLoaded, organization, userMemberships.data, setActive]);

@@ -1,8 +1,7 @@
 import { ReactNode } from "react";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { Header } from "@/components/layout/Header";
 import { GlobalUIProvider } from "@/components/dashboard/GlobalUIProvider";
 import { DashboardNexusProvider } from "@/components/dashboard/DashboardNexusProvider";
+import { DashboardClientShell } from "@/components/layout/DashboardClientShell";
 import { currentUser } from "@clerk/nextjs/server";
 import { getOwnerDashboardData } from "@/app/actions/dashboard";
 import { getEngineeringNexus } from "@/lib/actions/engineering";
@@ -35,15 +34,9 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   return (
     <DashboardNexusProvider initialData={initialData} userId={user?.id || null} role={role} department={department}>
       <GlobalUIProvider>
-        <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
-          <Sidebar />
-          <main className="flex-1 h-full overflow-y-auto overflow-x-hidden relative transition-all duration-300">
-            <Header />
-            <div className="p-6 lg:p-8">
-              {children}
-            </div>
-          </main>
-        </div>
+        <DashboardClientShell>
+          {children}
+        </DashboardClientShell>
       </GlobalUIProvider>
     </DashboardNexusProvider>
   );

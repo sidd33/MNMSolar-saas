@@ -50,5 +50,15 @@ graphify-out/
 graph.json
 *.html
 
+# Scratch & Temporary files
+scratch/
+tmp/
+*.log
+build_output*
+tsc_output.txt
+tmp_dump.js
+*.sql
+
+# Testing
 tests/
 test-results/

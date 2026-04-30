@@ -3,9 +3,7 @@ const prisma = new PrismaClient()
 
 async function main() {
   const stages = [
-    { stage: "PROSPECT", expectedDays: 3, label: "Prospect" },
     { stage: "SITE_SURVEY", expectedDays: 4, label: "Site Survey" },
-    { stage: "PRELIMINARY_QUOTE", expectedDays: 5, label: "Preliminary Quote" },
     { stage: "DETAILED_ENGG", expectedDays: 10, label: "Detailed Engg" },
     { stage: "WORK_ORDER", expectedDays: 5, label: "Work Order" },
     { stage: "HANDOVER_TO_EXECUTION", expectedDays: 1, label: "Handover to Execution" },
@@ -16,6 +14,13 @@ async function main() {
     { stage: "NET_METERING", expectedDays: 8, label: "Net Metering" },
     { stage: "FINAL_HANDOVER", expectedDays: 2, label: "Final Handover" },
   ];
+
+  console.log("Cleaning up old StageConfig...");
+  await (prisma as any).stageConfig.deleteMany({
+    where: {
+      stage: { in: ["PROSPECT", "PRELIMINARY_QUOTE"] }
+    }
+  });
 
   console.log("Seeding StageConfig...");
 

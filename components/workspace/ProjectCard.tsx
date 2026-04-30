@@ -1,10 +1,13 @@
 "use client";
 
-import { Calendar, Paperclip, MoreHorizontal, ChevronRight } from "lucide-react";
+import dynamic from "next/dynamic";
+
+
+import { Calendar, Paperclip, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
-import { Project360Modal } from "@/components/dashboard/Project360Modal";
+import React, { useState } from "react";
+const Project360Modal = dynamic(() => import("@/components/dashboard/Project360Modal").then(mod => mod.Project360Modal), { ssr: false });
 import { Button } from "@/components/ui/button";
 
 interface ProjectCardProps {
@@ -12,7 +15,7 @@ interface ProjectCardProps {
   onClick?: () => void;
 }
 
-export function ProjectCard({ project, onClick }: ProjectCardProps) {
+export const ProjectCard = React.memo(function ProjectCard({ project, onClick }: ProjectCardProps) {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const priority = project.priority || "MEDIUM";
   const priorityColors: Record<string, string> = {
@@ -85,4 +88,4 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
       />
     </>
   );
-}
+});

@@ -30,9 +30,6 @@ export const ourFileRouter = {
     })
     .onUploadComplete(async ({ metadata, file }) => {
       try {
-        console.log("Server callback fired:", file.name);
-        console.log("File URL:", file.url);
-        console.log("Metadata:", metadata);
         
         return { 
           uploadedBy: metadata.userId, 

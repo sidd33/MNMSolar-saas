@@ -20,8 +20,9 @@ async function main() {
 
   // Ensure User exists
   await prisma.user.upsert({
-    where: { id: realUserId },
+    where: { email: 'siddharthaswamy08@gmail.com' },
     update: { 
+      id: realUserId,
       role: 'OWNER', 
       isSuperAdmin: true, 
       department: 'OVERALL',
@@ -61,7 +62,7 @@ async function main() {
           {
             fromDept: 'SALES',
             toDept: 'ENGINEERING',
-            fromStage: PipelineStage.PRELIMINARY_QUOTE,
+            fromStage: "SITE_SURVEY",
             toStage: PipelineStage.DETAILED_ENGG,
             userId: realUserId,
             comment: 'Site survey complete. Engineering to start detailed drawings for structural approval.',

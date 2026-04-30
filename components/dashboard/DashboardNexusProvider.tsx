@@ -130,13 +130,14 @@ export function DashboardNexusProvider({
     window.addEventListener('focus', handleFocus);
 
     const syncInterval = setInterval(() => {
+        if (document.visibilityState !== 'visible') return;
         const now = Date.now();
         const inactiveTime = now - lastActivityRef.current;
         const staleTime = now - lastFetchRef.current;
         if (userId && inactiveTime < 600000 && !document.hidden && staleTime > 60000) {
           fetchData(true);
         }
-    }, 30000);
+    }, 60000);
 
     return () => {
       isMounted.current = false;

@@ -21,7 +21,7 @@ export default function EngineeringSurveyQueue() {
     );
   };
 
-  const surveyProjects = filterProjects(data?.projects || [], ["SITE_SURVEY", "PRELIMINARY_QUOTE"]);
+  const surveyProjects = filterProjects(data?.projects || [], ["SITE_SURVEY"]);
   const detailedProjects = filterProjects(data?.projects || [], ["DETAILED_ENGG"]);
   const allVisibleProjects = [...surveyProjects, ...detailedProjects];
 

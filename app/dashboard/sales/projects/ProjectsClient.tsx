@@ -1,16 +1,10 @@
 "use client";
 
+import dynamic from "next/dynamic";
+
+
 import { useState } from "react";
-import { 
-  Zap, 
-  User, 
-  MapPin, 
-  TrendingUp, 
-  Eye, 
-  Clock, 
-  Search, 
-  Filter 
-} from "lucide-react";
+import { Zap, User, MapPin, TrendingUp, Eye, Clock, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +16,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Project360Modal } from "@/components/dashboard/Project360Modal";
+const Project360Modal = dynamic(() => import("@/components/dashboard/Project360Modal").then(mod => mod.Project360Modal), { ssr: false });
 import { format } from "date-fns";
 
 export function ProjectsClient({ projects }: { projects: any[] }) {

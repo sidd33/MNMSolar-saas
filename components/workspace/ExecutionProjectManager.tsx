@@ -9,16 +9,7 @@ import { ProcurementModule } from "./ProcurementModule";
 import { SafetyModule } from "./SafetyModule";
 import SiteWorkModule from "./SiteWorkModule";
 import { Badge } from "@/components/ui/badge";
-import { 
-    ChevronLeft, 
-    ExternalLink, 
-    Share2, 
-    HardHat,
-    Hammer,
-    ShieldCheck,
-    Flag,
-    AlertCircle
-} from "lucide-react";
+import { ChevronLeft, ExternalLink, Share2, AlertCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -88,11 +79,17 @@ export function ExecutionProjectManager({ project, onBack, forcedSection }: Exec
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <button className="h-12 px-6 rounded-2xl border border-slate-200 hover:bg-slate-50 text-slate-600 font-black text-[10px] uppercase tracking-widest transition-all gap-2 flex items-center shadow-sm">
-                        <Share2 size={16} /> Share Site Reports
+                    <button 
+                        disabled
+                        className="h-12 px-6 rounded-2xl border border-slate-100 bg-slate-50 text-slate-300 font-black text-[10px] uppercase tracking-widest transition-all gap-2 flex items-center cursor-not-allowed opacity-60"
+                    >
+                        <Share2 size={16} /> Share Site Reports (Soon)
                     </button>
-                    <button className="h-12 px-6 rounded-2xl bg-[#1C3384] text-white font-black text-[10px] uppercase tracking-widest transition-all gap-2 flex items-center shadow-lg shadow-blue-900/10 active:scale-95">
-                        <ExternalLink size={16} /> Site Vault
+                    <button 
+                        disabled
+                        className="h-12 px-6 rounded-2xl bg-slate-100 text-slate-300 font-black text-[10px] uppercase tracking-widest transition-all gap-2 flex items-center cursor-not-allowed opacity-60"
+                    >
+                        <ExternalLink size={16} /> Site Vault (Soon)
                     </button>
                 </div>
             </div>

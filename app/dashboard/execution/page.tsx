@@ -1,14 +1,7 @@
 "use client";
 
 import { useDashboardNexus } from "@/components/dashboard/DashboardNexusProvider";
-import { 
-  Layers, 
-  Truck, 
-  CheckCircle2, 
-  Activity,
-  ClipboardCheck,
-  Hammer
-} from "lucide-react";
+import { Layers, Truck, Activity, ClipboardCheck, Hammer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";

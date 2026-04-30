@@ -9,6 +9,19 @@ import {
     ArrowRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { forwardProject } from "@/app/actions/project";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { 
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import { useState } from "react";
 
 interface SiteWorkModuleProps {
     project: any;
@@ -17,6 +30,7 @@ interface SiteWorkModuleProps {
 export function SiteWorkModule({ project }: SiteWorkModuleProps) {
     const metadata = project.executionMetadata || {};
     const siteWork = metadata.siteWork || {};
+    const [isOpen, setIsOpen] = useState(false);
     
     const statuses = [
         siteWork.structure || "NOT_STARTED",
@@ -26,6 +40,32 @@ export function SiteWorkModule({ project }: SiteWorkModuleProps) {
     
     const completedCount = statuses.filter(s => s === "COMPLETED").length;
     const progressPercent = Math.round((completedCount / 3) * 100);
+
+    const handleForward = async () => {
+        let nextStage = "";
+        if (project.stage === "STRUCTURE_ERECTION") nextStage = "PV_PANEL_INSTALLATION";
+        else if (project.stage === "PV_PANEL_INSTALLATION") nextStage = "AC_DC_INSTALLATION";
+        else if (project.stage === "AC_DC_INSTALLATION") nextStage = "NET_METERING";
+
+        if (!nextStage) {
+            toast.error("No further site stages available");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("projectId", project.id);
+        formData.append("nextStage", nextStage);
+        formData.append("department", "Execution");
+        formData.append("currentStage", project.stage);
+
+        try {
+            await forwardProject(formData);
+            toast.success(`Project moved to ${nextStage.replace(/_/g, ' ')}`);
+            setIsOpen(false);
+        } catch (e: any) {
+            toast.error(e.message || "Failed to advance stage");
+        }
+    };
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
@@ -69,6 +109,41 @@ export function SiteWorkModule({ project }: SiteWorkModuleProps) {
                             {progressPercent === 100 ? "Ready for Handoff" : "Active Site"}
                         </span>
                     </div>
+
+                    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+                        <DialogTrigger render={
+                            <Button 
+                                disabled={progressPercent < 100}
+                                className="bg-[#1C3384] hover:bg-[#0F172A] text-white font-black uppercase tracking-widest text-[10px] h-12 px-6 rounded-2xl shadow-lg shadow-blue-900/20 gap-2"
+                            >
+                                <ArrowRight size={16} />
+                                Forward Stage
+                            </Button>
+                        } />
+                        <DialogContent className="rounded-[2rem] border-none shadow-2xl">
+                            <DialogHeader>
+                                <DialogTitle className="font-black uppercase tracking-tight text-xl text-[#1C3384]">Advance Site Stage?</DialogTitle>
+                                <DialogDescription className="text-slate-500 font-medium">
+                                    You are about to close the current installation phase and move to the next logical stage in the pipeline.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter className="gap-3 mt-4">
+                                <Button 
+                                    variant="outline"
+                                    onClick={() => setIsOpen(false)}
+                                    className="rounded-xl font-bold uppercase text-[10px] tracking-widest border-slate-200"
+                                >
+                                    Cancel
+                                </Button>
+                                <Button 
+                                    onClick={handleForward}
+                                    className="bg-[#1C3384] hover:bg-[#0F172A] text-white rounded-xl font-bold uppercase text-[10px] tracking-widest px-8"
+                                >
+                                    Confirm Forward
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                 </div>
             </div>
 

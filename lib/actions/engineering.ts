@@ -38,7 +38,7 @@ export async function getEngineeringDashboardStats(providedOrgId?: string) {
     if (!orgId) return { survey: 0, detailed: 0, workOrder: 0, bottlenecks: 0 };
 
     const [surveyCount, detailedCount, workOrderCount, bottlenecksCount] = await Promise.all([
-        prisma.project.count({ where: { organizationId: orgId, currentDepartment: { equals: 'Engineering', mode: 'insensitive' }, stage: { in: ['SITE_SURVEY', 'PRELIMINARY_QUOTE'] } } }),
+        prisma.project.count({ where: { organizationId: orgId, currentDepartment: { equals: 'Engineering', mode: 'insensitive' }, stage: 'SITE_SURVEY' } }),
         prisma.project.count({ where: { organizationId: orgId, currentDepartment: { equals: 'Engineering', mode: 'insensitive' }, stage: 'DETAILED_ENGG' } }),
         prisma.project.count({ where: { organizationId: orgId, currentDepartment: { equals: 'Engineering', mode: 'insensitive' }, stage: 'WORK_ORDER' } }),
         prisma.project.count({ where: { organizationId: orgId, currentDepartment: { equals: 'Engineering', mode: 'insensitive' }, isBottlenecked: true } })

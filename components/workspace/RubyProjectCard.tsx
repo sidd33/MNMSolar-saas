@@ -1,30 +1,23 @@
-"use client";
+import React, { useTransition, useState } from "react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { 
-  Clock, 
-  Paperclip, 
-  MessageSquare, 
-  CornerDownRight, 
-  MoreHorizontal,
-  ChevronRight,
-  Zap
-} from "lucide-react";
+import { Clock, CornerDownRight, ChevronRight, Zap } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { quickAddTask } from "@/app/actions/project";
-import { useTransition, useState } from "react";
-import { Project360Modal } from "@/components/dashboard/Project360Modal";
+import dynamic from "next/dynamic";
+
+const Project360Modal = dynamic(() => import("@/components/dashboard/Project360Modal").then(mod => mod.Project360Modal), { ssr: false });
 
 interface RubyProjectCardProps {
   project: any;
 }
 
 const STAGES = [
-  "PROSPECT", "SITE_SURVEY", "PRELIMINARY_QUOTE", "DETAILED_ENGG",
+  "SITE_SURVEY", "DETAILED_ENGG",
   "WORK_ORDER", "HANDOVER_TO_EXECUTION", "MATERIAL_PROCUREMENT",
   "STRUCTURE_ERECTION", "PV_PANEL_INSTALLATION", "AC_DC_INSTALLATION",
   "NET_METERING", "FINAL_HANDOVER"
@@ -33,7 +26,7 @@ const STAGES = [
 const EXECUTION_STAGES = ["SURVEY", "STRUCTURE", "PANEL_INSTALL", "INVERTER_WIRING"];
 const LIASONING_STAGES = ["NOT_STARTED", "FEASIBILITY", "L1_APPROVED", "AGREEMENT", "COMMISSIONED"];
 
-export function RubyProjectCard({ project }: RubyProjectCardProps) {
+export const RubyProjectCard = React.memo(function RubyProjectCard({ project }: RubyProjectCardProps) {
   const [isPending, startTransition] = useTransition();
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   
@@ -74,6 +67,11 @@ export function RubyProjectCard({ project }: RubyProjectCardProps) {
               </div>
            </div>
            <div className="flex items-center gap-2">
+              {project.isPreliminary && (
+                <Badge className="bg-[#FFC800] text-[#1C3384] font-black text-[9px] px-2 py-0.5 rounded-lg border-none shadow-sm">
+                  PRELIMINARY
+                </Badge>
+              )}
               {project.isBottlenecked && (
                 <Badge className="bg-[#FF4D4D] text-white font-black text-[9px] px-2 py-0.5 rounded-lg border-none">
                   BOTTLENECKED
@@ -194,6 +192,6 @@ export function RubyProjectCard({ project }: RubyProjectCardProps) {
       </CardContent>
     </Card>
   );
-}
+});
 
 import { ShieldCheck, Building2, User } from "lucide-react";

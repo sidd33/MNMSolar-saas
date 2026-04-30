@@ -9,7 +9,7 @@ export async function getOwnerDashboardData() {
 
   const role = (sync as any).user?.role;
   const userDept = (sync as any).user?.department;
-  const isOwner = role === 'OWNER';
+  const isOwner = role === 'OWNER' || role === 'SUPER_ADMIN';
 
   // RBAC: If not OWNER, restrict projects to their department
   let projectWhere: any = { organizationId: sync.orgId };
@@ -84,8 +84,10 @@ export async function getOwnerDashboardData() {
 
   return {
     projects,
-    heatmap,
-    workload,
+    stats: {
+        heatmap,
+        workload
+    },
     auditLogs
   };
 }

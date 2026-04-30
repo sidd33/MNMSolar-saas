@@ -38,7 +38,6 @@ export async function syncUserAndOrg() {
       
       if (memberships.data.length > 0) {
         resolvedOrgId = memberships.data[0].organization.id;
-        console.log("Autodiscovered OrgID via Clerk SDK:", resolvedOrgId);
       }
     } catch (e) {
       console.error("Clerk SDK discovery failed:", e);
@@ -66,8 +65,9 @@ export async function syncUserAndOrg() {
 
   // 2. Ensure User exists and is synced with latest metadata/org
   const dbUser = await prisma.user.upsert({
-    where: { id: userId },
+    where: { email: userEmail },
     update: {
+      id: userId,
       role: userRole,
       department: userDept,
       organizationId: resolvedOrgId

@@ -1,16 +1,5 @@
 import { getMyProjects } from "@/lib/actions/sales";
-import { 
-    Zap, 
-    ArrowRight, 
-    Briefcase, 
-    User, 
-    MapPin, 
-    ShieldCheck, 
-    Clock, 
-    Eye,
-    TrendingUp,
-    ListTodo
-} from "lucide-react";
+;
 import { Badge } from "@/components/ui/badge";
 import { 
   Table, 

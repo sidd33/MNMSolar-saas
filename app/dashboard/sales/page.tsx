@@ -1,17 +1,6 @@
 import { Suspense } from "react";
 import { getSalesDashboardStats, getRecentSalesActivity } from "@/lib/actions/sales";
-import { 
-  Zap, 
-  Target, 
-  FileText, 
-  Plus, 
-  ArrowUpRight, 
-  Clock, 
-  User, 
-  MapPin,
-  TrendingUp,
-  CircleArrowRight
-} from "lucide-react";
+import { Zap, Target, FileText, Plus, ArrowUpRight, Clock, TrendingUp, CircleArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";

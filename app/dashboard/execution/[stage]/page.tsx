@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import { useDashboardNexus } from "@/components/dashboard/DashboardNexusProvider";
 import { useState, useEffect } from "react";
-import { HardHat, Search, Layers, Truck, CheckCircle2 } from "lucide-react";
+import { HardHat, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { getProjectDetail, getBulkProjectDetails } from "@/lib/actions/engineering";
@@ -29,10 +29,19 @@ export default function ExecutionStagePage() {
 
   const activeSection = slugMap[stageSlug] || "PROCUREMENT";
 
-  // Filter projects strictly assigned to Execution pipeline stages
-  const executionStages = ['HANDOVER_TO_EXECUTION', 'MATERIAL_PROCUREMENT', 'STRUCTURE_ERECTION', 'PV_PANEL_INSTALLATION', 'AC_DC_INSTALLATION', 'NET_METERING'];
+  // Map slug to internal PipelineStage names for filtering
+  const slugToStages: Record<string, string[]> = {
+    procurement: ["HANDOVER_TO_EXECUTION", "MATERIAL_PROCUREMENT"],
+    sitework: ["STRUCTURE_ERECTION", "PV_PANEL_INSTALLATION", "AC_DC_INSTALLATION"],
+    quality: ["NET_METERING"],
+    handover: ["FINAL_HANDOVER"],
+    safety: ["HANDOVER_TO_EXECUTION", "MATERIAL_PROCUREMENT", "STRUCTURE_ERECTION", "PV_PANEL_INSTALLATION", "AC_DC_INSTALLATION", "NET_METERING"]
+  };
+
+  const allowedStages = slugToStages[stageSlug] || [];
+
   const baseProjects = data?.projects?.filter((p: any) => 
-    executionStages.includes(p.stage) &&
+    allowedStages.includes(p.stage) &&
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
 

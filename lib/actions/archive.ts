@@ -34,7 +34,6 @@ export async function archiveProjectFiles(projectId: string) {
 
       // If it's pure base64 (no URL), we can't 'fetch' it, so we skip it (it's already in DB anyway)
       if (!targetUrl || !targetUrl.startsWith('http')) {
-          console.log(`Skipping non-URL file: ${file.name}`);
           return { status: 'skipped', name: file.name };
       }
 
@@ -78,7 +77,6 @@ export async function archiveProjectFiles(projectId: string) {
         }
       });
 
-      console.log(`Archived: ${file.name}`);
       return { status: 'archived', name: file.name };
     } catch (error: any) {
       console.error(`Failed to archive ${file.name}:`, error);

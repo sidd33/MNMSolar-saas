@@ -3,26 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserButton, useUser, OrganizationSwitcher } from "@clerk/nextjs";
-import { 
-  LayoutDashboard, 
-  Mail, 
-  Calendar,
-  Briefcase,
-  Users,
-  ChevronLeft, 
-  ChevronRight,
-  Sun,
-  ShieldCheck,
-  Menu,
-  X,
-  CreditCard,
-  Crown,
-  MapPin,
-  Hammer,
-  Package,
-  Flag,
-  ShieldAlert
-} from "lucide-react";
+import { LayoutDashboard, Mail, Calendar, Briefcase, Users, ChevronLeft, ChevronRight, ShieldCheck, Menu, X, CreditCard, Crown, MapPin, Hammer, Package, Flag, ShieldAlert } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 

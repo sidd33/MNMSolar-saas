@@ -9,29 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import {
-  History,
-  FileBox,
-  CheckCircle2,
-  Clock,
-  User,
-  ArrowRight,
-  Download,
-  AlertCircle,
-  MapPin,
-  ShieldCheck,
-  FileUp,
-  FileText,
-  Zap,
-  Building2,
-  Circle,
-  Pencil,
-  Check,
-  Eye,
-  ExternalLink,
-  X,
-  Server
-} from "lucide-react";
+import { FileBox, CheckCircle2, Clock, User, ArrowRight, Download, AlertCircle, MapPin, ShieldCheck, FileUp, FileText, Zap, Building2, Circle, Pencil, Check, Eye, ExternalLink, X, Server } from "lucide-react";
 import { getProject360Data, uploadProjectFile, updateSanctionedLoad } from "@/app/actions/project";
 import { archiveProjectFiles } from "@/lib/actions/archive";
 import { formatDistanceToNow, format } from "date-fns";
@@ -110,12 +88,15 @@ export function Project360Modal({ projectId, open, onOpenChange, initialData }: 
 
   const handleUpdateSanctioned = async () => {
     setUpdatingSanctioned(true);
+    const toastId = toast.loading("Updating sanctioned load...");
     try {
       const val = sanctionedInput.trim() ? `${sanctionedInput.trim()} kW` : null;
       await updateSanctionedLoad(projectId, val);
       setProject({ ...project, sanctionedLoad: val });
       setIsEditingSanctioned(false);
-    } catch (err) {
+      toast.success("Sanctioned load updated", { id: toastId });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update sanctioned load", { id: toastId });
       console.error("Failed to update sanctioned load", err);
     } finally {
       setUpdatingSanctioned(false);

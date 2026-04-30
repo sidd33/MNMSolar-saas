@@ -19,7 +19,6 @@ export const ghostingPreventionNudge = inngest.createFunction(
     if (taskStatus === "TODO") {
       await step.run("send-nudge-email", async () => {
         // Here we would integrate with Resend or Sendgrid
-        console.log(`[Automated Nudge] Task ${event.data.taskId} has been in TODO for 3 days.`);
       });
     }
   }
@@ -30,7 +29,6 @@ export const mondayWeeklyDigest = inngest.createFunction(
   { cron: "0 8 * * 1" }, // Every Monday at 8:00 AM
   async ({ step }) => {
     await step.run("aggregate-and-send", async () => {
-      console.log("[Weekly Digest] Aggregating overdue tasks...");
       // Logic to fetch overdue tasks and email Department Heads
       // Implementation omitted for brevity
     });

@@ -1,7 +1,7 @@
 import { getMyQuotes } from "@/lib/actions/sales";
 import { QuotesClient } from "./QuotesClient";
 import { Suspense } from "react";
-import { FileText } from "lucide-react";
+;
 
 export default async function MyQuotesPage() {
   const quotes = await getMyQuotes();

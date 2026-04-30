@@ -1,18 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { 
-    Hammer, 
-    Camera, 
-    FileText, 
-    CheckCircle2, 
-    Image as ImageIcon,
-    Clock,
-    AlertCircle,
-    Plus,
-    X,
-    Maximize2
-} from "lucide-react";
+import { Hammer, Camera, FileText, CheckCircle2, Clock, Plus, Maximize2, Image } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 import { useProjectFileUpload } from "@/hooks/useProjectFileUpload";
 import { updateExecutionMetadata } from "@/lib/actions/execution";
@@ -199,7 +189,8 @@ export function SiteWorkCard({ project, stageId, label, description, tag }: Site
                         </div>
                     ) : (
                         <div className="aspect-video rounded-3xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-slate-300 gap-2 bg-slate-50/30">
-                            <ImageIcon size={24} />
+                            <Image size={24} />
+
                             <span className="text-[9px] font-bold uppercase tracking-widest">No photos yet</span>
                         </div>
                     )}
