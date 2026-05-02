@@ -115,6 +115,9 @@ export async function getMyLeads(page: number = 1) {
       estimatedValue: true,
       status: true,
       notes: true,
+      lostReason: true,
+      lostAt: true,
+      lostNote: true,
       createdAt: true,
       updatedAt: true,
       quotes: {
@@ -287,6 +290,29 @@ export async function initiatePreliminarySurvey(leadId: string) {
 
         return project;
     });
+
+    // --- NOTIFICATION ENGINE ---
+    const engineeringUsers = await prisma.user.findMany({
+        where: {
+            organizationId: orgId,
+            department: 'ENGINEERING'
+        },
+        select: { id: true }
+    });
+
+    if (engineeringUsers.length > 0) {
+        await prisma.notification.createMany({
+            data: engineeringUsers.map(u => ({
+                userId: u.id,
+                organizationId: orgId,
+                type: 'PROJECT_ARRIVED',
+                title: 'New Survey Initiated',
+                message: `${result.name} preliminary survey has been initiated.`,
+                projectId: result.id,
+                isRead: false,
+            }))
+        });
+    }
 
     revalidatePath("/dashboard/sales/leads");
     revalidatePath("/dashboard/engineering/survey");
@@ -619,4 +645,285 @@ export async function getRecentSalesActivity() {
     ].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()).slice(0, 5);
 
     return activity;
+}
+
+export async function getAllLeadsForOrg() {
+    const { orgId, isOwner } = await validateSalesAccess();
+    if (!orgId || !isOwner) throw new Error("Unauthorized: Owner access required");
+
+    return await prisma.lead.findMany({
+        where: { organizationId: orgId },
+        take: 100,
+        orderBy: { updatedAt: 'desc' },
+        select: {
+            id: true,
+            name: true,
+            status: true,
+            mobile: true,
+            estimatedValue: true,
+            capacityKw: true,
+            createdAt: true,
+            assignedToId: true,
+            assignedTo: { select: { id: true, email: true } }
+        }
+    });
+}
+
+export async function getAllQuotesForOrg() {
+    const { orgId, isOwner } = await validateSalesAccess();
+    if (!orgId || !isOwner) throw new Error("Unauthorized");
+
+    return await prisma.quote.findMany({
+        where: { organizationId: orgId },
+        take: 100,
+        orderBy: { updatedAt: 'desc' },
+        select: {
+            id: true,
+            quotedValue: true,
+            status: true,
+            createdAt: true,
+            assignedToId: true,
+            lead: { select: { name: true } },
+            assignedTo: { select: { id: true, email: true } }
+        }
+    });
+}
+
+export async function getAllSalesEmployees() {
+    const { orgId, isOwner } = await validateSalesAccess();
+    if (!orgId || !isOwner) throw new Error("Unauthorized");
+
+    return await prisma.user.findMany({
+        where: { 
+            organizationId: orgId,
+            department: 'SALES'
+        },
+        select: { id: true, email: true }
+    });
+}
+
+export async function reassignLead(leadId: string, newUserId: string) {
+    const { orgId, isOwner } = await validateSalesAccess();
+    if (!orgId || !isOwner) throw new Error("Unauthorized");
+
+    await prisma.lead.update({
+        where: { id: leadId, organizationId: orgId },
+        data: { assignedToId: newUserId }
+    });
+
+    revalidatePath('/dashboard/sales/leads');
+    revalidatePath('/dashboard/owner');
+    return { success: true };
+}
+
+export async function reassignQuote(quoteId: string, newUserId: string) {
+    const { orgId, isOwner } = await validateSalesAccess();
+    if (!orgId || !isOwner) throw new Error("Unauthorized");
+
+    await prisma.quote.update({
+        where: { id: quoteId, organizationId: orgId },
+        data: { assignedToId: newUserId }
+    });
+
+    revalidatePath('/dashboard/sales/quotes');
+    revalidatePath('/dashboard/owner');
+    return { success: true };
+}
+
+// --- FOLLOW-UPS ---
+
+export async function addFollowUp(
+  leadId: string,
+  type: string,
+  note: string,
+  followUpDate?: string
+) {
+  const { user, orgId, isSales, isOwner } = await validateSalesAccess();
+  if (!orgId) throw new Error("No organization context found");
+
+  const lead = await prisma.lead.findUnique({
+    where: { id: leadId, organizationId: orgId }
+  });
+
+  if (!lead) throw new Error("Lead not found");
+
+  // Verify caller is the lead's assignedToId OR role is OWNER/SUPER_ADMIN
+  if (lead.assignedToId !== user.id && !isOwner) {
+    throw new Error("You are not assigned to this lead.");
+  }
+
+  const validTypes = ['CALL', 'SITE_VISIT', 'EMAIL', 'WHATSAPP', 'MEETING', 'OTHER'];
+  if (!validTypes.includes(type)) {
+    throw new Error("Invalid follow-up type.");
+  }
+
+  if (!note.trim()) {
+    throw new Error("Follow-up note cannot be empty.");
+  }
+
+  const followUp = await prisma.followUp.create({
+    data: {
+      leadId,
+      userId: user.id,
+      organizationId: orgId,
+      type,
+      note,
+      followUpDate: followUpDate ? new Date(followUpDate) : null,
+      isCompleted: false
+    }
+  });
+
+  revalidatePath('/dashboard/sales/leads');
+  return { success: true };
+}
+
+export async function completeFollowUp(followUpId: string) {
+  const { orgId } = await validateSalesAccess();
+  if (!orgId) throw new Error("No organization context found");
+
+  await prisma.followUp.update({
+    where: { id: followUpId, organizationId: orgId },
+    data: { isCompleted: true }
+  });
+
+  revalidatePath('/dashboard/sales/leads');
+  return { success: true };
+}
+
+export async function getLeadFollowUps(leadId: string) {
+  const { orgId } = await validateSalesAccess();
+  if (!orgId) throw new Error("No organization context found");
+
+  return await prisma.followUp.findMany({
+    where: { leadId, organizationId: orgId },
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      type: true,
+      note: true,
+      followUpDate: true,
+      isCompleted: true,
+      createdAt: true,
+      user: { select: { id: true, email: true } }
+    }
+  });
+}
+
+// --- LOST LEADS ---
+
+export async function markLeadLost(
+  leadId: string,
+  lostReason: string,
+  lostNote?: string
+) {
+  const { user, orgId, isOwner } = await validateSalesAccess();
+  if (!orgId) throw new Error("No organization context found");
+
+  const lead = await prisma.lead.findUnique({
+    where: { id: leadId, organizationId: orgId }
+  });
+
+  if (!lead) throw new Error("Lead not found");
+
+  if (lead.assignedToId !== user.id && !isOwner) {
+    throw new Error("You are not assigned to this lead.");
+  }
+
+  const validReasons = ['COMPETITOR', 'BUDGET', 'CANCELLED', 'APPROVALS', 'TECHNICAL', 'NO_RESPONSE', 'OTHER'];
+  if (!validReasons.includes(lostReason)) {
+    throw new Error("Please select a valid reason.");
+  }
+
+  await prisma.lead.update({
+    where: { id: leadId },
+    data: {
+      status: LeadStatus.LOST,
+      lostReason: lostReason,
+      lostAt: new Date(),
+      lostNote: lostNote || null
+    }
+  });
+
+  revalidatePath('/dashboard/sales/leads');
+  return { success: true };
+}
+
+// --- QUOTE VERSIONS ---
+
+export async function uploadQuoteVersion(
+  quoteId: string,
+  fileUrl: string,
+  utFileKey: string,
+  fileName: string,
+  quotedValue?: number,
+  note?: string
+) {
+  const { user, orgId } = await validateSalesAccess();
+  if (!orgId) throw new Error("No organization context found");
+
+  const quote = await prisma.quote.findUnique({
+    where: { id: quoteId, organizationId: orgId }
+  });
+
+  if (!quote) throw new Error("Quote not found");
+  if (quote.status === "CONVERTED") {
+    throw new Error("Cannot upload a new version to a converted quote.");
+  }
+
+  const lastVersion = await prisma.quoteVersion.findFirst({
+    where: { quoteId },
+    orderBy: { versionNumber: 'desc' },
+    select: { versionNumber: true }
+  });
+
+  const nextVersion = (lastVersion?.versionNumber ?? 0) + 1;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.quoteVersion.create({
+      data: {
+        quoteId,
+        versionNumber: nextVersion,
+        quotedValue: quotedValue !== undefined ? Number(quotedValue) : quote.quotedValue,
+        fileUrl,
+        utFileKey,
+        fileName,
+        note,
+        uploadedById: user.id,
+        organizationId: orgId
+      }
+    });
+
+    await tx.quote.update({
+      where: { id: quoteId },
+      data: {
+        fileUrl,
+        utFileKey,
+        quotedValue: quotedValue !== undefined ? Number(quotedValue) : undefined,
+        status: quote.status === "DRAFT" ? "NEGOTIATING" : quote.status
+      }
+    });
+  });
+
+  revalidatePath('/dashboard/sales/quotes');
+  return { success: true, versionNumber: nextVersion };
+}
+
+export async function getQuoteVersions(quoteId: string) {
+  const { orgId } = await validateSalesAccess();
+  if (!orgId) throw new Error("No organization context found");
+
+  return await prisma.quoteVersion.findMany({
+    where: { quoteId, organizationId: orgId },
+    orderBy: { versionNumber: 'desc' },
+    select: {
+      id: true,
+      versionNumber: true,
+      quotedValue: true,
+      fileUrl: true,
+      fileName: true,
+      note: true,
+      createdAt: true,
+      uploadedBy: { select: { id: true, email: true } }
+    }
+  });
 }

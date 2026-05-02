@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { getOwnerDashboardData } from "@/app/actions/dashboard";
 import { getEngineeringNexus } from "@/lib/actions/engineering";
+import { getMyNotifications } from "@/lib/actions/notifications";
 import { toast } from "sonner";
 import { RefreshCw, Clock } from "lucide-react";
 import { format } from "date-fns";
@@ -15,9 +16,11 @@ import { cn } from "@/lib/utils";
  */
 
 interface PipelineContextType {
+  activity?: any[]; // Engineering specific activity
   projects: any[];
   stats: any;
-  activity?: any[]; // Engineering specific activity
+  leads: any[];
+  quotes: any[];
   isLoading: boolean;
   isRefreshing: boolean;
   lastSyncedAt: Date | null;
@@ -26,6 +29,8 @@ interface PipelineContextType {
   updateLocalData: (updates: any) => void;
   role: string | null;
   department: string | null;
+  notifications: any[];
+  unreadCount: number;
 }
 
 interface AuditContextType {
@@ -54,7 +59,11 @@ export function DashboardNexusProvider({
   const [pipelineData, setPipelineData] = useState<any>(initialData ? { 
     projects: initialData.projects, 
     stats: initialData.stats,
-    activity: initialData.activity
+    activity: initialData.activity,
+    leads: initialData.leads || [],
+    quotes: initialData.quotes || [],
+    notifications: [],
+    unreadCount: 0
   } : null);
   const [auditData, setAuditData] = useState<any>(initialData ? { 
     auditLogs: initialData.auditLogs 
@@ -86,10 +95,16 @@ export function DashboardNexusProvider({
       }
 
       if (result && isMounted.current) {
+        const notifResult = await getMyNotifications();
+
         setPipelineData({ 
           projects: result.projects || [], 
           stats: result.stats || null,
-          activity: result.activity || undefined
+          activity: result.activity || undefined,
+          leads: result.leads || [],
+          quotes: result.quotes || [],
+          notifications: notifResult.notifications || [],
+          unreadCount: notifResult.unreadCount || 0
         });
         setAuditData({ 
           auditLogs: result.auditLogs || [] 
@@ -179,6 +194,8 @@ export function DashboardNexusProvider({
     projects: pipelineData?.projects || [],
     stats: pipelineData?.stats || null,
     activity: pipelineData?.activity,
+    leads: pipelineData?.leads || [],
+    quotes: pipelineData?.quotes || [],
     isLoading,
     isRefreshing,
     lastSyncedAt,
@@ -186,7 +203,9 @@ export function DashboardNexusProvider({
     updateLocalProject,
     updateLocalData,
     role,
-    department
+    department,
+    notifications: pipelineData?.notifications || [],
+    unreadCount: pipelineData?.unreadCount || 0
   }), [pipelineData, isLoading, isRefreshing, lastSyncedAt, refresh, updateLocalProject, updateLocalData, role, department]);
 
   const auditValue = useMemo(() => ({

@@ -5,6 +5,8 @@ import { ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 
+import { NotificationBell } from "@/components/notifications/NotificationBell";
+
 export function Header() {
   const [mounted, setMounted] = useState(false);
   const { user } = useUser();
@@ -23,9 +25,12 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 flex h-16 w-full items-center justify-end px-6 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm">
-      <div className="flex items-center gap-4">
-        {/* User Info & Badge */}
-        <div className="flex items-center gap-3 pr-4 border-r border-slate-200">
+      <div className="flex items-center gap-6">
+        <NotificationBell />
+        
+        <div className="flex items-center gap-4">
+          {/* User Info & Badge */}
+          <div className="flex items-center gap-3 pr-4 border-r border-slate-200">
           <div className="flex flex-col items-end">
             <span className="text-sm font-black text-[#0F172A] leading-tight tracking-tight uppercase">
               {user?.fullName || user?.username || user?.emailAddresses[0]?.emailAddress?.split('@')[0]}
@@ -55,6 +60,7 @@ export function Header() {
           />
         )}
       </div>
-    </header>
-  );
+    </div>
+  </header>
+);
 }

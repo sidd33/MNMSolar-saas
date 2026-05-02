@@ -11,7 +11,7 @@ import {
     DropdownMenuSeparator, 
     DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { initiatePreliminarySurvey } from "@/lib/actions/sales";
 import { toast } from "sonner";
@@ -22,9 +22,10 @@ interface SalesLeadActionsProps {
     leadName: string;
     status: string;
     onActionComplete?: () => void;
+    onMarkLost?: () => void;
 }
 
-export function SalesLeadActions({ leadId, leadName, status, onActionComplete }: SalesLeadActionsProps) {
+export function SalesLeadActions({ leadId, leadName, status, onActionComplete, onMarkLost }: SalesLeadActionsProps) {
     const [isPending, startTransition] = useTransition();
     const router = useRouter();
 
@@ -53,7 +54,7 @@ export function SalesLeadActions({ leadId, leadName, status, onActionComplete }:
                     </DropdownMenuLabel>
                     
                     <DropdownMenuItem 
-                        disabled={isPending || status === 'SITE_VISIT_SCHEDULED' || status === 'CONVERTED'}
+                        disabled={isPending || status === 'SITE_VISIT_SCHEDULED' || status === 'CONVERTED' || status === 'LOST'}
                         onClick={handleInitiateSurvey}
                         className="flex items-center gap-3 p-3 rounded-xl cursor-pointer focus:bg-blue-50 focus:text-[#1C3384] group"
                     >
@@ -67,6 +68,7 @@ export function SalesLeadActions({ leadId, leadName, status, onActionComplete }:
                     </DropdownMenuItem>
 
                     <DropdownMenuItem 
+                        disabled={status === 'LOST'}
                         onClick={() => router.push(`/dashboard/sales/quotes/new?leadId=${leadId}`)}
                         className="flex items-center gap-3 p-3 rounded-xl cursor-pointer focus:bg-amber-50 focus:text-amber-700 group mt-1"
                     >
@@ -83,12 +85,23 @@ export function SalesLeadActions({ leadId, leadName, status, onActionComplete }:
                 <DropdownMenuSeparator className="my-2 bg-slate-50" />
                 
                 <DropdownMenuGroup>
-                    <DropdownMenuItem className="flex items-center gap-3 p-3 rounded-xl cursor-pointer text-slate-600 hover:bg-slate-50">
+                    <DropdownMenuItem 
+                        disabled={status === 'LOST' || status === 'CONVERTED'}
+                        className="flex items-center gap-3 p-3 rounded-xl cursor-pointer text-slate-600 hover:bg-slate-50"
+                    >
                         <Edit size={16} />
                         <span className="text-xs font-medium">Edit Lead Details</span>
                     </DropdownMenuItem>
 
-                    <DropdownMenuItem variant="destructive" className="flex items-center gap-3 p-3 rounded-xl cursor-pointer mt-1">
+                    <DropdownMenuItem 
+                        variant="destructive" 
+                        disabled={status === 'LOST' || status === 'CONVERTED'}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onMarkLost?.();
+                        }}
+                        className="flex items-center gap-3 p-3 rounded-xl cursor-pointer mt-1"
+                    >
                         <Trash2 size={16} />
                         <span className="text-xs font-medium">Mark as Lost</span>
                     </DropdownMenuItem>

@@ -56,6 +56,9 @@ export async function getExecutionQueue() {
           updatedAt: true,
           clientName: true,
           executionMetadata: true,
+          claimedByUserId: true,
+          claimedAt: true,
+          claimedBy: { select: { id: true, email: true } }
       }
   });
 }
@@ -123,4 +126,56 @@ export async function updateExecutionMetadata(projectId: string, metadata: any) 
 
     revalidatePath(`/dashboard/execution/ops`);
     return result;
+}
+
+export async function claimProject(projectId: string) {
+    const { user, orgId, isOwner } = await validateExecutionAccess();
+    if (!orgId) throw new Error("No organization context found");
+
+    const project = await prisma.project.findUnique({
+        where: { id: projectId, organizationId: orgId }
+    });
+
+    if (!project) throw new Error("Project not found");
+
+    if (project.claimedByUserId && project.claimedByUserId !== user.id && !isOwner) {
+        throw new Error("This project is already claimed by another team member.");
+    }
+
+    await prisma.project.update({
+        where: { id: projectId },
+        data: {
+            claimedByUserId: user.id,
+            claimedAt: new Date()
+        }
+    });
+
+    revalidatePath("/dashboard/department/Execution");
+    return { success: true };
+}
+
+export async function unclaimProject(projectId: string) {
+    const { user, orgId, isOwner } = await validateExecutionAccess();
+    if (!orgId) throw new Error("No organization context found");
+
+    const project = await prisma.project.findUnique({
+        where: { id: projectId, organizationId: orgId }
+    });
+
+    if (!project) throw new Error("Project not found");
+
+    if (project.claimedByUserId !== user.id && !isOwner) {
+        throw new Error("You can only release projects that you have claimed.");
+    }
+
+    await prisma.project.update({
+        where: { id: projectId },
+        data: {
+            claimedByUserId: null,
+            claimedAt: null
+        }
+    });
+
+    revalidatePath("/dashboard/department/Execution");
+    return { success: true };
 }

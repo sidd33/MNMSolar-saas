@@ -21,8 +21,8 @@ export async function getOwnerDashboardData() {
     }
   }
 
-  // SELECTIVE FETCHING: Only pull essential fields to minimize payload and compute costs, AND run queries in parallel.
-  const [projects, auditLogs] = await Promise.all([
+  // SELECTIVE FETCHING: Parallelize all operational streams
+  const [projects, auditLogs, leads, quotes] = await Promise.all([
     prisma.project.findMany({
       where: projectWhere,
       take: 100,
@@ -52,6 +52,31 @@ export async function getOwnerDashboardData() {
             project: { select: { name: true } }
           }
         }
+      }
+    }),
+    prisma.lead.findMany({
+      where: { organizationId: sync.orgId },
+      orderBy: { updatedAt: 'desc' },
+      take: 50,
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        capacityKw: true,
+        updatedAt: true,
+      }
+    }),
+    prisma.quote.findMany({
+      where: { organizationId: sync.orgId },
+      orderBy: { updatedAt: 'desc' },
+      take: 50,
+      select: {
+        id: true,
+        clientName: true,
+        projectName: true,
+        status: true,
+        quotedValue: true,
+        updatedAt: true,
       }
     })
   ]);
@@ -84,6 +109,8 @@ export async function getOwnerDashboardData() {
 
   return {
     projects,
+    leads,
+    quotes,
     stats: {
         heatmap,
         workload

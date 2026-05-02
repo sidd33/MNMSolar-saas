@@ -8,6 +8,7 @@ import { EngineeringHandoffCard } from "@/components/workspace/EngineeringHandof
 import { DepartmentQueueSearch } from "@/components/dashboard/DepartmentQueueSearch";
 import { getProjectDetail, getBulkProjectDetails } from "@/lib/actions/engineering";
 import { useState, useEffect } from "react";
+import { useUser } from "@clerk/nextjs";
 
 /**
  * Detailed Engineering Queue — Ultra-Lean Edition
@@ -16,8 +17,13 @@ import { useState, useEffect } from "react";
  * Files & Tasks are fetched in bulk for all visible projects.
  */
 export default function DetailedEnggQueue() {
+  const { user } = useUser();
   const { data } = useDashboardNexus();
-  const projects = data?.projects?.filter((p: any) => p.stage === "DETAILED_ENGG") || [];
+  
+  // Filter: ONLY show projects claimed by the current user
+  const projects = data?.projects?.filter((p: any) => 
+    p.stage === "DETAILED_ENGG" && p.claimedByUserId === user?.id
+  ) || [];
   const [detailCache, setDetailCache] = useState<Record<string, any>>({});
   const [isSyncing, setIsSyncing] = useState(false);
 

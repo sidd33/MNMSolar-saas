@@ -1,15 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { updateQuoteDetails, uploadQuoteDocument } from "@/lib/actions/sales";
+import { updateQuoteDetails, uploadQuoteVersion, getQuoteVersions } from "@/lib/actions/sales";
 import { useProjectFileUpload } from "@/hooks/useProjectFileUpload";
-import { FileText, Save, CheckCircle2, DownloadCloud, UploadCloud, Rocket } from "lucide-react";
+import { FileText, Save, CheckCircle2, DownloadCloud, UploadCloud, Rocket, History, ExternalLink, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 interface QuoteDetailPanelProps {
   quote: any;
@@ -29,6 +31,25 @@ export function QuoteDetailPanel({ quote, onUpdate, onApproveClick }: QuoteDetai
     scopeOfWork: quote.scopeOfWork || "",
     notes: quote.notes || ""
   });
+  
+  const [versionNote, setVersionNote] = useState("");
+  const [versions, setVersions] = useState<any[]>([]);
+  const [isLoadingVersions, setIsLoadingVersions] = useState(true);
+
+  const fetchVersions = async () => {
+    try {
+      const data = await getQuoteVersions(quote.id);
+      setVersions(data);
+    } catch (error) {
+      console.error("Failed to fetch versions:", error);
+    } finally {
+      setIsLoadingVersions(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchVersions();
+  }, [quote.id]);
 
   const isEditable = quote.status === "DRAFT" || quote.status === "NEGOTIATING";
 
@@ -214,73 +235,143 @@ export function QuoteDetailPanel({ quote, onUpdate, onApproveClick }: QuoteDetai
             </div>
           </div>
 
-          {/* Section B */}
-          {quote.status === "DRAFT" && !quote.fileUrl ? (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-center">
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-6 px-4">
-                Upload Quotation
-              </p>
-              {isUploading ? (
-                <div className="flex flex-col items-center justify-center gap-4 py-4">
-                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#1C3384]"></div>
-                  <div className="w-full space-y-1">
-                    <p className="text-[10px] font-black text-[#1C3384] uppercase">{status || "Uploading..."}</p>
-                    <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                      <div className="bg-[#1C3384] h-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
+          {/* Section B — Version History & Upload */}
+          <div className="space-y-6">
+            {isEditable && (
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    {versions.length > 0 ? `Revision Note (v${versions.length + 1})` : "Initial Quote Note"}
+                  </Label>
+                  <Input 
+                    placeholder="e.g. Revised price, added EMI..."
+                    value={versionNote}
+                    onChange={(e) => setVersionNote(e.target.value)}
+                    className="h-10 bg-slate-50 border-none rounded-xl text-xs font-medium"
+                  />
+                </div>
+
+                {isUploading ? (
+                  <div className="flex flex-col items-center justify-center gap-3 py-4">
+                    <Loader2 className="animate-spin text-[#1C3384]" size={24} />
+                    <div className="w-full space-y-1">
+                      <p className="text-[9px] font-black text-[#1C3384] text-center uppercase tracking-widest">{status || "Uploading..."}</p>
+                      <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                        <div className="bg-[#1C3384] h-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
+                      </div>
                     </div>
                   </div>
+                ) : (
+                  <div className="relative">
+                    <Button className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black uppercase tracking-widest text-[10px] gap-2 shadow-lg shadow-emerald-900/10 active:scale-95 transition-all">
+                      <UploadCloud size={16} />
+                      {versions.length > 0 ? `Upload Revised Quote (v${versions.length + 1})` : "Upload Quote PDF"}
+                    </Button>
+                    <input
+                      type="file"
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      accept="application/pdf"
+                      onChange={async (e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          try {
+                            const projectId = quote.lead?.projects?.[0]?.id;
+                            if (!projectId) {
+                              toast.error("Associated preliminary project not found.");
+                              return;
+                            }
+
+                            await uploadFiles(projectId, [e.target.files[0]], "COMMERCIAL", null, async (savedFiles) => {
+                              if (savedFiles && savedFiles[0]) {
+                                await uploadQuoteVersion(
+                                  quote.id, 
+                                  savedFiles[0].fileUrl!, 
+                                  savedFiles[0].utFileKey!, 
+                                  savedFiles[0].name,
+                                  formData.quotedValue ? Number(formData.quotedValue) : undefined,
+                                  versionNote
+                                );
+                                toast.success("New quote version uploaded.");
+                                setVersionNote("");
+                                fetchVersions();
+                                onUpdate();
+                              }
+                            }, "SITE_SURVEY");
+                          } catch (err: any) {
+                            toast.error(err.message || "Failed to upload document.");
+                          }
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                  <History size={12} />
+                  Version History
+                </Label>
+                {versions.length > 0 && (
+                  <Badge className="bg-slate-100 text-slate-500 rounded-lg text-[9px] font-black">{versions.length} Total</Badge>
+                )}
+              </div>
+
+              {isLoadingVersions ? (
+                <div className="py-8 flex justify-center">
+                  <Loader2 className="animate-spin text-slate-300" size={24} />
+                </div>
+              ) : versions.length === 0 ? (
+                <div className="bg-white/50 border border-dashed border-slate-200 rounded-2xl p-6 text-center">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">No versions uploaded yet.</p>
                 </div>
               ) : (
-                <div className="relative border-2 border-dashed border-slate-200 hover:border-[#1C3384]/30 bg-slate-50 hover:bg-slate-100/50 rounded-2xl p-10 flex flex-col items-center justify-center gap-4 transition-all cursor-pointer group">
-                  <UploadCloud size={40} className="text-slate-300 group-hover:text-[#1C3384] transition-all duration-300 group-hover:scale-110" />
-                  <p className="text-xs font-black uppercase tracking-widest text-slate-500 group-hover:text-[#1C3384] transition-colors">Select PDF</p>
-                  <input
-                    type="file"
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    accept="application/pdf"
-                    onChange={async (e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        try {
-                          const projectId = quote.lead?.projects?.[0]?.id;
-                          if (!projectId) {
-                            toast.error("Associated preliminary project not found.");
-                            return;
-                          }
+                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200">
+                  {versions.map((v, index) => (
+                    <div key={v.id} className={cn(
+                      "bg-white p-4 rounded-2xl border transition-all group/v",
+                      index === 0 ? "border-[#1C3384]/20 shadow-md shadow-blue-900/5 ring-1 ring-[#1C3384]/5" : "border-slate-100 opacity-70 hover:opacity-100"
+                    )}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black text-[#1C3384] uppercase">v{v.versionNumber}</span>
+                          {index === 0 ? (
+                            <Badge className="bg-emerald-50 text-emerald-600 rounded-lg text-[8px] font-black px-1.5 h-4 uppercase">Active</Badge>
+                          ) : (
+                            <Badge className="bg-slate-50 text-slate-400 rounded-lg text-[8px] font-black px-1.5 h-4 uppercase border-none">Superseded</Badge>
+                          )}
+                        </div>
+                        <a 
+                          href={v.fileUrl} 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="text-slate-400 hover:text-[#1C3384] transition-colors"
+                        >
+                          <ExternalLink size={14} />
+                        </a>
+                      </div>
+                      
+                      {v.quotedValue && (
+                        <p className="text-xs font-black text-slate-900 mb-1">₹{v.quotedValue.toLocaleString()}</p>
+                      )}
+                      
+                      {v.note && (
+                        <p className="text-[10px] font-medium text-slate-500 leading-relaxed italic mb-2 line-clamp-2">
+                          "{v.note}"
+                        </p>
+                      )}
 
-                          await uploadFiles(projectId, [e.target.files[0]], "COMMERCIAL", null, async (savedFiles) => {
-                            if (savedFiles && savedFiles[0]) {
-                              await uploadQuoteDocument(quote.id, savedFiles[0].fileUrl, savedFiles[0].utFileKey, savedFiles[0].name);
-                               toast.success("Quote document uploaded. Status moved to Negotiating.");
-                              onUpdate();
-                              onApproveClick();
-
-                            }
-                          }, "SITE_SURVEY");
-                        } catch (err: any) {
-                          toast.error(err.message || "Failed to upload document.");
-                        }
-                      }
-                    }}
-                  />
+                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-50">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase">{v.uploadedBy.email.split('@')[0]}</span>
+                        <span className="text-[9px] font-bold text-slate-300">{format(new Date(v.createdAt), 'MMM dd, yy')}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
-          ) : quote.fileUrl ? (
-            <a href={quote.fileUrl} target="_blank" rel="noreferrer" className="block group/file">
-              <div className="bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 p-6 rounded-2xl transition-all duration-300 flex flex-col items-center justify-center gap-3 cursor-pointer shadow-sm">
-                <div className="h-14 w-14 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500 group-hover/file:scale-110 transition-transform">
-                  <CheckCircle2 size={32} />
-                </div>
-                <div className="text-center min-w-0">
-                  <p className="text-[11px] font-black uppercase tracking-widest text-slate-800 truncate">Proposal.pdf</p>
-                  <p className="text-[9px] font-bold text-emerald-600/70 uppercase tracking-widest mt-1">Version: Active</p>
-                </div>
-                <div className="mt-2 text-[9px] font-bold text-slate-400 uppercase">
-                  Updated {new Date(quote.updatedAt).toLocaleDateString()}
-                </div>
-              </div>
-            </a>
-          ) : null}
+          </div>
         </div>
 
         <div className="flex-grow" />

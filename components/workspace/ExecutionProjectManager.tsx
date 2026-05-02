@@ -9,9 +9,14 @@ import { ProcurementModule } from "./ProcurementModule";
 import { SafetyModule } from "./SafetyModule";
 import SiteWorkModule from "./SiteWorkModule";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ChevronLeft, ExternalLink, Share2, AlertCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { useUser } from "@clerk/nextjs";
+import { claimProject, unclaimProject } from "@/lib/actions/execution";
+import { toast } from "sonner";
+import { useDashboardNexus } from "../dashboard/DashboardNexusProvider";
 
 interface ExecutionProjectManagerProps {
     project: any;
@@ -21,6 +26,10 @@ interface ExecutionProjectManagerProps {
 
 export function ExecutionProjectManager({ project, onBack, forcedSection }: ExecutionProjectManagerProps) {
     const [activeSection, setActiveSection] = useState<ExecutionSection>(forcedSection || "PROCUREMENT");
+    const { refresh } = useDashboardNexus();
+    const { user } = useUser();
+    const role = user?.publicMetadata?.role as string;
+    const isOwner = role === 'OWNER' || role === 'SUPER_ADMIN';
 
     // Sync state if forcedSection changes
     useEffect(() => {
@@ -28,6 +37,28 @@ export function ExecutionProjectManager({ project, onBack, forcedSection }: Exec
             setActiveSection(forcedSection);
         }
     }, [forcedSection]);
+
+    const handleClaim = async () => {
+        const toastId = toast.loading("Processing claim...");
+        try {
+          await claimProject(project.id);
+          toast.success("Project claimed successfully", { id: toastId });
+          refresh();
+        } catch (err: any) {
+          toast.error(err.message || "Failed to claim project", { id: toastId });
+        }
+    };
+
+    const handleUnclaim = async () => {
+        const toastId = toast.loading("Releasing claim...");
+        try {
+          await unclaimProject(project.id);
+          toast.success("Project released", { id: toastId });
+          refresh();
+        } catch (err: any) {
+          toast.error(err.message || "Failed to release claim", { id: toastId });
+        }
+    };
 
     const renderMainContent = () => {
         switch (activeSection) {
@@ -79,6 +110,35 @@ export function ExecutionProjectManager({ project, onBack, forcedSection }: Exec
                 </div>
 
                 <div className="flex items-center gap-3">
+                    {project.claimedByUserId ? (
+                        <div className="flex items-center gap-2 mr-2">
+                            <Badge className={cn(
+                                "font-black px-4 py-2 uppercase tracking-wider text-[9px] rounded-xl shadow-sm",
+                                project.claimedByUserId === user?.id 
+                                ? "bg-green-100 text-green-700 border border-green-200" 
+                                : "bg-slate-100 text-slate-500 border border-slate-200"
+                            )}>
+                                {project.claimedByUserId === user?.id 
+                                ? "You are handling this site" 
+                                : `Handled by ${project.claimedBy?.email?.split('@')[0]}`}
+                            </Badge>
+                            {(project.claimedByUserId === user?.id || isOwner) && (
+                                <button 
+                                    onClick={handleUnclaim}
+                                    className="text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-red-500 transition-colors bg-slate-50 px-3 py-2 rounded-xl border border-slate-100"
+                                >
+                                    Release
+                                </button>
+                            )}
+                        </div>
+                    ) : (
+                        <Button 
+                            onClick={handleClaim}
+                            className="h-12 px-6 rounded-2xl bg-[#FFC800] text-[#1C3384] font-black text-[10px] uppercase tracking-widest hover:bg-[#FFD700] transition-all shadow-lg shadow-yellow-400/20 mr-2"
+                        >
+                            Claim this Site
+                        </Button>
+                    )}
                     <button 
                         disabled
                         className="h-12 px-6 rounded-2xl border border-slate-100 bg-slate-50 text-slate-300 font-black text-[10px] uppercase tracking-widest transition-all gap-2 flex items-center cursor-not-allowed opacity-60"

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { Plus, Search, Target, User, Phone, MapPin, LayoutGrid } from "lucide-react";
+import { useState, useCallback, Fragment } from "react";
+import { Plus, Search, Target, User, Phone, MapPin, LayoutGrid, ChevronDown, ChevronUp, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,9 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { SalesLeadActions } from "@/components/dashboard/SalesLeadActions";
 import { getMyLeads, getSurveyTrackingLeads } from "@/lib/actions/sales";
+import { FollowUpLog } from "@/components/sales/FollowUpLog";
+import { MarkLeadLostModal } from "@/components/sales/MarkLeadLostModal";
+import { cn } from "@/lib/utils";
 
 interface LeadsClientProps {
   initialLeads: any[];
@@ -29,6 +32,8 @@ export default function LeadsClient({ initialLeads, initialSurveyLeads }: LeadsC
   const [surveyLeads, setSurveyLeads] = useState<any[]>(initialSurveyLeads);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [expandedLeadId, setExpandedLeadId] = useState<string | null>(null);
+  const [lostModalLead, setLostModalLead] = useState<{ id: string; name: string } | null>(null);
 
   const fetchData = useCallback(async (isSilent = false) => {
     if (!isSilent) setIsLoading(true);
@@ -101,25 +106,37 @@ export default function LeadsClient({ initialLeads, initialSurveyLeads }: LeadsC
             </div>
         </div>
 
-        {/* 📊 Row 3: Data Table */}
-        <div className="w-full mt-4">
-            <TabsContent value="pipeline" className="mt-0 w-full focus-visible:outline-none">
-                <LeadTable 
-                    leads={filterLeads(activeLeads)} 
-                    emptyMessage="No proactive leads found in your pipeline." 
-                    fetchData={fetchData}
-                />
-            </TabsContent>
+        <TabsContent value="pipeline" className="mt-6">
+          <LeadTable 
+            leads={filterLeads(activeLeads)} 
+            emptyMessage="No active leads found." 
+            fetchData={fetchData}
+            expandedLeadId={expandedLeadId}
+            setExpandedLeadId={setExpandedLeadId}
+            onMarkLost={setLostModalLead}
+          />
+        </TabsContent>
 
-            <TabsContent value="survey" className="mt-0 w-full focus-visible:outline-none">
-                <LeadTable 
-                    leads={filterLeads(surveyLeads)} 
-                    emptyMessage="No leads currently pending Engineering survey." 
-                    fetchData={fetchData}
-                />
-            </TabsContent>
-        </div>
+        <TabsContent value="survey" className="mt-6">
+          <LeadTable 
+            leads={filterLeads(surveyLeads)} 
+            emptyMessage="No leads under survey." 
+            fetchData={fetchData}
+            expandedLeadId={expandedLeadId}
+            setExpandedLeadId={setExpandedLeadId}
+            onMarkLost={setLostModalLead}
+          />
+        </TabsContent>
       </Tabs>
+
+      {lostModalLead && (
+        <MarkLeadLostModal 
+          lead={lostModalLead}
+          isOpen={!!lostModalLead}
+          onClose={() => setLostModalLead(null)}
+          onSuccess={() => fetchData(true)}
+        />
+      )}
     </div>
   );
 }
@@ -127,11 +144,17 @@ export default function LeadsClient({ initialLeads, initialSurveyLeads }: LeadsC
 const LeadTable = ({ 
     leads, 
     emptyMessage, 
-    fetchData 
+    fetchData,
+    expandedLeadId,
+    setExpandedLeadId,
+    onMarkLost 
 }: { 
     leads: any[], 
     emptyMessage: string, 
-    fetchData: (silent?: boolean) => void 
+    fetchData: (silent?: boolean) => void,
+    expandedLeadId: string | null,
+    setExpandedLeadId: (id: string | null) => void,
+    onMarkLost: (lead: any) => void
 }) => (
   <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden min-h-[400px] w-full">
       <Table>
@@ -157,62 +180,94 @@ const LeadTable = ({
             </TableRow>
           ) : (
             leads.map((lead: any) => (
-              <TableRow key={lead.id} className="hover:bg-slate-50/50 border-slate-50 transition-colors group">
-                <TableCell className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-blue-50 text-[#1C3384] flex items-center justify-center font-bold text-lg shadow-sm border border-blue-100/50">
-                      {lead.name.charAt(0)}
+              <Fragment key={lead.id}>
+                <TableRow 
+                  className={cn(
+                    "hover:bg-slate-50/50 border-slate-50 transition-colors group cursor-pointer",
+                    expandedLeadId === lead.id && "bg-slate-50/80"
+                  )}
+                  onClick={() => setExpandedLeadId(expandedLeadId === lead.id ? null : lead.id)}
+                >
+                  <TableCell className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "h-10 w-10 rounded-xl flex items-center justify-center font-bold text-lg shadow-sm border transition-all",
+                        expandedLeadId === lead.id ? "bg-[#1C3384] text-white" : "bg-blue-50 text-[#1C3384] border-blue-100/50"
+                      )}>
+                        {lead.name.charAt(0)}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-black text-slate-900 leading-tight uppercase tracking-tight">{lead.name}</p>
+                          {expandedLeadId === lead.id ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />}
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-medium">Added {format(new Date(lead.createdAt), 'MMM dd, yyyy')}</p>
+                        
+                        {lead.status === 'LOST' && lead.lostReason && (
+                          <Badge variant="destructive" className="mt-1 h-5 text-[8px] font-black uppercase tracking-widest gap-1 bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-50">
+                            <AlertCircle size={10} />
+                            Lost: {lead.lostReason.replace(/_/g, ' ')}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-black text-slate-900 leading-tight uppercase tracking-tight">{lead.name}</p>
-                      <p className="text-[10px] text-slate-400 font-medium">Added {format(new Date(lead.createdAt), 'MMM dd, yyyy')}</p>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                        <User size={12} className="text-slate-300" />
+                        {lead.contactPerson || "No Contact"}
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium">
+                        <Phone size={12} className="text-slate-300" />
+                        {lead.mobile || "N/A"}
+                      </div>
                     </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-                      <User size={12} className="text-slate-300" />
-                      {lead.contactPerson || "No Contact"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-start gap-2 max-w-[200px]">
+                      <MapPin size={12} className="text-slate-300 mt-0.5 shrink-0" />
+                      <p className="text-xs font-medium text-slate-600 line-clamp-1">{lead.siteAddress || "Not specified"}</p>
                     </div>
-                    <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium">
-                      <Phone size={12} className="text-slate-300" />
-                      {lead.mobile || "N/A"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-0.5">
+                        <p className="text-xs font-black text-[#1C3384]">₹{lead.estimatedValue?.toLocaleString() || "0"}</p>
+                        <p className="text-[9px] font-bold text-slate-400 tracking-widest uppercase">{lead.capacityKw || "0"} KWp</p>
                     </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-start gap-2 max-w-[200px]">
-                    <MapPin size={12} className="text-slate-300 mt-0.5 shrink-0" />
-                    <p className="text-xs font-medium text-slate-600 line-clamp-1">{lead.siteAddress || "Not specified"}</p>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="space-y-0.5">
-                      <p className="text-xs font-black text-[#1C3384]">₹{lead.estimatedValue?.toLocaleString() || "0"}</p>
-                      <p className="text-[9px] font-bold text-slate-400 tracking-widest uppercase">{lead.capacityKw || "0"} KWp</p>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge className={`
-                    rounded-lg px-2 py-0.5 text-[9px] font-black uppercase tracking-widest border-none shadow-none
-                    ${lead.status === 'NEW' ? 'bg-blue-50 text-blue-600' : 
-                      lead.status === 'SITE_VISIT_SCHEDULED' ? 'bg-[#FFC800]/10 text-[#1C3384]' : 
-                      lead.status === 'CONVERTED' ? 'bg-emerald-50 text-emerald-600' : 
-                      lead.status === 'LOST' ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-600'}
-                  `}>
-                    {lead.status === 'SITE_VISIT_SCHEDULED' ? 'PRELIM SURVEY' : lead.status.replace(/_/g, ' ')}
-                  </Badge>
-                </TableCell>
-                <TableCell className="px-6 text-right">
-                  <SalesLeadActions 
-                      leadId={lead.id} 
-                      leadName={lead.name} 
-                      status={lead.status} 
-                      onActionComplete={() => fetchData(true)}
-                  />
-                </TableCell>
-              </TableRow>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={`
+                      rounded-lg px-2 py-0.5 text-[9px] font-black uppercase tracking-widest border-none shadow-none
+                      ${lead.status === 'NEW' ? 'bg-blue-50 text-blue-600' : 
+                        lead.status === 'SITE_VISIT_SCHEDULED' ? 'bg-[#FFC800]/10 text-[#1C3384]' : 
+                        lead.status === 'CONVERTED' ? 'bg-emerald-50 text-emerald-600' : 
+                        lead.status === 'LOST' ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-600'}
+                    `}>
+                      {lead.status === 'SITE_VISIT_SCHEDULED' ? 'PRELIM SURVEY' : lead.status.replace(/_/g, ' ')}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="px-6 text-right" onClick={(e) => e.stopPropagation()}>
+                    <SalesLeadActions 
+                        leadId={lead.id} 
+                        leadName={lead.name} 
+                        status={lead.status} 
+                        onActionComplete={() => fetchData(true)}
+                        onMarkLost={() => onMarkLost(lead)}
+                    />
+                  </TableCell>
+                </TableRow>
+                
+                {expandedLeadId === lead.id && (
+                  <TableRow className="bg-white border-b border-slate-100">
+                    <TableCell colSpan={6} className="p-10 border-none">
+                      <div className="animate-in slide-in-from-top-2 duration-300">
+                        <FollowUpLog leadId={lead.id} />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </Fragment>
             ))
           )}
         </TableBody>

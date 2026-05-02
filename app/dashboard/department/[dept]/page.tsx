@@ -6,6 +6,7 @@ import { Shield } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { ProjectHandoffCard } from "@/components/workspace/ProjectHandoffCard";
 import { DepartmentQueueSearch } from "@/components/dashboard/DepartmentQueueSearch";
+import { SalesPipelineView } from "@/components/dashboard/SalesPipelineView";
 
 import { currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
@@ -51,6 +52,18 @@ export default async function DepartmentDashboard({ params }: { params: Promise<
   }
 
   const projectList = Array.isArray(projects) ? projects : [];
+
+  // SPECIAL CASE: Owner Sales Pipeline View
+  if (isOwner && dept.toLowerCase() === "sales") {
+    return (
+      <DashboardShell 
+        title="Sales Pipeline Oversight"
+        subtitle="Manage leads and quotes before they transition into active engineering projects."
+      >
+        <SalesPipelineView />
+      </DashboardShell>
+    );
+  }
 
   return (
     <DashboardShell 

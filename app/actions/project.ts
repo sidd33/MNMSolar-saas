@@ -360,10 +360,36 @@ export async function forwardProject(formData: FormData) {
         stage: finalNextStage,
         currentDepartment: trackUpdates.currentDepartment || department || null,
         ...trackUpdates,
-        isBottlenecked
+        isBottlenecked,
+        claimedByUserId: null,
+        claimedAt: null
       }
     });
   });
+
+  // --- NOTIFICATION ENGINE ---
+  // Find all users in the receiving department
+  const receivingDeptUsers = await prisma.user.findMany({
+    where: {
+      organizationId: sync.orgId,
+      department: department?.toUpperCase() === 'SALES' ? 'SALES' : department?.toUpperCase()
+    },
+    select: { id: true }
+  });
+
+  if (receivingDeptUsers.length > 0) {
+    await prisma.notification.createMany({
+      data: receivingDeptUsers.map(u => ({
+        userId: u.id,
+        organizationId: sync.orgId,
+        type: 'PROJECT_ARRIVED',
+        title: 'New project in your queue',
+        message: `${project.name} has been forwarded to your department.`,
+        projectId: projectId,
+        isRead: false,
+      }))
+    });
+  }
 
   // Create Audit Log
   const taskId = (await prisma.task.findFirst({ where: { projectId } }))?.id || null;

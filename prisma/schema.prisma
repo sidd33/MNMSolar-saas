@@ -18,6 +18,9 @@ model Organization {
   quotes       Quote[]
   tasks        Task[]
   users        User[]
+  notifications Notification[]
+  followUps      FollowUp[]
+  quoteVersions  QuoteVersion[]
 }
 
 model User {
@@ -32,6 +35,10 @@ model User {
   assignedLeads  Lead[]
   assignedQuotes Quote[]
   tasks          Task[]       @relation("AssignedTasks")
+  claimedProjects Project[]   @relation("ProjectClaims")
+  notifications  Notification[]
+  followUps      FollowUp[]
+  quoteVersions  QuoteVersion[]
   organization   Organization @relation(fields: [organizationId], references: [id])
 
   @@index([organizationId])
@@ -66,6 +73,9 @@ model Project {
   organization         Organization   @relation(fields: [organizationId], references: [id])
   projectFiles         ProjectFile[]
   tasks                Task[]
+  claimedByUserId      String?
+  claimedAt            DateTime?
+  claimedBy            User?          @relation("ProjectClaims", fields: [claimedByUserId], references: [id])
 
   @@index([organizationId])
   @@index([currentDepartment])
@@ -180,6 +190,10 @@ model Lead {
   organization   Organization @relation(fields: [organizationId], references: [id])
   projects       Project[]
   quotes         Quote[]
+  followUps      FollowUp[]
+  lostReason     String?
+  lostAt         DateTime?
+  lostNote       String?      @db.Text
 
   @@index([assignedToId])
   @@index([organizationId])
@@ -207,6 +221,7 @@ model Quote {
   assignedTo           User?        @relation(fields: [assignedToId], references: [id])
   lead                 Lead?        @relation(fields: [leadId], references: [id])
   organization         Organization @relation(fields: [organizationId], references: [id])
+  versions             QuoteVersion[]
 
   @@index([leadId])
   @@index([assignedToId])
@@ -214,6 +229,8 @@ model Quote {
 }
 
 enum PipelineStage {
+  PROSPECT
+  PRELIMINARY_QUOTE
   SITE_SURVEY
   DETAILED_ENGG
   WORK_ORDER
@@ -266,4 +283,61 @@ enum QuoteStatus {
   APPROVED
   REJECTED
   CONVERTED
+}
+
+model Notification {
+  id             String       @id @default(cuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  type           String
+  title          String
+  message        String
+  projectId      String?
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([isRead])
+}
+
+model FollowUp {
+  id             String       @id @default(cuid())
+  leadId         String
+  lead           Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  type           String
+  note           String       @db.Text
+  followUpDate   DateTime?
+  isCompleted    Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  @@index([leadId])
+  @@index([userId])
+  @@index([organizationId])
+}
+
+model QuoteVersion {
+  id             String       @id @default(cuid())
+  quoteId        String
+  quote          Quote        @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  versionNumber  Int
+  quotedValue    Float?
+  fileUrl        String?
+  utFileKey      String?
+  fileName       String?
+  note           String?
+  uploadedById   String
+  uploadedBy     User         @relation(fields: [uploadedById], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime     @default(now())
+
+  @@index([quoteId])
+  @@index([organizationId])
 }

@@ -14,6 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Shield, FastForward, ArrowRight, ListTodo, Clock, Eye, DownloadCloud, Settings, Split } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { forwardProject, updateSanctionedLoad } from "@/app/actions/project";
+import { claimProject as claimEng, unclaimProject as unclaimEng } from "@/lib/actions/engineering";
+import { claimProject as claimExec, unclaimProject as unclaimExec } from "@/lib/actions/execution";
 import { DocumentationVault } from "./DocumentationVault";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -82,6 +84,34 @@ export function ProjectHandoffCard({ project, dept, initialFiles }: ProjectHando
     }
   }
 
+  const handleClaim = async () => {
+    const toastId = toast.loading("Processing claim...");
+    try {
+      if (dept.toUpperCase() === 'ENGINEERING') {
+        await claimEng(project.id);
+      } else if (dept.toUpperCase() === 'EXECUTION') {
+        await claimExec(project.id);
+      }
+      toast.success("Project claimed successfully", { id: toastId });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to claim project", { id: toastId });
+    }
+  };
+
+  const handleUnclaim = async () => {
+    const toastId = toast.loading("Releasing claim...");
+    try {
+      if (dept.toUpperCase() === 'ENGINEERING') {
+        await unclaimEng(project.id);
+      } else if (dept.toUpperCase() === 'EXECUTION') {
+        await unclaimExec(project.id);
+      }
+      toast.success("Project released", { id: toastId });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to release claim", { id: toastId });
+    }
+  };
+
   return (
     <Card className="overflow-hidden border border-slate-100 shadow-xl bg-white [contain:paint] will-change-transform group rounded-[2.5rem] transition-all hover:shadow-2xl hover:border-[#1C3384]/20">
       <div className="grid grid-cols-1 lg:grid-cols-3">
@@ -96,13 +126,46 @@ export function ProjectHandoffCard({ project, dept, initialFiles }: ProjectHando
                 REF: <span className="text-slate-900 font-black">{project.name.split(' ')[0]}</span>
               </span>
             </div>
-            <Button 
-              variant="ghost" 
-              onClick={() => setModalOpen(true)}
-              className="h-9 px-4 rounded-full bg-slate-50 hover:bg-[#1C3384] hover:text-white text-slate-500 font-black text-[9px] uppercase tracking-widest transition-all gap-2"
-            >
-              <Eye size={14} /> Inspect Data
-            </Button>
+            <div className="flex items-center gap-3">
+              {project.claimedByUserId ? (
+                <div className="flex items-center gap-2">
+                  <Badge className={cn(
+                    "font-black px-3 py-1 uppercase tracking-wider text-[8px] rounded-full",
+                    project.claimedByUserId === user?.id 
+                      ? "bg-green-100 text-green-700" 
+                      : "bg-slate-100 text-slate-500"
+                  )}>
+                    {project.claimedByUserId === user?.id 
+                      ? "Claimed by you" 
+                      : `Claimed by ${project.claimedBy?.email?.split('@')[0]}`}
+                  </Badge>
+                  {(project.claimedByUserId === user?.id || isOwner) && (
+                    <button 
+                      onClick={handleUnclaim}
+                      className="text-[8px] font-black uppercase tracking-widest text-slate-400 hover:text-red-500 transition-colors"
+                    >
+                      [Release]
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleClaim}
+                  className="h-7 px-3 rounded-full border-slate-200 text-slate-500 font-black text-[8px] uppercase tracking-widest hover:bg-[#1C3384] hover:text-white transition-all"
+                >
+                  Claim Project
+                </Button>
+              )}
+              <Button 
+                variant="ghost" 
+                onClick={() => setModalOpen(true)}
+                className="h-9 px-4 rounded-full bg-slate-50 hover:bg-[#1C3384] hover:text-white text-slate-500 font-black text-[9px] uppercase tracking-widest transition-all gap-2"
+              >
+                <Eye size={14} /> Inspect Data
+              </Button>
+            </div>
           </div>
 
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">

@@ -8,6 +8,7 @@ import { formatDistanceToNow } from "date-fns";
 import { AlertTriangle, Users, Activity, Zap, PieChart, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MasterPipeline } from "./MasterPipeline";
+import { SalesTeamOverview } from "./SalesTeamOverview";
 
 export function OwnerDashboardContent() {
   const { projects, stats: nexusStats, isLoading: isPipelineLoading, role, department } = usePipelineNexus();
@@ -79,6 +80,10 @@ export function OwnerDashboardContent() {
             ))}
           </div>
         </div>
+
+
+        {/* Sales Team Overview */}
+        <SalesTeamOverview />
 
         {/* Master Pipeline View */}
         <MasterPipeline />

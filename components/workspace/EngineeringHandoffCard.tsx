@@ -21,6 +21,8 @@ import { Tooltip } from "@/components/ui/tooltip";
 const Project360Modal = dynamic(() => import("@/components/dashboard/Project360Modal").then(mod => mod.Project360Modal), { ssr: false });
 import { useProjectFileUpload } from "@/hooks/useProjectFileUpload";
 import { useDashboardNexus } from "../dashboard/DashboardNexusProvider";
+import { useUser } from "@clerk/nextjs";
+import { claimProject, unclaimProject } from "@/lib/actions/engineering";
 
 interface EngineeringHandoffCardProps {
   project: any;
@@ -39,12 +41,16 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
   const [uploadingTag, setUploadingTag] = useState<string | null>(null);
   const [uploadCategory, setUploadCategory] = useState<"TECHNICAL" | "LIAISONING">("TECHNICAL");
 
+  const { user } = useUser();
+  const role = user?.publicMetadata?.role as string;
+  const isOwner = role === 'OWNER' || role === 'SUPER_ADMIN';
+
   // Sync state with props for lazy loading - with safety check to prevent wipes
   useEffect(() => {
     if (initialFiles && initialFiles.length > 0) {
-        setFiles(initialFiles);
+      setFiles(initialFiles);
     } else if (files.length === 0 && initialFiles) {
-        setFiles(initialFiles);
+      setFiles(initialFiles);
     }
   }, [initialFiles]);
 
@@ -109,6 +115,28 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
     }
   };
 
+  const handleClaim = async () => {
+    const toastId = toast.loading("Processing claim...");
+    try {
+      await claimProject(project.id);
+      toast.success("Project claimed successfully", { id: toastId });
+      refresh();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to claim project", { id: toastId });
+    }
+  };
+
+  const handleUnclaim = async () => {
+    const toastId = toast.loading("Releasing claim...");
+    try {
+      await unclaimProject(project.id);
+      toast.success("Project released", { id: toastId });
+      refresh();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to release claim", { id: toastId });
+    }
+  };
+
   async function handleHandoff(formData: FormData) {
     if (isSiteSurveyStage && !surveyReportFile) {
       toast.error("Survey Report missing. Please upload before dispatching.");
@@ -129,7 +157,7 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
 
     const currentIndex = PIPELINE_STAGES.indexOf(project.stage);
     const nextStage = PIPELINE_STAGES[currentIndex + 1] || project.stage;
-    
+
     // Determine target department
     let targetDept = "Engineering";
     const executionIndex = PIPELINE_STAGES.indexOf("HANDOVER_TO_EXECUTION");
@@ -155,27 +183,27 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
     if (!file) return;
 
     setUploadingTag(tag);
-    
+
     // Custom Naming for Annexures
     let finalName = file.name;
     if (tag === "ANNEXURE") {
-        finalName = `Annexure_${annexureCount + 1}_${project.name}.pdf`;
+      finalName = `Annexure_${annexureCount + 1}_${project.name}.pdf`;
     }
 
     const taggedFile = new File([file], `[${tag}]_${finalName}`, { type: file.type });
 
     try {
       const dbCategory = tag === "ANNEXURE" ? "LIAISONING" : (uploadCategory as any);
-      
+
       await uploadFiles(project.id, [taggedFile], dbCategory, existingFileId, (savedFiles) => {
         // If it was a replacement, we need to remove the old one from state
         let updatedFiles;
         if (existingFileId) {
-            updatedFiles = files.map(f => f.id === existingFileId ? savedFiles[0] : f);
+          updatedFiles = files.map(f => f.id === existingFileId ? savedFiles[0] : f);
         } else {
-            updatedFiles = [...files, ...savedFiles];
+          updatedFiles = [...files, ...savedFiles];
         }
-        
+
         setFiles(updatedFiles);
         updateLocalProject(project.id, { projectFiles: updatedFiles });
         toast.success(existingFileId ? `${tag} replaced successfully` : `${tag} verified and attached`);
@@ -190,75 +218,75 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
 
   const handleDeleteFile = async (fileId: string, tag: string) => {
     if (!confirm(`Are you sure you want to delete the uploaded ${tag} documentation?`)) return;
-    
+
     const loadingToast = toast.loading(`Deleting ${tag}...`);
     try {
-        await deleteProjectFile(fileId, project.id);
-        const updatedFiles = files.filter(f => f.id !== fileId);
-        setFiles(updatedFiles);
-        updateLocalProject(project.id, { projectFiles: updatedFiles });
-        toast.success(`${tag} deleted successfully`, { id: loadingToast });
-        refresh();
+      await deleteProjectFile(fileId, project.id);
+      const updatedFiles = files.filter(f => f.id !== fileId);
+      setFiles(updatedFiles);
+      updateLocalProject(project.id, { projectFiles: updatedFiles });
+      toast.success(`${tag} deleted successfully`, { id: loadingToast });
+      refresh();
     } catch (e) {
-        toast.error(`Failed to delete ${tag}`, { id: loadingToast });
+      toast.error(`Failed to delete ${tag}`, { id: loadingToast });
     }
   };
 
   const DropSlot = ({ label, tag, fileObject }: { label: string, tag: string, fileObject?: any }) => {
     const isComplete = !!fileObject;
-    
+
     return (
-        <div className={cn(
-            "relative border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center transition-all min-h-24 group/slot",
-            isComplete ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-slate-50 border-slate-200 hover:bg-slate-100 hover:border-[#1C3384]/50 cursor-pointer text-slate-500"
-        )}>
-            {isComplete ? (
-                <>
-                    <CheckCircle2 size={24} className="mb-2 text-emerald-500" />
-                    <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">{label} DONE</p>
-                    
-                    {/* Utility Overlay for Replacement/Deletion - Adjusted for visibility */}
-                    <div className="absolute top-2 right-2 flex items-center gap-1.5">
-                        <div className="relative">
-                            <Button size="icon" variant="ghost" className="h-7 w-7 rounded-full bg-white text-blue-600 shadow-md border border-blue-100 hover:scale-110 transition-transform">
-                                <Edit3 size={12} />
-                            </Button>
-                            <input 
-                                type="file" 
-                                className="absolute inset-0 opacity-0 cursor-pointer" 
-                                onChange={(e) => handleFileUpload(tag, e, fileObject.id)}
-                            />
-                        </div>
-                        <Button 
-                            size="icon" 
-                            variant="ghost" 
-                            onClick={() => handleDeleteFile(fileObject.id, tag)}
-                            className="h-7 w-7 rounded-full bg-white text-rose-600 shadow-md border border-rose-100 hover:scale-110 transition-transform"
-                        >
-                            <Trash2 size={12} />
-                        </Button>
-                    </div>
-                </>
-            ) : uploadingTag === tag ? (
-                <>
-                    <Settings size={24} className="mb-2 animate-spin text-[#1C3384]" />
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[#1C3384]">Uploading...</p>
-                </>
-            ) : (
-                <>
-                    <UploadCloud size={24} className="mb-2 text-slate-400 group-hover:text-[#1C3384] transition-colors" />
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[#0F172A]">{label}</p>
-                </>
-            )}
-            {!isComplete && uploadingTag !== tag && (
+      <div className={cn(
+        "relative border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center transition-all min-h-24 group/slot",
+        isComplete ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-slate-50 border-slate-200 hover:bg-slate-100 hover:border-[#1C3384]/50 cursor-pointer text-slate-500"
+      )}>
+        {isComplete ? (
+          <>
+            <CheckCircle2 size={24} className="mb-2 text-emerald-500" />
+            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">{label} DONE</p>
+
+            {/* Utility Overlay for Replacement/Deletion - Adjusted for visibility */}
+            <div className="absolute top-2 right-2 flex items-center gap-1.5">
+              <div className="relative">
+                <Button size="icon" variant="ghost" className="h-7 w-7 rounded-full bg-white text-blue-600 shadow-md border border-blue-100 hover:scale-110 transition-transform">
+                  <Edit3 size={12} />
+                </Button>
                 <input
-                    type="file"
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    disabled={uploadingTag !== null}
-                    onChange={(e) => handleFileUpload(tag, e)}
+                  type="file"
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                  onChange={(e) => handleFileUpload(tag, e, fileObject.id)}
                 />
-            )}
-        </div>
+              </div>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => handleDeleteFile(fileObject.id, tag)}
+                className="h-7 w-7 rounded-full bg-white text-rose-600 shadow-md border border-rose-100 hover:scale-110 transition-transform"
+              >
+                <Trash2 size={12} />
+              </Button>
+            </div>
+          </>
+        ) : uploadingTag === tag ? (
+          <>
+            <Settings size={24} className="mb-2 animate-spin text-[#1C3384]" />
+            <p className="text-[10px] font-black uppercase tracking-widest text-[#1C3384]">Uploading...</p>
+          </>
+        ) : (
+          <>
+            <UploadCloud size={24} className="mb-2 text-slate-400 group-hover:text-[#1C3384] transition-colors" />
+            <p className="text-[10px] font-black uppercase tracking-widest text-[#0F172A]">{label}</p>
+          </>
+        )}
+        {!isComplete && uploadingTag !== tag && (
+          <input
+            type="file"
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            disabled={uploadingTag !== null}
+            onChange={(e) => handleFileUpload(tag, e)}
+          />
+        )}
+      </div>
     );
   };
 
@@ -275,9 +303,9 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
                 REF: <span className="text-slate-900 font-black">{project.name.split(' ')[0]}</span>
                 {files.length > 0 && (
-                    <span className="ml-2 px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-md border border-blue-100 italic">
-                        {files.length} Assets Linked
-                    </span>
+                  <span className="ml-2 px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-md border border-blue-100 italic">
+                    {files.length} Assets
+                  </span>
                 )}
               </span>
             </div>
@@ -288,6 +316,39 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
             >
               <Eye size={14} /> Inspect Data
             </Button>
+            <div className="flex items-center gap-3">
+              {project.claimedByUserId ? (
+                <div className="flex items-center gap-2">
+                  <Badge className={cn(
+                    "font-black px-3 py-1 uppercase tracking-wider text-[8px] rounded-full",
+                    project.claimedByUserId === user?.id
+                      ? "bg-green-100 text-green-700"
+                      : "bg-slate-100 text-slate-500"
+                  )}>
+                    {project.claimedByUserId === user?.id
+                      ? "Claimed by you"
+                      : `Claimed by ${project.claimedBy?.email?.split('@')[0]}`}
+                  </Badge>
+                  {(project.claimedByUserId === user?.id || isOwner) && (
+                    <button
+                      onClick={handleUnclaim}
+                      className="text-[8px] font-black uppercase tracking-widest text-slate-400 hover:text-red-500 transition-colors"
+                    >
+                      [Release]
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClaim}
+                  className="h-7 px-3 rounded-full border-slate-200 text-slate-500 font-black text-[8px] uppercase tracking-widest hover:bg-[#1C3384] hover:text-white transition-all"
+                >
+                  Claim Project
+                </Button>
+              )}
+            </div>
           </div>
 
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
@@ -416,41 +477,41 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
                         <DropSlot label="4. Work Completion" tag="WORK_COMP" fileObject={workCompFile} />
 
                         <div className="md:col-span-2 space-y-3">
-                            <div className="flex items-center justify-between px-1">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Section B: Annexures ({annexureCount}/5)</span>
-                                {isAnnexuresComplete && <CheckCircle2 size={14} className="text-emerald-500" />}
-                            </div>
-                            
-                            {annexureCount < 5 ? (
-                                <DropSlot label={`Drop Annexure ${annexureCount + 1} here`} tag="ANNEXURE" />
-                            ) : (
-                                <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-6 flex flex-col items-center justify-center gap-2 transition-all">
-                                    <CheckCircle2 size={32} className="text-emerald-500" />
-                                    <p className="text-xs font-black uppercase tracking-widest text-emerald-700">All Annexures Uploaded</p>
-                                </div>
-                            )}
+                          <div className="flex items-center justify-between px-1">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Section B: Annexures ({annexureCount}/5)</span>
+                            {isAnnexuresComplete && <CheckCircle2 size={14} className="text-emerald-500" />}
+                          </div>
 
-                            {annexureCount > 0 && (
-                                <div className="grid grid-cols-2 gap-2 mt-2">
-                                    {annexureFiles.map((file, idx) => (
-                                        <div key={idx} className="flex items-center justify-between gap-2 bg-slate-50 border border-slate-100 p-2 px-3 rounded-lg group/annexure">
-                                            <div className="flex items-center gap-2 min-w-0">
-                                                <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
-                                                <span className="text-[10px] font-bold text-slate-600 truncate uppercase tracking-tighter">
-                                                    Annexure {idx + 1} ✅
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <div className="relative">
-                                                    <Edit3 size={12} className="text-blue-500 hover:text-blue-700 cursor-pointer transition-colors" />
-                                                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleFileUpload("ANNEXURE", e, file.id)} />
-                                                </div>
-                                                <Trash2 size={12} className="text-rose-500 hover:text-rose-700 cursor-pointer transition-colors" onClick={() => handleDeleteFile(file.id, `Annexure ${idx + 1}`)} />
-                                            </div>
-                                        </div>
-                                    ))}
+                          {annexureCount < 5 ? (
+                            <DropSlot label={`Drop Annexure ${annexureCount + 1} here`} tag="ANNEXURE" />
+                          ) : (
+                            <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-6 flex flex-col items-center justify-center gap-2 transition-all">
+                              <CheckCircle2 size={32} className="text-emerald-500" />
+                              <p className="text-xs font-black uppercase tracking-widest text-emerald-700">All Annexures Uploaded</p>
+                            </div>
+                          )}
+
+                          {annexureCount > 0 && (
+                            <div className="grid grid-cols-2 gap-2 mt-2">
+                              {annexureFiles.map((file, idx) => (
+                                <div key={idx} className="flex items-center justify-between gap-2 bg-slate-50 border border-slate-100 p-2 px-3 rounded-lg group/annexure">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
+                                    <span className="text-[10px] font-bold text-slate-600 truncate uppercase tracking-tighter">
+                                      Annexure {idx + 1} ✅
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <div className="relative">
+                                      <Edit3 size={12} className="text-blue-500 hover:text-blue-700 cursor-pointer transition-colors" />
+                                      <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleFileUpload("ANNEXURE", e, file.id)} />
+                                    </div>
+                                    <Trash2 size={12} className="text-rose-500 hover:text-rose-700 cursor-pointer transition-colors" onClick={() => handleDeleteFile(file.id, `Annexure ${idx + 1}`)} />
+                                  </div>
                                 </div>
-                            )}
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </>
                     )}
