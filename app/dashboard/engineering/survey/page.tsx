@@ -5,20 +5,29 @@ import { Card } from "@/components/ui/card";
 import { useState, useEffect } from "react";
 import { MapPin, Zap, Search } from "lucide-react";
 import { EngineeringHandoffCard } from "@/components/workspace/EngineeringHandoffCard";
+import { SurveyHandoffCard } from "@/components/workspace/SurveyHandoffCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useUser } from "@clerk/nextjs";
 import { getProjectDetail, getBulkProjectDetails } from "@/lib/actions/engineering";
 
 export default function EngineeringSurveyQueue() {
+  const { user } = useUser();
   const { data } = useDashboardNexus();
   const [searchQuery, setSearchQuery] = useState("");
 
   const filterProjects = (projects: any[], stages: string[]) => {
-    return projects.filter(p => 
-      stages.includes(p.stage) && 
-      p.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    return projects.filter(p => {
+      const isAssignedToMe = p.assignedEngineers?.some((eng: any) => eng.id === user?.id);
+      const isClaimedByMe = p.claimedByUserId === user?.id;
+      
+      return (
+        stages.includes(p.stage) && 
+        (isAssignedToMe || isClaimedByMe) &&
+        p.name.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    });
   };
 
   const surveyProjects = filterProjects(data?.projects || [], ["SITE_SURVEY"]);
@@ -137,7 +146,7 @@ export default function EngineeringSurveyQueue() {
                           : { ...project, tasks: [], projectFiles: [] };
 
                         return (
-                            <EngineeringHandoffCard 
+                            <SurveyHandoffCard 
                                 key={project.id} 
                                 project={mergedProject} 
                                 dept="ENGINEERING" 

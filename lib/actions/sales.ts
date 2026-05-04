@@ -233,7 +233,7 @@ export async function convertLeadToProject(leadId: string, excelData?: any) {
     return result;
 }
 
-export async function initiatePreliminarySurvey(leadId: string) {
+export async function initiatePreliminarySurvey(leadId: string, engineerIds?: string[]) {
     const { user, orgId } = await validateSalesAccess();
     if (!orgId) throw new Error("No organization context found");
 
@@ -270,7 +270,16 @@ export async function initiatePreliminarySurvey(leadId: string) {
                 isPreliminary: true,
                 createdByUserId: user.id,
                 originatedByUserId: user.id,
-                leadId: leadId
+                leadId: leadId,
+                // Assign if provided
+                assignedByUserId: (engineerIds && engineerIds.length > 0) ? user.id : null,
+                assignedAt: (engineerIds && engineerIds.length > 0) ? new Date() : null,
+                assignedToEngineerId: (engineerIds && engineerIds.length > 0) ? engineerIds[0] : null,
+                claimedByUserId: (engineerIds && engineerIds.length > 0) ? engineerIds[0] : null,
+                claimedAt: (engineerIds && engineerIds.length > 0) ? new Date() : null,
+                assignedEngineers: (engineerIds && engineerIds.length > 0) ? {
+                    connect: engineerIds.map(id => ({ id }))
+                } : undefined
             }
         });
 

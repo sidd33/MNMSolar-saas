@@ -7,9 +7,17 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { EngineeringHandoffCard } from "@/components/workspace/EngineeringHandoffCard";
 import { DepartmentQueueSearch } from "@/components/dashboard/DepartmentQueueSearch";
 
+import { useUser } from "@clerk/nextjs";
+
 export default function WorkOrderDesk() {
+  const { user } = useUser();
   const { data } = useDashboardNexus();
-  const projects = data?.projects?.filter((p: any) => p.stage === "WORK_ORDER") || [];
+  const projects = data?.projects?.filter((p: any) => 
+    p.stage === "WORK_ORDER" && (
+      p.claimedByUserId === user?.id || 
+      p.assignedEngineers?.some((eng: any) => eng.id === user?.id)
+    )
+  ) || [];
 
   return (
     <DashboardShell 

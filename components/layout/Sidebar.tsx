@@ -26,6 +26,7 @@ const NAV_ITEMS = [
   
   // --- ENGINEERING DEPARTMENT EXCLUSIVE ---
   { label: "Technical Hub", icon: LayoutDashboard, href: "/dashboard/engineering", engOnly: true },
+  { label: "Project Pool", icon: Package, href: "/dashboard/engineering/pool", engOnly: true },
   { label: "Survey Queue", icon: MapPin, href: "/dashboard/engineering/survey", engOnly: true },
   { label: "Detailed Engg", icon: Briefcase, href: "/dashboard/engineering/detailed", engOnly: true },
   { label: "Work Order Desk", icon: ShieldCheck, href: "/dashboard/engineering/work-order", engOnly: true },

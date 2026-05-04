@@ -80,7 +80,12 @@ export async function getEngineeringQueue(stages?: string[], providedOrgId?: str
           sanctionedLoad: true,
           claimedByUserId: true,
           claimedAt: true,
-          claimedBy: { select: { id: true, email: true } }
+          claimedBy: { select: { id: true, email: true } },
+          assignedToEngineerId: true,
+          assignedByUserId: true,
+          assignedAt: true,
+          assignedBy: { select: { id: true, email: true } },
+          assignedEngineers: { select: { id: true, email: true } }
       }
   });
 }
@@ -217,7 +222,7 @@ export async function getBulkProjectDetails(projectIds: string[]) {
 }
 
 export async function claimProject(projectId: string) {
-    const { user, orgId, isOwner } = await validateEngineeringAccess();
+    const { user, orgId } = await validateEngineeringAccess();
     if (!orgId) throw new Error("No organization context found");
 
     const project = await prisma.project.findUnique({
@@ -225,25 +230,58 @@ export async function claimProject(projectId: string) {
     });
 
     if (!project) throw new Error("Project not found");
-
-    if (project.claimedByUserId && project.claimedByUserId !== user.id && !isOwner) {
-        throw new Error("This project is already claimed by another team member.");
-    }
+    if (project.claimedByUserId) throw new Error("Project already claimed");
 
     await prisma.project.update({
         where: { id: projectId },
         data: {
             claimedByUserId: user.id,
-            claimedAt: new Date()
+            claimedAt: new Date(),
+            assignedEngineers: {
+                connect: { id: user.id }
+            }
         }
     });
 
-    revalidatePath("/dashboard/department/Engineering");
+    revalidatePath('/dashboard/engineering/survey');
+    revalidatePath('/dashboard/engineering');
     return { success: true };
 }
 
 export async function unclaimProject(projectId: string) {
-    const { user, orgId, isOwner } = await validateEngineeringAccess();
+    const { user, orgId } = await validateEngineeringAccess();
+    if (!orgId) throw new Error("No organization context found");
+
+    await prisma.project.update({
+        where: { id: projectId },
+        data: {
+            claimedByUserId: null,
+            claimedAt: null,
+            poolReleaseNote: note,
+            poolNoteAt: new Date()
+        }
+    });
+
+    revalidatePath("/dashboard/engineering/pool");
+    revalidatePath("/dashboard/department/Engineering");
+    return { success: true };
+}
+
+export async function getEngineeringTeamMembers() {
+    const { orgId } = await validateEngineeringAccess();
+    if (!orgId) return [];
+
+    return await prisma.user.findMany({
+        where: {
+            organizationId: orgId,
+            department: { equals: 'Engineering', mode: 'insensitive' }
+        },
+        select: { id: true, email: true }
+    });
+}
+
+export async function assignProjectToEngineer(projectId: string, engineerIds: string[]) {
+    const { user: currentUser, orgId, isOwner } = await validateEngineeringAccess();
     if (!orgId) throw new Error("No organization context found");
 
     const project = await prisma.project.findUnique({
@@ -252,18 +290,174 @@ export async function unclaimProject(projectId: string) {
 
     if (!project) throw new Error("Project not found");
 
-    if (project.claimedByUserId !== user.id && !isOwner) {
-        throw new Error("You can only release projects that you have claimed.");
-    }
-
-    await prisma.project.update({
-        where: { id: projectId },
-        data: {
-            claimedByUserId: null,
-            claimedAt: null
+    // Validate all engineers
+    const engineers = await prisma.user.findMany({
+        where: { 
+            id: { in: engineerIds }, 
+            organizationId: orgId,
+            department: { equals: 'Engineering', mode: 'insensitive' }
         }
     });
 
-    revalidatePath("/dashboard/department/Engineering");
+    if (engineers.length !== engineerIds.length) {
+        throw new Error("Invalid engineer assignment: one or more targets are not valid Engineering members.");
+    }
+
+    const now = new Date();
+    await prisma.project.update({
+        where: { id: projectId },
+        data: {
+            assignedByUserId: currentUser.id,
+            assignedAt: now,
+            // For backward compatibility we can set the first one as primary
+            assignedToEngineerId: engineerIds[0] || null,
+            claimedByUserId: engineerIds[0] || null,
+            claimedAt: now,
+            assignedEngineers: {
+                set: engineerIds.map(id => ({ id }))
+            }
+        }
+    });
+
+    // Create notifications for all assigned engineers
+    if (engineerIds.length > 0) {
+        await prisma.notification.createMany({
+            data: engineerIds.map(id => ({
+                userId: id,
+                organizationId: orgId,
+                type: 'PROJECT_ASSIGNED' as any,
+                title: 'Project assigned to you',
+                message: `${project.name} has been assigned to you by ${currentUser.email}`,
+                projectId: projectId,
+                isRead: false
+            }))
+        });
+    }
+
+    revalidatePath('/dashboard/engineering/survey');
+    revalidatePath('/dashboard/engineering');
     return { success: true };
+}
+
+export async function addProjectComment(
+    projectId: string,
+    content: string,
+    mentionedUserIds: string[],
+    isHandoff: boolean,
+    handoffToUserId?: string
+) {
+    const { user: currentUser, orgId } = await validateEngineeringAccess();
+    if (!orgId) throw new Error("No organization context found");
+
+    if (!content.trim()) throw new Error("Comment content cannot be empty.");
+
+    const project = await prisma.project.findUnique({
+        where: { id: projectId, organizationId: orgId }
+    });
+    if (!project) throw new Error("Project not found");
+
+    const comment = await prisma.projectComment.create({
+        data: {
+            projectId,
+            userId: currentUser.id,
+            content,
+            mentionedUserIds: mentionedUserIds as any,
+            isHandoff,
+            handoffToUserId: handoffToUserId || null,
+            organizationId: orgId
+        }
+    });
+
+    if (isHandoff && handoffToUserId) {
+        const handoffToUser = await prisma.user.findUnique({
+            where: { id: handoffToUserId }
+        });
+        if (!handoffToUser) throw new Error("Handoff target user not found");
+
+        await prisma.project.update({
+            where: { id: projectId },
+            data: {
+                claimedByUserId: handoffToUserId,
+                claimedAt: new Date(),
+                poolClaimNote: `Handed off by ${currentUser.email}: ${content}`,
+                poolNoteAt: new Date()
+            }
+        });
+
+        await prisma.handoffLog.create({
+            data: {
+                projectId,
+                fromDept: 'Engineering',
+                toDept: 'Engineering',
+                fromStage: project.stage,
+                toStage: project.stage,
+                userId: currentUser.id,
+                comment: `Handoff: ${content}`,
+                organizationId: orgId
+            }
+        });
+
+        // Notify new owner
+        await prisma.notification.create({
+            data: {
+                userId: handoffToUserId,
+                organizationId: orgId,
+                type: 'PROJECT_HANDOFF' as any,
+                title: 'Project handed off to you',
+                message: `${currentUser.email} handed off ${project.name} to you. Note: ${content}`,
+                projectId: projectId,
+                isRead: false
+            }
+        });
+
+        // Notify old owner (currentUser)
+        await prisma.notification.create({
+            data: {
+                userId: currentUser.id,
+                organizationId: orgId,
+                type: 'HANDOFF_CONFIRMED' as any,
+                title: 'Handoff confirmed',
+                message: `You handed off ${project.name} to ${handoffToUser.email}`,
+                projectId: projectId,
+                isRead: false
+            }
+        });
+    } else if (mentionedUserIds.length > 0) {
+        // Create notifications for mentions
+        await prisma.notification.createMany({
+            data: mentionedUserIds.map(id => ({
+                userId: id,
+                organizationId: orgId,
+                type: 'MENTION' as any,
+                title: 'You were mentioned',
+                message: `${currentUser.email} mentioned you in ${project.name}: "${content}"`,
+                projectId: projectId,
+                isRead: false
+            }))
+        });
+    }
+
+    revalidatePath('/dashboard/engineering/survey');
+    revalidatePath('/dashboard/engineering/detailed');
+    revalidatePath('/dashboard/engineering/work-order');
+    return { success: true };
+}
+
+export async function getProjectComments(projectId: string) {
+    const { orgId } = await validateEngineeringAccess();
+    if (!orgId) return [];
+
+    return await prisma.projectComment.findMany({
+        where: { projectId, organizationId: orgId },
+        orderBy: { createdAt: 'asc' },
+        select: {
+            id: true,
+            content: true,
+            isHandoff: true,
+            mentionedUserIds: true,
+            createdAt: true,
+            handoffToUserId: true,
+            user: { select: { id: true, email: true } }
+        }
+    });
 }

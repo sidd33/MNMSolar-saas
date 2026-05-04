@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Organization {
@@ -18,9 +19,10 @@ model Organization {
   quotes       Quote[]
   tasks        Task[]
   users        User[]
-  notifications Notification[]
+  notifications  Notification[]
   followUps      FollowUp[]
   quoteVersions  QuoteVersion[]
+  projectComments ProjectComment[]
 }
 
 model User {
@@ -36,10 +38,13 @@ model User {
   assignedQuotes Quote[]
   tasks          Task[]       @relation("AssignedTasks")
   claimedProjects Project[]   @relation("ProjectClaims")
+  projectAssignments Project[] @relation("ProjectAssignments")
+  assignedProjects   Project[] @relation("ProjectAssignedEngineers")
   notifications  Notification[]
   followUps      FollowUp[]
   quoteVersions  QuoteVersion[]
   organization   Organization @relation(fields: [organizationId], references: [id])
+  projectComments ProjectComment[]
 
   @@index([organizationId])
 }
@@ -75,7 +80,16 @@ model Project {
   tasks                Task[]
   claimedByUserId      String?
   claimedAt            DateTime?
-  claimedBy            User?          @relation("ProjectClaims", fields: [claimedByUserId], references: [id])
+  poolClaimNote        String?
+  poolReleaseNote      String?
+  poolNoteAt           DateTime?
+  assignedToEngineerId String?
+  assignedByUserId     String?
+  assignedAt           DateTime?
+  claimedBy            User?            @relation("ProjectClaims", fields: [claimedByUserId], references: [id])
+  assignedBy           User?            @relation("ProjectAssignments", fields: [assignedByUserId], references: [id])
+  assignedEngineers    User[]           @relation("ProjectAssignedEngineers")
+  comments             ProjectComment[]
 
   @@index([organizationId])
   @@index([currentDepartment])
@@ -339,5 +353,24 @@ model QuoteVersion {
   createdAt      DateTime     @default(now())
 
   @@index([quoteId])
+  @@index([organizationId])
+}
+
+model ProjectComment {
+  id               String       @id @default(cuid())
+  projectId        String
+  project          Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User         @relation(fields: [userId], references: [id])
+  content          String       @db.Text
+  mentionedUserIds Json?
+  isHandoff        Boolean      @default(false)
+  handoffToUserId  String?
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  createdAt        DateTime     @default(now())
+
+  @@index([projectId])
+  @@index([userId])
   @@index([organizationId])
 }

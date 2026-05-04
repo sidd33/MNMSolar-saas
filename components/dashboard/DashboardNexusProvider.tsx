@@ -227,6 +227,9 @@ export function DashboardNexusProvider({
 }
 
 function GlobalNexusPulse() {
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => { setMounted(true); }, []);
+    
     const context = useContext(PipelineContext);
     if (!context) return null;
     const { lastSyncedAt, isRefreshing, refresh } = context;
@@ -236,9 +239,12 @@ function GlobalNexusPulse() {
             <div className="flex items-center gap-3 bg-white/90 backdrop-blur-md border border-slate-200/50 p-2 pl-4 rounded-full shadow-2xl transition-all">
                 <div className="flex flex-col items-end">
                     <span className="text-[9px] font-black uppercase tracking-tighter text-slate-400">MNMSOLAR NEXUS</span>
-                    <span className="text-[10px] font-bold text-slate-600 flex items-center gap-1.5">
+                    <span 
+                        className="text-[10px] font-bold text-slate-600 flex items-center gap-1.5"
+                        suppressHydrationWarning={true}
+                    >
                         <Clock size={10} className={cn("transition-colors", isRefreshing ? "text-blue-500" : "text-slate-400")} />
-                        {lastSyncedAt ? format(lastSyncedAt, "HH:mm") : "Locking..."}
+                        {mounted && lastSyncedAt ? format(lastSyncedAt, "HH:mm") : "Syncing..."}
                     </span>
                 </div>
                 <button 

@@ -13,6 +13,11 @@ import { useProjectFileUpload } from "@/hooks/useProjectFileUpload";
 import { Rocket, FileSpreadsheet, CheckCircle2, UploadCloud, Zap, AlertCircle, ArrowLeft, Briefcase } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { parseHandoverExcel, HandoverData } from "@/lib/utils/excelParser";
+import { getEngineeringTeamMembers, assignProjectToEngineer } from "@/lib/actions/engineering";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useEffect, useRef } from "react";
+import { AtSign, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface HandoverDetailPanelProps {
   quote: any;
@@ -47,6 +52,108 @@ export function HandoverDetailPanel({ quote, onUpdate, onBack }: HandoverDetailP
     paymentTermsCommissioning: "",
     paymentTermsRetention: ""
   });
+
+  const [engineeringTeam, setEngineeringTeam] = useState<{ id: string; email: string }[]>([]);
+  const [selectedEngineerIds, setSelectedEngineerIds] = useState<string[]>([]);
+
+  // Mention State
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [showMentionDropdown, setShowMentionDropdown] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState(0);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const [mentionedUserIds, setMentionedUserIds] = useState<string[]>([]);
+  
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    getEngineeringTeamMembers().then(setEngineeringTeam);
+  }, []);
+
+  const handleKeyUp = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const el = e.currentTarget;
+    const pos = el.selectionStart;
+    const val = el.value;
+    
+    const textBeforeCursor = val.substring(0, pos);
+    const lastAtIndex = textBeforeCursor.lastIndexOf("@");
+    
+    if (lastAtIndex !== -1) {
+        const query = textBeforeCursor.substring(lastAtIndex + 1);
+        if (lastAtIndex === 0 || textBeforeCursor[lastAtIndex - 1] === " ") {
+            setMentionQuery(query);
+            setShowMentionDropdown(true);
+            setCursorPosition(lastAtIndex);
+            setHighlightedIndex(0);
+        } else {
+            setShowMentionDropdown(false);
+        }
+    } else {
+        setShowMentionDropdown(false);
+    }
+
+    if (!val.includes("@")) {
+        setShowMentionDropdown(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (showMentionDropdown) {
+        const filtered = engineeringTeam.filter(m => 
+            m.email.toLowerCase().includes(mentionQuery.toLowerCase())
+        );
+
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setHighlightedIndex(prev => (prev + 1) % (filtered.length || 1));
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setHighlightedIndex(prev => (prev - 1 + (filtered.length || 1)) % (filtered.length || 1));
+        } else if (e.key === "Enter" && filtered.length > 0) {
+            e.preventDefault();
+            selectMember(filtered[highlightedIndex]);
+        } else if (e.key === "Escape") {
+            e.preventDefault();
+            setShowMentionDropdown(false);
+            setMentionQuery("");
+        }
+    }
+  };
+
+  const selectMember = (member: any) => {
+    const before = formData.notes.substring(0, cursorPosition);
+    const after = formData.notes.substring(textareaRef.current?.selectionStart || 0);
+    const newNotes = `${before}@${member.email} ${after}`;
+    
+    setFormData({ ...formData, notes: newNotes });
+    setMentionedUserIds(prev => Array.from(new Set([...prev, member.id])));
+    // Sync with assignment dropdown: if mentioned, also assign
+    setSelectedEngineerIds(prev => Array.from(new Set([...prev, member.id])));
+    setShowMentionDropdown(false);
+    
+    setTimeout(() => {
+        if (textareaRef.current) {
+            textareaRef.current.focus();
+            const newPos = cursorPosition + member.email.length + 2;
+            textareaRef.current.setSelectionRange(newPos, newPos);
+        }
+    }, 0);
+  };
+
+  const removeMention = (userId: string) => {
+    setMentionedUserIds(prev => prev.filter(id => id !== userId));
+  };
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+        if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+            setShowMentionDropdown(false);
+        }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -92,7 +199,6 @@ export function HandoverDetailPanel({ quote, onUpdate, onBack }: HandoverDetailP
       return;
     }
 
-
     startTransition(async () => {
       try {
         let finalFile = handoverFile;
@@ -102,7 +208,6 @@ export function HandoverDetailPanel({ quote, onUpdate, onBack }: HandoverDetailP
           const projectId = quote.lead?.projects?.[0]?.id;
           if (!projectId) throw new Error("Associated preliminary project not found.");
 
-          // Create a promise to wait for the upload callback
           const uploadedFilesResult = await new Promise<any[]>((resolve, reject) => {
             uploadFiles(projectId, [selectedFile], "HANDOVER_SHEET", null, (savedFiles) => {
               resolve(savedFiles);
@@ -121,7 +226,7 @@ export function HandoverDetailPanel({ quote, onUpdate, onBack }: HandoverDetailP
         if (!finalFile) throw new Error("File upload failed or was cancelled.");
 
         // 2. Finalize Launch
-        await approveAndLaunchQuote(
+        const result = await approveAndLaunchQuote(
           quote.id,
           finalFile.url,
           finalFile.key,
@@ -144,7 +249,14 @@ export function HandoverDetailPanel({ quote, onUpdate, onBack }: HandoverDetailP
             }
           }
         );
-        toast.success("Project launched to Solar OS engineering pipeline!");
+
+        if (selectedEngineerIds.length > 0 && result.projectId) {
+          await assignProjectToEngineer(result.projectId, selectedEngineerIds);
+          toast.success(`Project launched and assigned to ${selectedEngineerIds.length} engineers`);
+        } else {
+          toast.success("Project launched to Engineering pool.");
+        }
+
         onUpdate();
       } catch (e: any) {
         console.error("Launch error:", e);
@@ -281,14 +393,82 @@ export function HandoverDetailPanel({ quote, onUpdate, onBack }: HandoverDetailP
               placeholder="+91..."
             />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2 relative">
              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Technical Notes</Label>
-             <Input
+             
+             {/* Mentions Dropdown - ABOVE textarea */}
+             {showMentionDropdown && (
+                <div 
+                    ref={dropdownRef}
+                    className="absolute bottom-[calc(100%+12px)] left-0 w-full max-w-[320px] bg-white border-[0.5px] border-slate-200 rounded-xl shadow-2xl z-[50] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200"
+                    style={{ maxHeight: '200px' }}
+                >
+                  <div className="p-3 border-b border-slate-50 bg-slate-50/50 flex items-center justify-between">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Engineering Team</span>
+                    <AtSign size={10} className="text-slate-300" />
+                  </div>
+                  <div className="overflow-y-auto max-h-[160px] custom-scrollbar">
+                    {engineeringTeam.filter(m => m.email.toLowerCase().includes(mentionQuery.toLowerCase())).length > 0 ? (
+                        engineeringTeam.filter(m => m.email.toLowerCase().includes(mentionQuery.toLowerCase())).map((member, idx) => (
+                        <button
+                            key={member.id}
+                            onMouseEnter={() => setHighlightedIndex(idx)}
+                            onClick={() => selectMember(member)}
+                            className={cn(
+                                "w-full text-left h-[40px] px-3 flex items-center gap-3 transition-colors",
+                                highlightedIndex === idx ? "bg-slate-50" : "transparent"
+                            )}
+                        >
+                            <div className={cn(
+                                "h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-black text-white shrink-0 shadow-sm",
+                                ["bg-blue-500", "bg-emerald-500", "bg-indigo-500", "bg-rose-500", "bg-amber-500"][idx % 5]
+                            )}>
+                                {member.email.slice(0, 1).toUpperCase()}
+                            </div>
+                            <div className="flex items-center justify-between w-full min-w-0">
+                                <span className="text-[11px] font-bold text-slate-700 truncate mr-2">{member.email}</span>
+                                <Badge className="bg-slate-100 text-slate-400 text-[7px] px-1.5 py-0 rounded-full shrink-0">Engineering</Badge>
+                            </div>
+                        </button>
+                        ))
+                    ) : (
+                        <div className="p-4 text-center">
+                            <span className="text-[10px] font-bold text-slate-300 uppercase italic">No engineers found</span>
+                        </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+             <Textarea
+              ref={textareaRef}
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              className="w-full h-11 font-black text-slate-900 bg-slate-50/50 border-none rounded-xl focus:ring-2 focus:ring-emerald-100 transition-all"
+              onKeyUp={handleKeyUp}
+              onKeyDown={handleKeyDown}
+              className="w-full min-h-[160px] font-black text-slate-900 bg-slate-50/50 border-none rounded-xl focus:ring-2 focus:ring-emerald-100 transition-all p-4 resize-none custom-scrollbar"
               placeholder="Any specific engineering instructions?"
             />
+
+            {/* Mentioned User Chips BELOW textarea */}
+            {mentionedUserIds.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                    {engineeringTeam.filter(m => mentionedUserIds.includes(m.id)).map(user => (
+                        <div 
+                            key={user.id} 
+                            className="flex items-center gap-2 bg-blue-50 text-blue-600 px-3 py-1.5 rounded-full border border-blue-100 shadow-sm animate-in fade-in slide-in-from-left-2"
+                        >
+                            <span className="text-[10px] font-black uppercase tracking-widest">@{user.email}</span>
+                            <button 
+                                onClick={() => removeMention(user.id)}
+                                className="hover:text-rose-500 transition-colors"
+                            >
+                                <X size={12} />
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
           </div>
         </div>
       </div>
@@ -402,6 +582,47 @@ export function HandoverDetailPanel({ quote, onUpdate, onBack }: HandoverDetailP
           <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4">Pipeline Gate</h4>
 
           <div className="space-y-4">
+            <div className="space-y-3 mb-4">
+              <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Assign Engineers</Label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {selectedEngineerIds.length === 0 ? (
+                  <span className="text-[10px] font-bold text-slate-300 italic px-2 py-1 bg-slate-50 rounded-lg border border-slate-100">No engineers assigned (Pool)</span>
+                ) : (
+                  selectedEngineerIds.map(id => {
+                    const engineer = engineeringTeam.find(e => e.id === id);
+                    return (
+                      <Badge key={id} className="bg-blue-50 text-blue-600 border border-blue-100 font-black text-[8px] px-2 py-1 flex items-center gap-2">
+                        {engineer?.email.split('@')[0]}
+                        <button onClick={() => setSelectedEngineerIds(prev => prev.filter(eid => eid !== id))}>
+                          <X size={10} />
+                        </button>
+                      </Badge>
+                    );
+                  })
+                )}
+              </div>
+              
+              <Select onValueChange={(val) => {
+                  if (val !== "POOL") {
+                    setSelectedEngineerIds(prev => Array.from(new Set([...prev, val])));
+                  } else {
+                    setSelectedEngineerIds([]);
+                  }
+              }}>
+                <SelectTrigger className="w-full h-10 font-black text-slate-900 bg-slate-50/50 border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-100 transition-all text-[10px] uppercase">
+                  <SelectValue placeholder="Add engineer to team..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="POOL" className="text-[10px] font-black uppercase text-rose-500">Clear All (Assign to pool)</SelectItem>
+                  {engineeringTeam.map((member) => (
+                    <SelectItem key={member.id} value={member.id} className="text-[10px] font-black uppercase">
+                      {member.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <p className="text-xs font-bold text-slate-600 leading-relaxed italic">
               Ready for handover
             </p>
@@ -427,6 +648,23 @@ export function HandoverDetailPanel({ quote, onUpdate, onBack }: HandoverDetailP
           </div>
         </div>
       </div>
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #E2E8F0;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #CBD5E0;
+        }
+      `}</style>
     </div>
   );
 }
+
+

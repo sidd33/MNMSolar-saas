@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
     },
     optimizePackageImports: [
       'lucide-react',
-      'framer-motion', 
+      'framer-motion',
       '@radix-ui/react-icons',
       'date-fns',
     ]

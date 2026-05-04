@@ -22,7 +22,10 @@ export default function DetailedEnggQueue() {
   
   // Filter: ONLY show projects claimed by the current user
   const projects = data?.projects?.filter((p: any) => 
-    p.stage === "DETAILED_ENGG" && p.claimedByUserId === user?.id
+    p.stage === "DETAILED_ENGG" && (
+      p.claimedByUserId === user?.id || 
+      p.assignedEngineers?.some((eng: any) => eng.id === user?.id)
+    )
   ) || [];
   const [detailCache, setDetailCache] = useState<Record<string, any>>({});
   const [isSyncing, setIsSyncing] = useState(false);

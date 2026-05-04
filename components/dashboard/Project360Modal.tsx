@@ -380,13 +380,48 @@ export function Project360Modal({ projectId, open, onOpenChange, initialData }: 
 
               {/* ZONE 2: ACTIVITY LOG (Timeline) */}
               <div className="flex-1 flex flex-col bg-white overflow-hidden min-h-0">
-                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-800">Activity Log</h3>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{project.handoffLogs?.length || 0} Handoffs recorded</p>
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/20">
+                  <div className="flex items-center gap-6">
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-800">Activity Log</h3>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{project.handoffLogs?.length || 0} Handoffs recorded</p>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200/60 shadow-sm">
+                      <div className="flex flex-col">
+                        <span className="text-[7px] font-black uppercase tracking-[0.2em] text-slate-400 leading-none mb-1">Dossier Ownership</span>
+                        <div className="flex items-center gap-2">
+                          {(project.assignedEngineers?.length > 0 || project.claimedBy) ? (
+                            <div className="flex items-center gap-2">
+                               <div className="flex -space-x-1.5">
+                                {(project.assignedEngineers?.length > 0 ? project.assignedEngineers : [project.claimedBy]).map((eng: any, idx: number) => (
+                                  <div key={eng.id} className={cn(
+                                    "h-5 w-5 rounded-full border-2 border-white flex items-center justify-center text-[7px] text-white font-black shadow-sm",
+                                    ["bg-blue-600", "bg-emerald-600", "bg-indigo-600", "bg-rose-600", "bg-amber-600"][idx % 5]
+                                  )} title={eng.email}>
+                                    {eng.email.slice(0, 1).toUpperCase()}
+                                  </div>
+                                ))}
+                              </div>
+                              <span className="text-[10px] font-bold text-slate-700 uppercase tracking-tight">
+                                {project.assignedEngineers?.length > 0 
+                                  ? project.assignedEngineers.map((e: any) => e.email.split('@')[0]).join(' + ')
+                                  : project.claimedBy.email.split('@')[0]
+                                }
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                              <span className="text-[9px] font-black uppercase text-rose-500 tracking-wider">Engineering Pool</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <Badge className="bg-emerald-50 text-emerald-600 border border-emerald-100/50 font-semibold text-[10px] px-2 py-0.5 rounded-md flex gap-1 items-center shadow-sm">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live Status
                   </Badge>
                 </div>
 
@@ -459,11 +494,23 @@ export function Project360Modal({ projectId, open, onOpenChange, initialData }: 
                                       <ArrowRight size={10} className="text-slate-300" />
                                       <span className="text-[10px] font-semibold text-[#1C3384] bg-[#1C3384]/5 px-2 py-0.5 rounded-md border border-[#1C3384]/10">{log.toDept}</span>
                                     </div>
-                                    <div className="flex items-center gap-1.5">
-                                      <div className="h-5 w-5 rounded-md bg-slate-100 flex items-center justify-center">
-                                        <User size={10} className="text-slate-400" />
+                                    <div className="flex items-center gap-3">
+                                      {/* Show Assigned Team for Engineering stages */}
+                                      {log.toDept.toUpperCase() === 'ENGINEERING' && project.assignedEngineers?.length > 0 && (
+                                        <div className="flex -space-x-1.5">
+                                          {project.assignedEngineers.map((eng: any) => (
+                                            <div key={eng.id} className="h-5 w-5 rounded-full bg-[#1C3384] border-2 border-white flex items-center justify-center text-[7px] text-white font-black" title={eng.email}>
+                                              {eng.email.slice(0, 1).toUpperCase()}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                      <div className="flex items-center gap-1.5">
+                                        <div className="h-5 w-5 rounded-md bg-slate-100 flex items-center justify-center">
+                                          <User size={10} className="text-slate-400" />
+                                        </div>
+                                        <p className="text-[10px] font-medium text-slate-500">@{log.user?.email?.split("@")[0] || "system"}</p>
                                       </div>
-                                      <p className="text-[10px] font-medium text-slate-500">@{log.user?.email?.split("@")[0] || "system"}</p>
                                     </div>
                                   </div>
                                 )}

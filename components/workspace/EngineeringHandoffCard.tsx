@@ -23,6 +23,8 @@ import { useProjectFileUpload } from "@/hooks/useProjectFileUpload";
 import { useDashboardNexus } from "../dashboard/DashboardNexusProvider";
 import { useUser } from "@clerk/nextjs";
 import { claimProject, unclaimProject } from "@/lib/actions/engineering";
+import { ProjectCommentBox } from "@/components/engineering/ProjectCommentBox";
+import { MessageSquare, ChevronDown, ChevronUp } from "lucide-react";
 
 interface EngineeringHandoffCardProps {
   project: any;
@@ -34,6 +36,7 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
   const { refresh, updateLocalProject } = useDashboardNexus();
   const [files, setFiles] = useState(initialFiles);
   const [modalOpen, setModalOpen] = useState(false);
+  const [commentsExpanded, setCommentsExpanded] = useState(false);
   const [sanctionedInput, setSanctionedInput] = useState(project.sanctionedLoad?.replace(" kW", "") || "");
   const [isSavingLoad, setIsSavingLoad] = useState(false);
 
@@ -291,7 +294,7 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
   };
 
   return (
-    <Card className="overflow-hidden border border-slate-100 shadow-xl bg-white [contain:paint] will-change-transform group rounded-[2.5rem] transition-all hover:shadow-2xl hover:border-[#1C3384]/20">
+    <Card className="overflow-hidden border border-slate-100 shadow-xl bg-white [contain:paint] will-change-transform group rounded-[2.5rem] transition-all hover:shadow-2xl hover:border-[#1C3384]/20 p-0">
       <div className="grid grid-cols-1 lg:grid-cols-3">
         {/* Left Section: Project Details & Checklist */}
         <div className="lg:col-span-2 p-10">
@@ -317,6 +320,25 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
               <Eye size={14} /> Inspect Data
             </Button>
             <div className="flex items-center gap-3">
+              {project.assignedEngineers?.length > 0 && (
+                  <div className="flex flex-col items-end">
+                     <div className="flex -space-x-2">
+                        {project.assignedEngineers.map((eng: any) => (
+                           <Badge key={eng.id} className={cn(
+                              "font-black px-3 py-1 uppercase tracking-wider text-[8px] rounded-full border-2 border-white",
+                              eng.id === user?.id ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-400"
+                           )}>
+                              {eng.email.slice(0, 2).toUpperCase()}
+                           </Badge>
+                        ))}
+                     </div>
+                     {project.assignedAt && (
+                        <span className="text-[8px] font-bold text-slate-300 uppercase mt-0.5">
+                           TEAM ASSIGNED {formatDistanceToNow(new Date(project.assignedAt), { addSuffix: false }).toUpperCase()} AGO
+                        </span>
+                     )}
+                  </div>
+              )}
               {project.claimedByUserId ? (
                 <div className="flex items-center gap-2">
                   <Badge className={cn(
@@ -570,6 +592,49 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
           </form>
         </div>
       </div>
+
+      {/* Comment Section Footer */}
+      {project.claimedByUserId === user?.id && (
+        <div className="border-t border-slate-50 bg-slate-50/30">
+            <button 
+                onClick={() => setCommentsExpanded(!commentsExpanded)}
+                className="w-full p-6 flex items-center justify-between hover:bg-slate-50/50 transition-colors group"
+            >
+                <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover:text-[#1C3384] transition-colors shadow-sm">
+                        <MessageSquare size={16} />
+                    </div>
+                    <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 group-hover:text-slate-800 transition-colors">
+                        {project._count?.comments > 0 
+                            ? `${project._count.comments} Comments — Click to view` 
+                            : "Add a note..."}
+                    </span>
+                </div>
+                {commentsExpanded ? <ChevronUp size={20} className="text-slate-300" /> : <ChevronDown size={20} className="text-slate-300" />}
+            </button>
+            
+            <AnimatePresence>
+                {commentsExpanded && (
+                    <motion.div 
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: "easeInOut" }}
+                        className="overflow-hidden"
+                    >
+                        <div className="p-10 pt-0">
+                            <ProjectCommentBox 
+                                projectId={project.id} 
+                                currentUserId={user?.id || ""} 
+                                project={project}
+                            />
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+      )}
+
       <Project360Modal projectId={project.id} open={modalOpen} onOpenChange={setModalOpen} initialData={project} />
     </Card>
   );

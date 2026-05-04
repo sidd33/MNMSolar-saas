@@ -500,7 +500,26 @@ export async function getProject360Data(projectId: string) {
           }
         },
         orderBy: { createdAt: 'desc' }
-      }
+      },
+      assignedEngineers: {
+        select: {
+          id: true,
+          email: true
+        }
+      },
+      claimedBy: {
+        select: {
+          id: true,
+          email: true
+        }
+      },
+      assignedBy: {
+        select: {
+          id: true,
+          email: true
+        }
+      },
+      assignedAt: true
     }
   });
 
