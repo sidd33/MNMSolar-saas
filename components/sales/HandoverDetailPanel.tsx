@@ -126,9 +126,17 @@ export function HandoverDetailPanel({ quote, onUpdate, onBack }: HandoverDetailP
     const newNotes = `${before}@${member.email} ${after}`;
     
     setFormData({ ...formData, notes: newNotes });
-    setMentionedUserIds(prev => Array.from(new Set([...prev, member.id])));
+    setMentionedUserIds(prev => {
+        const newSet = new Set(prev);
+        newSet.add(member.id);
+        return Array.from(newSet);
+    });
     // Sync with assignment dropdown: if mentioned, also assign
-    setSelectedEngineerIds(prev => Array.from(new Set([...prev, member.id])));
+    setSelectedEngineerIds(prev => {
+        const newSet = new Set(prev);
+        newSet.add(member.id);
+        return Array.from(newSet);
+    });
     setShowMentionDropdown(false);
     
     setTimeout(() => {
@@ -602,9 +610,14 @@ export function HandoverDetailPanel({ quote, onUpdate, onBack }: HandoverDetailP
                 )}
               </div>
               
-              <Select onValueChange={(val) => {
+              <Select onValueChange={(val: any) => {
+                  if (!val) return;
                   if (val !== "POOL") {
-                    setSelectedEngineerIds(prev => Array.from(new Set([...prev, val])));
+                    setSelectedEngineerIds(prev => {
+                        const newSet = new Set(prev);
+                        newSet.add(val);
+                        return Array.from(newSet);
+                    });
                   } else {
                     setSelectedEngineerIds([]);
                   }

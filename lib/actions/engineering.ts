@@ -221,7 +221,7 @@ export async function getBulkProjectDetails(projectIds: string[]) {
     });
 }
 
-export async function claimProject(projectId: string) {
+export async function claimProject(projectId: string, note?: string) {
     const { user, orgId } = await validateEngineeringAccess();
     if (!orgId) throw new Error("No organization context found");
 
@@ -237,6 +237,8 @@ export async function claimProject(projectId: string) {
         data: {
             claimedByUserId: user.id,
             claimedAt: new Date(),
+            poolClaimNote: note,
+            poolNoteAt: new Date(),
             assignedEngineers: {
                 connect: { id: user.id }
             }
@@ -248,7 +250,7 @@ export async function claimProject(projectId: string) {
     return { success: true };
 }
 
-export async function unclaimProject(projectId: string) {
+export async function unclaimProject(projectId: string, note?: string) {
     const { user, orgId } = await validateEngineeringAccess();
     if (!orgId) throw new Error("No organization context found");
 
@@ -327,7 +329,7 @@ export async function assignProjectToEngineer(projectId: string, engineerIds: st
                 organizationId: orgId,
                 type: 'PROJECT_ASSIGNED' as any,
                 title: 'Project assigned to you',
-                message: `${project.name} has been assigned to you by ${currentUser.email}`,
+                message: `${project.name} has been assigned to you by ${currentUser.emailAddresses[0]?.emailAddress}`,
                 projectId: projectId,
                 isRead: false
             }))
@@ -379,7 +381,7 @@ export async function addProjectComment(
             data: {
                 claimedByUserId: handoffToUserId,
                 claimedAt: new Date(),
-                poolClaimNote: `Handed off by ${currentUser.email}: ${content}`,
+                poolClaimNote: `Handed off by ${currentUser.emailAddresses[0]?.emailAddress}: ${content}`,
                 poolNoteAt: new Date()
             }
         });
@@ -404,7 +406,7 @@ export async function addProjectComment(
                 organizationId: orgId,
                 type: 'PROJECT_HANDOFF' as any,
                 title: 'Project handed off to you',
-                message: `${currentUser.email} handed off ${project.name} to you. Note: ${content}`,
+                message: `${currentUser.emailAddresses[0]?.emailAddress} handed off ${project.name} to you. Note: ${content}`,
                 projectId: projectId,
                 isRead: false
             }
@@ -430,7 +432,7 @@ export async function addProjectComment(
                 organizationId: orgId,
                 type: 'MENTION' as any,
                 title: 'You were mentioned',
-                message: `${currentUser.email} mentioned you in ${project.name}: "${content}"`,
+                message: `${currentUser.emailAddresses[0]?.emailAddress} mentioned you in ${project.name}: "${content}"`,
                 projectId: projectId,
                 isRead: false
             }))
