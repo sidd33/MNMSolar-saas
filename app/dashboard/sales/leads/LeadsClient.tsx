@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, Fragment } from "react";
+import { useState, useCallback, Fragment, useEffect } from "react";
 import { Plus, Search, Target, User, Phone, MapPin, LayoutGrid, ChevronDown, ChevronUp, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,12 +28,17 @@ interface LeadsClientProps {
 }
 
 export default function LeadsClient({ initialLeads, initialSurveyLeads }: LeadsClientProps) {
+  const [mounted, setMounted] = useState(false);
   const [activeLeads, setActiveLeads] = useState<any[]>(initialLeads);
   const [surveyLeads, setSurveyLeads] = useState<any[]>(initialSurveyLeads);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedLeadId, setExpandedLeadId] = useState<string | null>(null);
   const [lostModalLead, setLostModalLead] = useState<{ id: string; name: string } | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const fetchData = useCallback(async (isSilent = false) => {
     if (!isSilent) setIsLoading(true);
@@ -60,6 +65,8 @@ export default function LeadsClient({ initialLeads, initialSurveyLeads }: LeadsC
         (l.siteAddress?.toLowerCase() || "").includes(searchQuery.toLowerCase())
     );
   };
+
+  if (!mounted) return null;
 
   return (
     <div className="flex flex-col w-full p-8 max-w-7xl mx-auto min-h-screen">

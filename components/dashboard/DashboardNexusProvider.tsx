@@ -25,6 +25,7 @@ interface PipelineContextType {
   isRefreshing: boolean;
   lastSyncedAt: Date | null;
   refresh: () => Promise<void>;
+  refreshNotifications: () => Promise<void>;
   updateLocalProject: (projectId: string, updates: any) => void;
   updateLocalData: (updates: any) => void;
   role: string | null;
@@ -154,10 +155,35 @@ export function DashboardNexusProvider({
         }
     }, 60000);
 
+    // RAPID NOTIFICATION PULSE (Every 15s)
+    const notifInterval = setInterval(() => {
+        if (document.visibilityState !== 'visible' || !userId) return;
+        
+        // Only fetch notifications to keep it lightweight
+        getMyNotifications().then(notifResult => {
+            if (isMounted.current) {
+                setPipelineData((prev: any) => {
+                    if (!prev) return prev;
+                    // Only update if count changed to prevent unnecessary re-renders
+                    if (prev.unreadCount === notifResult.unreadCount && 
+                        prev.notifications?.length === notifResult.notifications?.length) {
+                        return prev;
+                    }
+                    return {
+                        ...prev,
+                        notifications: notifResult.notifications || [],
+                        unreadCount: notifResult.unreadCount || 0
+                    };
+                });
+            }
+        }).catch(err => console.error("Notif Pulse Failed", err));
+    }, 15000);
+
     return () => {
       isMounted.current = false;
       window.removeEventListener('focus', handleFocus);
       clearInterval(syncInterval);
+      clearInterval(notifInterval);
     };
   }, [fetchData, userId]);
 
@@ -200,6 +226,16 @@ export function DashboardNexusProvider({
     isRefreshing,
     lastSyncedAt,
     refresh,
+    refreshNotifications: async () => {
+        const notifResult = await getMyNotifications();
+        if (isMounted.current) {
+            setPipelineData((prev: any) => ({
+                ...prev,
+                notifications: notifResult.notifications || [],
+                unreadCount: notifResult.unreadCount || 0
+            }));
+        }
+    },
     updateLocalProject,
     updateLocalData,
     role,

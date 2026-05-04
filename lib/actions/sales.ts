@@ -11,10 +11,13 @@ import { z } from "zod";
  * Verifies authentication, role (EMPLOYEE), and department (SALES)
  */
 async function validateSalesAccess() {
-  const { orgId } = await auth();
   const user = await currentUser();
-  
   if (!user) throw new Error("Unauthorized");
+
+  // Resilience: Ensure user and org are synced and get the verified orgId
+  const { syncUserAndOrg } = await import("@/app/actions/sync");
+  const syncResult = await syncUserAndOrg();
+  const orgId = syncResult?.orgId || null;
 
   const metadata = user.publicMetadata as any;
   const role = metadata?.role;
@@ -99,7 +102,7 @@ export async function getMyLeads(page: number = 1) {
     where: { 
         organizationId: orgId,
         assignedToId: user.id,
-        status: { notIn: [LeadStatus.CONVERTED, LeadStatus.LOST] }
+        status: { notIn: [LeadStatus.CONVERTED, LeadStatus.LOST, LeadStatus.SITE_VISIT_SCHEDULED] }
     },
     take: 50,
     skip: (page - 1) * 50,
@@ -234,22 +237,29 @@ export async function convertLeadToProject(leadId: string, excelData?: any) {
 }
 
 export async function initiatePreliminarySurvey(leadId: string, engineerIds?: string[]) {
-    const { user, orgId } = await validateSalesAccess();
+    console.log("[SERVER] initiatePreliminarySurvey started", { leadId, engineerIds });
+    const { user: clerkUser, orgId } = await validateSalesAccess();
     if (!orgId) throw new Error("No organization context found");
 
+    console.log("[SERVER] Access validated. Lead ID:", leadId);
     const lead = await prisma.lead.findUnique({
         where: { id: leadId, organizationId: orgId }
     });
 
-    if (!lead) throw new Error("Lead not found");
+    if (!lead) {
+        console.error("Lead not found for ID:", leadId, "and Org:", orgId);
+        throw new Error("Lead not found");
+    }
 
     // Run in transaction
     const result = await prisma.$transaction(async (tx) => {
+        console.log("Transaction started...");
         // 1. Update Lead Status
         await tx.lead.update({
             where: { id: leadId },
             data: { status: LeadStatus.SITE_VISIT_SCHEDULED }
         });
+        console.log("Lead status updated to SITE_VISIT_SCHEDULED");
 
         // 2. Create Project (Preliminary Site Survey)
         const projectCount = await tx.project.count({ where: { organizationId: orgId } });
@@ -268,11 +278,11 @@ export async function initiatePreliminarySurvey(leadId: string, engineerIds?: st
                 stage: "SITE_SURVEY",
                 executionStage: "SURVEY",
                 isPreliminary: true,
-                createdByUserId: user.id,
-                originatedByUserId: user.id,
+                createdByUserId: clerkUser.id,
+                originatedByUserId: clerkUser.id,
                 leadId: leadId,
                 // Assign if provided
-                assignedByUserId: (engineerIds && engineerIds.length > 0) ? user.id : null,
+                assignedByUserId: (engineerIds && engineerIds.length > 0) ? clerkUser.id : null,
                 assignedAt: (engineerIds && engineerIds.length > 0) ? new Date() : null,
                 assignedToEngineerId: (engineerIds && engineerIds.length > 0) ? engineerIds[0] : null,
                 claimedByUserId: (engineerIds && engineerIds.length > 0) ? engineerIds[0] : null,
@@ -282,6 +292,7 @@ export async function initiatePreliminarySurvey(leadId: string, engineerIds?: st
                 } : undefined
             }
         });
+        console.log("Project created:", project.id);
 
         // 3. Create Handoff Log
         await tx.handoffLog.create({
@@ -291,14 +302,16 @@ export async function initiatePreliminarySurvey(leadId: string, engineerIds?: st
                 toDept: "ENGINEERING",
                 fromStage: "SITE_SURVEY",
                 toStage: "SITE_SURVEY",
-                userId: user.id,
+                userId: clerkUser.id,
                 comment: "Preliminary Site Survey initiated for quoting purposes.",
                 organizationId: orgId
             }
         });
+        console.log("Handoff log created");
 
         return project;
     });
+    console.log("Transaction committed successfully.");
 
     // --- NOTIFICATION ENGINE ---
     const engineeringUsers = await prisma.user.findMany({
@@ -325,6 +338,8 @@ export async function initiatePreliminarySurvey(leadId: string, engineerIds?: st
 
     revalidatePath("/dashboard/sales/leads");
     revalidatePath("/dashboard/engineering/survey");
+    revalidatePath("/dashboard/engineering/pool");
+    revalidatePath("/dashboard");
     return result;
 }
 

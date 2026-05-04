@@ -28,14 +28,19 @@ interface SurveyAssignmentModalProps {
 export function SurveyAssignmentModal({ leadId, leadName, isOpen, onClose, onSuccess }: SurveyAssignmentModalProps) {
     const [isPending, startTransition] = useTransition();
     const [engineeringTeam, setEngineeringTeam] = useState<{ id: string; email: string }[]>([]);
+    const [isLoadingTeam, setIsLoadingTeam] = useState(true);
     const [selectedEngineerIds, setSelectedEngineerIds] = useState<string[]>([]);
 
     useEffect(() => {
         if (isOpen) {
-            getEngineeringTeamMembers().then(setEngineeringTeam).catch(err => {
-                console.error("Failed to fetch team:", err);
-                toast.error("Failed to load engineering team.");
-            });
+            setIsLoadingTeam(true);
+            getEngineeringTeamMembers()
+                .then(setEngineeringTeam)
+                .catch(err => {
+                    console.error("Failed to fetch team:", err);
+                    toast.error("Failed to load engineering team.");
+                })
+                .finally(() => setIsLoadingTeam(false));
         }
     }, [isOpen]);
 
@@ -77,9 +82,15 @@ export function SurveyAssignmentModal({ leadId, leadName, isOpen, onClose, onSuc
                 <div className="space-y-3">
                     <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Engineering Roster</label>
                     <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                        {engineeringTeam.length === 0 ? (
-                            <div className="py-8 text-center text-slate-300 font-bold uppercase tracking-widest text-[10px] border-2 border-dashed border-slate-100 rounded-2xl">
+                        {isLoadingTeam ? (
+                            <div className="py-8 text-center text-slate-300 font-bold uppercase tracking-widest text-[10px] border-2 border-dashed border-slate-100 rounded-2xl flex items-center justify-center gap-2">
+                                <Loader2 className="animate-spin" size={14} />
                                 Loading Team...
+                            </div>
+                        ) : engineeringTeam.length === 0 ? (
+                            <div className="py-8 text-center text-slate-400 font-bold uppercase tracking-widest text-[10px] border-2 border-dashed border-slate-100 rounded-2xl px-4">
+                                No Engineers found in database. 
+                                <p className="text-[8px] text-slate-300 mt-1 lowercase font-medium">Proceeding will send this to the unassigned project pool.</p>
                             </div>
                         ) : (
                             engineeringTeam.map((eng) => (

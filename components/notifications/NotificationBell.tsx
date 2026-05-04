@@ -10,7 +10,7 @@ import { formatDistanceToNow } from "date-fns";
 import { useRouter } from "next/navigation";
 
 export function NotificationBell() {
-  const { notifications, unreadCount } = usePipelineNexus();
+  const { notifications, unreadCount, refreshNotifications } = usePipelineNexus();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -28,6 +28,7 @@ export function NotificationBell() {
   const handleMarkAllRead = async () => {
     try {
       await markAllNotificationsRead();
+      await refreshNotifications();
       toast.success("All notifications marked as read");
     } catch (err) {
       toast.error("Failed to mark notifications as read");
@@ -39,6 +40,7 @@ export function NotificationBell() {
   const handleNotificationClick = async (notif: any) => {
     if (!notif.isRead) {
       await markNotificationRead(notif.id);
+      await refreshNotifications();
     }
     setIsOpen(false);
     
