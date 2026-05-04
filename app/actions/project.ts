@@ -243,6 +243,8 @@ export async function forwardProject(formData: FormData) {
 
   let previousProject: any;
   let project: any;
+  const trackUpdates: any = {};
+  let finalNextStage = nextStage;
 
   // Run in transaction for optimistic concurrency guard
   project = await prisma.$transaction(async (tx) => {
@@ -304,7 +306,6 @@ export async function forwardProject(formData: FormData) {
     }
 
     // Determine track stage updates
-    const trackUpdates: any = {};
     if (nextStage === "DETAILED_ENGG") trackUpdates.liasoningStage = "FEASIBILITY";
     if (nextStage === "WORK_ORDER") trackUpdates.liasoningStage = "L1_APPROVED";
     if (nextStage === "NET_METERING") trackUpdates.liasoningStage = "AGREEMENT";
@@ -315,7 +316,7 @@ export async function forwardProject(formData: FormData) {
     if (nextStage === "PV_PANEL_INSTALLATION") trackUpdates.executionStage = "PANEL_INSTALL";
     if (nextStage === "AC_DC_INSTALLATION") trackUpdates.executionStage = "INVERTER_WIRING";
 
-    let finalNextStage = nextStage;
+
 
     // SPECIAL CASE: SITE_SURVEY completion for Preliminary Projects
     // Preliminary surveys stay at SITE_SURVEY but return to Sales for quoting
@@ -368,6 +369,15 @@ export async function forwardProject(formData: FormData) {
   });
 
   // --- NOTIFICATION ENGINE ---
+  const isPrelimHandoff = previousProject.stage === "SITE_SURVEY" && previousProject.isPreliminary;
+  const targetDept = isPrelimHandoff ? "Sales" : (department || trackUpdates.currentDepartment);
+  const receivingDeptUsers = await prisma.user.findMany({
+    where: { 
+      organizationId: sync.orgId,
+      department: targetDept as any
+    }
+  });
+
   if (isPrelimHandoff && previousProject.originatedByUserId) {
     // Notify the specific Sales person who originated the lead
     await prisma.notification.create({
@@ -406,7 +416,6 @@ export async function forwardProject(formData: FormData) {
   `;
 
   // 📝 Create Handoff Log for Timeline
-  const isPrelimHandoff = previousProject.stage === "SITE_SURVEY" && previousProject.isPreliminary;
   await (prisma as any).handoffLog.create({
     data: {
       project: { connect: { id: projectId } },
