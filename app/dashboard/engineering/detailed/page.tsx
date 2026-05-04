@@ -2,35 +2,31 @@
 
 import { useDashboardNexus } from "@/components/dashboard/DashboardNexusProvider";
 import { Card } from "@/components/ui/card";
-import { Zap } from "lucide-react";
+import { Zap, Settings } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { EngineeringHandoffCard } from "@/components/workspace/EngineeringHandoffCard";
 import { DepartmentQueueSearch } from "@/components/dashboard/DepartmentQueueSearch";
-import { getProjectDetail, getBulkProjectDetails } from "@/lib/actions/engineering";
+import { getBulkProjectDetails } from "@/lib/actions/engineering";
 import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
+import { useSearchParams } from "next/navigation";
 
-/**
- * Detailed Engineering Queue — Ultra-Lean Edition
- * 
- * The Nexus now only provides lightweight project metadata.
- * Files & Tasks are fetched in bulk for all visible projects.
- */
 export default function DetailedEnggQueue() {
   const { user } = useUser();
-  const { data } = useDashboardNexus();
+  const { data, isLoading } = useDashboardNexus();
+  const searchParams = useSearchParams();
+  const initialSearch = searchParams.get("search") || "";
   
-  // Filter: ONLY show projects claimed by the current user
+  const [detailCache, setDetailCache] = useState<Record<string, any>>({});
+  const [isSyncing, setIsSyncing] = useState(false);
+
   const projects = data?.projects?.filter((p: any) => 
     p.stage === "DETAILED_ENGG" && (
       p.claimedByUserId === user?.id || 
       p.assignedEngineers?.some((eng: any) => eng.id === user?.id)
     )
   ) || [];
-  const [detailCache, setDetailCache] = useState<Record<string, any>>({});
-  const [isSyncing, setIsSyncing] = useState(false);
 
-  // Fetch details for all visible projects (batch)
   useEffect(() => {
     if (projects.length === 0 || isSyncing) return;
 
@@ -55,7 +51,17 @@ export default function DetailedEnggQueue() {
       .finally(() => {
         setIsSyncing(false);
       });
-  }, [projects.length]); // Only re-run when the count changes
+  }, [projects.length]);
+
+  if (isLoading) {
+    return (
+      <DashboardShell title="DETAILED ENGG DESK">
+        <div className="p-12 flex justify-center">
+          <Settings className="animate-spin text-slate-300" size={48} />
+        </div>
+      </DashboardShell>
+    );
+  }
 
   return (
     <DashboardShell 
@@ -63,11 +69,9 @@ export default function DetailedEnggQueue() {
       subtitle="Draft SLDs and Structure Layouts for field technicians."
     >
       {projects.length === 0 ? (
-        <Card className="border-dashed h-64 flex items-center justify-center bg-[#F7FAFC] rounded-2xl border-slate-200">
-          <div className="text-center">
-             <Zap className="h-12 w-12 text-slate-200 mx-auto mb-4" />
-             <p className="text-[#4A5568] font-black uppercase tracking-widest text-xs">No pending engineering drafting tasks.</p>
-          </div>
+        <Card className="border-dashed h-64 flex flex-col items-center justify-center bg-slate-50/50 rounded-[2.5rem] border-slate-200 text-slate-400 gap-3">
+          <Zap size={48} className="opacity-20 mx-auto mb-4" />
+          <p className="font-black uppercase tracking-widest text-[10px]">No pending engineering drafting tasks.</p>
         </Card>
       ) : (
         <DepartmentQueueSearch
@@ -78,6 +82,7 @@ export default function DetailedEnggQueue() {
             currentDepartment: p.currentDepartment,
           }))}
           dept="ENGINEERING"
+          initialSearch={initialSearch}
         >
           {projects.map((project: any) => {
             const detail = detailCache[project.id];

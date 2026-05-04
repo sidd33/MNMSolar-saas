@@ -22,25 +22,26 @@ export default function ProjectPoolPage() {
     p.id.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // 1. Truly Unclaimed: No official assignment and no self-claim
   const unclaimed = filteredProjects.filter((p: any) => 
-    (!p.assignedEngineers || p.assignedEngineers.length === 0) && 
-    !p.claimedByUserId && 
-    !p.assignedToEngineerId
+    !p.assignedToEngineerId && !p.claimedByUserId
   );
   
-  const myProjects = filteredProjects.filter((p: any) => 
+  // 2. My Desk: All projects the user is responsible for (either self-claimed OR officially assigned)
+  const myDeskProjects = filteredProjects.filter((p: any) => 
     p.claimedByUserId === user?.id || 
+    p.assignedToEngineerId === user?.id ||
     p.assignedEngineers?.some((eng: any) => eng.id === user?.id)
   );
   
+  // 3. Assigned to Me: Only official assignments from a manager to this user
   const assignedToMe = filteredProjects.filter((p: any) => 
-    p.assignedToEngineerId === user?.id || 
-    p.assignedEngineers?.some((eng: any) => eng.id === user?.id)
+    p.assignedToEngineerId === user?.id
   );
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 w-full">
-      {/* 🚀 Header: Engineering Command Level */}
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-100 pb-8">
         <div className="space-y-1">
           <Badge className="bg-[#1C3384]/10 text-[#1C3384] hover:bg-[#1C3384]/10 font-bold px-3 py-1 rounded-full uppercase tracking-widest text-[10px] mb-2">
@@ -60,34 +61,36 @@ export default function ProjectPoolPage() {
       </div>
 
       <Tabs defaultValue="all" className="w-full space-y-6">
-        {/* 🛠 Controls Row: Logic & Filter */}
         <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between">
             <TabsList className="bg-slate-100/50 border border-slate-200/60 p-1.5 rounded-2xl h-14 w-full lg:w-auto">
-                <TabsTrigger value="all" className="rounded-xl px-8 font-black uppercase tracking-widest text-[11px] data-[state=active]:bg-[#1C3384] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all h-full gap-2">
+                <TabsTrigger value="all" className="group rounded-xl px-8 font-black uppercase tracking-widest text-[11px] data-[state=active]:bg-[#1C3384] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all h-full gap-3">
                     <LayoutGrid size={16} />
                     All Projects
-                    <Badge variant="secondary" className="bg-white/10 text-white/40 border-none px-1.5 py-0 rounded text-[9px] group-data-[state=active]:text-white">
+                    <Badge className="bg-slate-200 text-slate-600 group-data-[state=active]:bg-white group-data-[state=active]:text-[#1C3384] border-none px-2 py-0.5 rounded-full text-[10px] font-black transition-colors">
                         {filteredProjects.length}
                     </Badge>
                 </TabsTrigger>
-                <TabsTrigger value="unclaimed" className="rounded-xl px-8 font-black uppercase tracking-widest text-[11px] data-[state=active]:bg-[#FFC800] data-[state=active]:text-[#1C3384] data-[state=active]:shadow-lg transition-all h-full gap-2">
+                
+                <TabsTrigger value="unclaimed" className="group rounded-xl px-8 font-black uppercase tracking-widest text-[11px] data-[state=active]:bg-[#FFC800] data-[state=active]:text-[#1C3384] data-[state=active]:shadow-lg transition-all h-full gap-3">
                     <Inbox size={16} />
                     Unclaimed
-                    <Badge variant="secondary" className="bg-[#1C3384]/10 text-[#1C3384] border-none px-1.5 py-0 rounded text-[9px]">
+                    <Badge className="bg-slate-200 text-slate-600 group-data-[state=active]:bg-[#1C3384] group-data-[state=active]:text-white border-none px-2 py-0.5 rounded-full text-[10px] font-black transition-colors">
                         {unclaimed.length}
                     </Badge>
                 </TabsTrigger>
-                <TabsTrigger value="mine" className="rounded-xl px-8 font-black uppercase tracking-widest text-[11px] data-[state=active]:bg-[#38A169] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all h-full gap-2">
+                
+                <TabsTrigger value="mine" className="group rounded-xl px-8 font-black uppercase tracking-widest text-[11px] data-[state=active]:bg-[#38A169] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all h-full gap-3">
                     <UserCheck size={16} />
                     My Desk
-                    <Badge variant="secondary" className="bg-white/20 text-white border-none px-1.5 py-0 rounded text-[9px]">
-                        {myProjects.length}
+                    <Badge className="bg-slate-200 text-slate-600 group-data-[state=active]:bg-white group-data-[state=active]:text-[#38A169] border-none px-2 py-0.5 rounded-full text-[10px] font-black transition-colors">
+                        {myDeskProjects.length}
                     </Badge>
                 </TabsTrigger>
-                <TabsTrigger value="assigned" className="rounded-xl px-8 font-black uppercase tracking-widest text-[11px] data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all h-full gap-2">
+                
+                <TabsTrigger value="assigned" className="group rounded-xl px-8 font-black uppercase tracking-widest text-[11px] data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all h-full gap-3">
                     <Lock size={16} />
                     Assigned
-                    <Badge variant="secondary" className="bg-white/20 text-white border-none px-1.5 py-0 rounded text-[9px]">
+                    <Badge className="bg-slate-200 text-slate-600 group-data-[state=active]:bg-white group-data-[state=active]:text-blue-600 border-none px-2 py-0.5 rounded-full text-[10px] font-black transition-colors">
                         {assignedToMe.length}
                     </Badge>
                 </TabsTrigger>
@@ -104,20 +107,13 @@ export default function ProjectPoolPage() {
             </div>
         </div>
 
-        {/* 📋 Content Area */}
+        {/* Content Area */}
         <TabsContent value="all" className="mt-0 focus-visible:outline-none">
-            {filteredProjects.length === 0 ? (
-                <div className="h-64 flex flex-col items-center justify-center bg-slate-50/50 rounded-[2.5rem] border border-dashed border-slate-200 text-slate-400 gap-3">
-                    <Inbox size={48} className="opacity-20" />
-                    <p className="font-black uppercase tracking-widest text-[10px]">Project pool is currently empty</p>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 gap-6">
-                    {filteredProjects.map((project: any) => (
-                        <ProjectPoolCard key={project.id} project={project} />
-                    ))}
-                </div>
-            )}
+            <div className="grid grid-cols-1 gap-6">
+                {filteredProjects.map((project: any) => (
+                    <ProjectPoolCard key={project.id} project={project} />
+                ))}
+            </div>
         </TabsContent>
 
         <TabsContent value="unclaimed" className="mt-0 focus-visible:outline-none">
@@ -137,13 +133,13 @@ export default function ProjectPoolPage() {
 
         <TabsContent value="mine" className="mt-0 focus-visible:outline-none">
              <div className="grid grid-cols-1 gap-6">
-                {myProjects.length === 0 ? (
+                {myDeskProjects.length === 0 ? (
                     <div className="h-64 flex flex-col items-center justify-center bg-slate-50/50 rounded-[2.5rem] border border-dashed border-slate-200 text-slate-400 gap-3">
                         <UserCheck size={48} className="opacity-20" />
                         <p className="font-black uppercase tracking-widest text-[10px]">Your desk is clear</p>
                     </div>
                 ) : (
-                    myProjects.map((project: any) => (
+                    myDeskProjects.map((project: any) => (
                         <ProjectPoolCard key={project.id} project={project} />
                     ))
                 )}

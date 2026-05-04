@@ -83,7 +83,6 @@ export async function getEngineeringQueue(stages?: string[], providedOrgId?: str
           claimedBy: { select: { id: true, email: true } },
           assignedToEngineerId: true,
           assignedByUserId: true,
-          assignedAt: true,
           assignedBy: { select: { id: true, email: true } },
           assignedEngineers: { select: { id: true, email: true } }
       }
@@ -147,6 +146,12 @@ export async function getProjectDetail(projectId: string) {
             currentDepartment: true,
             sanctionedLoad: true,
             updatedAt: true,
+            claimedByUserId: true,
+            claimedBy: { select: { id: true, email: true } },
+            assignedToEngineerId: true,
+            assignedByUserId: true,
+            assignedBy: { select: { id: true, email: true } },
+            assignedEngineers: { select: { id: true, email: true } },
             projectFiles: {
                 where: {
                     OR: [
@@ -197,6 +202,12 @@ export async function getBulkProjectDetails(projectIds: string[]) {
             currentDepartment: true,
             sanctionedLoad: true,
             updatedAt: true,
+            claimedByUserId: true,
+            claimedBy: { select: { id: true, email: true } },
+            assignedToEngineerId: true,
+            assignedByUserId: true,
+            assignedBy: { select: { id: true, email: true } },
+            assignedEngineers: { select: { id: true, email: true } },
             projectFiles: {
                 select: {
                     id: true,

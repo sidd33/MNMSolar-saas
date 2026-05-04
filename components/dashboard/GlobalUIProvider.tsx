@@ -21,7 +21,7 @@ interface GlobalUIContextType {
 
 const GlobalUIContext = createContext<GlobalUIContextType | undefined>(undefined);
 
-export function GlobalUIProvider({ children }: { children: React.ReactNode }) {
+export function GlobalUIProvider({ children, userId }: { children: React.ReactNode; userId: string | null }) {
   const { data, isLoading: nexusLoading, refresh } = useDashboardNexus();
 
   // Derive sidebar counts from existing Nexus data — ZERO additional DB queries
@@ -31,7 +31,11 @@ export function GlobalUIProvider({ children }: { children: React.ReactNode }) {
       SALES: 0,
       ENGINEERING: 0,
       EXECUTION: 0,
-      ACCOUNTS: 0
+      ACCOUNTS: 0,
+      SURVEY_QUEUE: 0,
+      DETAILED_ENGG: 0,
+      WORK_ORDER: 0,
+      MY_ENGINEERING_DESK: 0
     };
 
     projects.forEach((p: any) => {
@@ -39,10 +43,24 @@ export function GlobalUIProvider({ children }: { children: React.ReactNode }) {
       if (derived[dept] !== undefined) {
         derived[dept]++;
       }
+
+      if (p.stage === "SITE_SURVEY") derived.SURVEY_QUEUE++;
+      if (p.stage === "DETAILED_ENGG") derived.DETAILED_ENGG++;
+      if (p.stage === "WORK_ORDER") derived.WORK_ORDER++;
+
+      // Personal counter for the Unified Desk (Excluding Preliminary Surveys)
+      const isAssigned = (
+        p.stage !== "SITE_SURVEY" && (
+          p.claimedByUserId === userId || 
+          p.assignedToEngineerId === userId ||
+          p.assignedEngineers?.some((eng: any) => eng.id === userId)
+        )
+      );
+      if (isAssigned) derived.MY_ENGINEERING_DESK++;
     });
 
     return derived;
-  }, [data?.projects]);
+  }, [data?.projects, userId]);
 
   const value = useMemo(() => ({
     stats,

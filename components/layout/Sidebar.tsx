@@ -206,6 +206,11 @@ export function Sidebar({}: SidebarProps) {
                   {stats[item.dept]}
                 </span>
               )}
+              {(item as any).countKey && !collapsed && stats[(item as any).countKey] > 0 && (
+                <Badge className="ml-auto bg-white/10 text-white border-none font-black px-2 py-0.5 text-[9px] rounded-full">
+                  {stats[(item as any).countKey]}
+                </Badge>
+              )}
               {(isActive || (isPriorityLink && !collapsed)) && (
                 <div className={cn("absolute left-0 w-1.5 h-6 rounded-r-full", isOwnerLink ? "bg-white" : "bg-[#FFC800]")} />
               )}

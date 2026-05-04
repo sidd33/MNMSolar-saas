@@ -33,7 +33,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   return (
     <DashboardNexusProvider initialData={initialData} userId={user?.id || null} role={role} department={department}>
-      <GlobalUIProvider>
+      <GlobalUIProvider userId={user?.id || null}>
         <DashboardClientShell>
           {children}
         </DashboardClientShell>

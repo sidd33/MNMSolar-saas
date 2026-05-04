@@ -98,18 +98,18 @@ export function ProjectPoolCard({ project }: ProjectPoolCardProps) {
               </span>
             </div>
             <div className="flex items-center gap-3">
-               {project.assignedEngineers?.length > 0 && (
+                {project.assignedEngineers?.length > 0 && (
                   <div className="flex -space-x-2">
                     {project.assignedEngineers.map((eng: any) => (
                       <Badge key={eng.id} className={cn(
                         "font-black px-2 py-0.5 uppercase tracking-wider text-[7px] rounded-full shrink-0 border-2 border-white",
-                        eng.id === user?.id ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-400"
+                        eng.id === user?.id ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-400"
                       )}>
-                        {eng.email.slice(0, 2).toUpperCase()}
+                        {eng.email.split('@')[0].toUpperCase()}
                       </Badge>
                     ))}
                   </div>
-               )}
+                )}
                <Button
                  variant="ghost"
                  onClick={() => setModalOpen(true)}
@@ -125,8 +125,18 @@ export function ProjectPoolCard({ project }: ProjectPoolCardProps) {
               {project.name}
             </h3>
             <div className="flex items-center gap-2">
-                <MapPin size={12} className="text-[#CBD5E0]" />
-                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#A0AEC0]">VERIFICATION PENDING / UNCLAIMED</span>
+                <User size={12} className={cn("shrink-0", (project.assignedToEngineerId || project.claimedByUserId) ? "text-[#1C3384]" : "text-[#CBD5E0]")} />
+                <span className={cn(
+                  "text-[9px] font-black uppercase tracking-[0.2em]",
+                  (project.assignedToEngineerId || project.claimedByUserId) ? "text-[#1C3384]" : "text-[#A0AEC0]"
+                )}>
+                  {project.assignedToEngineerId 
+                    ? `ASSIGNED TO ${project.assignedEngineers?.[0]?.email?.split('@')[0]?.toUpperCase() || 'ENGINEER'}`
+                    : project.claimedByUserId
+                    ? `CLAIMED BY ${project.claimedBy?.email?.split('@')[0]?.toUpperCase() || 'ENGINEER'}`
+                    : "VERIFICATION PENDING / UNCLAIMED"
+                  }
+                </span>
             </div>
           </div>
 

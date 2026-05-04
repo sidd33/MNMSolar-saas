@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, ReactNode } from "react";
+import { useState, ReactNode, useEffect } from "react";
 import { Search, Shield } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 interface ProjectEntry {
   id: string;
@@ -15,10 +16,17 @@ interface DepartmentQueueSearchProps {
   projects: ProjectEntry[];
   dept: string;
   children: ReactNode[];
+  initialSearch?: string;
 }
 
-export function DepartmentQueueSearch({ projects, dept, children }: DepartmentQueueSearchProps) {
-  const [search, setSearch] = useState("");
+export function DepartmentQueueSearch({ projects, dept, children, initialSearch = "" }: DepartmentQueueSearchProps) {
+  const [search, setSearch] = useState(initialSearch);
+
+  useEffect(() => {
+    if (initialSearch) {
+      setSearch(initialSearch);
+    }
+  }, [initialSearch]);
 
   const matchingIndices = search.trim()
     ? projects
@@ -36,30 +44,28 @@ export function DepartmentQueueSearch({ projects, dept, children }: DepartmentQu
 
   return (
     <>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-black text-[#0F172A] uppercase tracking-tight font-[family-name:var(--font-montserrat)]">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
+        <h2 className="text-xl font-black text-[#0F172A] uppercase tracking-tighter font-[family-name:var(--font-montserrat)]">
           {dept.toUpperCase()} QUEUE
         </h2>
-        <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={dept === "OVERALL" ? "Search all projects..." : "Search projects..."}
-            className="pl-9 pr-3 py-1.5 text-xs font-medium rounded-xl bg-white text-[#0F172A] placeholder-slate-300 border border-slate-200 focus:outline-none focus:border-[#1C3384] focus:ring-1 focus:ring-[#1C3384]/20 w-52 transition-colors"
-          />
+        
+        <div className="relative w-full lg:max-w-md group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#1C3384] transition-colors" size={20} />
+            <Input 
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={dept === "OVERALL" ? "Search all projects..." : "Search technical queue..."}
+                className="pl-12 h-14 bg-white border-slate-100 rounded-2xl focus-visible:ring-2 focus-visible:ring-[#1C3384]/20 focus-visible:border-[#1C3384] transition-all shadow-[0_8px_30px_rgb(0,0,0,0.04)] w-full font-medium placeholder:text-slate-300"
+            />
         </div>
       </div>
 
       {matchingIndices.length === 0 ? (
-        <Card className="border-dashed h-40 flex items-center justify-center bg-[#F7FAFC] rounded-2xl border-slate-200">
-          <div className="text-center">
-            <Shield className="h-8 w-8 text-slate-200 mx-auto mb-3" />
-            <p className="text-[#4A5568] font-black uppercase tracking-widest text-xs">
-              No projects match your search
-            </p>
-          </div>
+        <Card className="border-dashed h-64 flex flex-col items-center justify-center bg-slate-50/50 rounded-[2.5rem] border-slate-200 text-slate-400 gap-3">
+          <Shield size={48} className="opacity-20" />
+          <p className="font-black uppercase tracking-widest text-[10px]">
+            No projects match your search criteria
+          </p>
         </Card>
       ) : (
         <div className="space-y-8">
