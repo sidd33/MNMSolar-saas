@@ -102,7 +102,7 @@ export async function getMyLeads(page: number = 1) {
     where: { 
         organizationId: orgId,
         assignedToId: user.id,
-        status: { notIn: [LeadStatus.CONVERTED, LeadStatus.LOST, LeadStatus.SITE_VISIT_SCHEDULED] }
+        status: { notIn: [LeadStatus.CONVERTED, LeadStatus.LOST, LeadStatus.SITE_VISIT_SCHEDULED, LeadStatus.QUOTE_SENT] }
     },
     take: 50,
     skip: (page - 1) * 50,

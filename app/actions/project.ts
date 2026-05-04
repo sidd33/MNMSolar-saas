@@ -368,16 +368,20 @@ export async function forwardProject(formData: FormData) {
   });
 
   // --- NOTIFICATION ENGINE ---
-  // Find all users in the receiving department
-  const receivingDeptUsers = await prisma.user.findMany({
-    where: {
-      organizationId: sync.orgId,
-      department: department?.toUpperCase() === 'SALES' ? 'SALES' : department?.toUpperCase()
-    },
-    select: { id: true }
-  });
-
-  if (receivingDeptUsers.length > 0) {
+  if (isPrelimHandoff && previousProject.originatedByUserId) {
+    // Notify the specific Sales person who originated the lead
+    await prisma.notification.create({
+      data: {
+        userId: previousProject.originatedByUserId,
+        organizationId: sync.orgId,
+        type: 'PROJECT_ARRIVED',
+        title: 'Survey Completed',
+        message: `Preliminary survey for ${project.name} is complete. You can now prepare the quote.`,
+        projectId: projectId,
+        isRead: false,
+      }
+    });
+  } else if (receivingDeptUsers.length > 0) {
     await prisma.notification.createMany({
       data: receivingDeptUsers.map(u => ({
         userId: u.id,

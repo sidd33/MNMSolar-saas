@@ -299,77 +299,51 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
         {/* Left Section: Project Details & Checklist */}
         <div className="lg:col-span-2 p-10">
           <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <Badge className="bg-[#1C3384]/5 text-[#1C3384] font-black px-4 py-1.5 uppercase tracking-[0.15em] text-[9px] border-none rounded-full">
-                {project.stage?.replace(/_/g, ' ')}
-              </Badge>
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                REF: <span className="text-slate-900 font-black">{project.name.split(' ')[0]}</span>
-                {files.length > 0 && (
-                  <span className="ml-2 px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-md border border-blue-100 italic">
-                    {files.length} Assets
-                  </span>
-                )}
-              </span>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-3">
+                <Badge className="bg-[#1C3384]/5 text-[#1C3384] font-black px-4 py-1.5 uppercase tracking-[0.15em] text-[9px] border-none rounded-full shrink-0">
+                  {project.stage?.replace(/_/g, ' ')}
+                </Badge>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 whitespace-nowrap">
+                  REF: <span className="text-slate-900 font-black">{project.name.split(' ')[0]}</span>
+                  {files.length > 0 && (
+                    <span className="ml-2 px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-md border border-blue-100 italic">
+                      {files.length} Assets
+                    </span>
+                  )}
+                </span>
+              </div>
+              {project.assignedAt && (
+                <span className="text-[7px] font-bold text-slate-300 uppercase mt-2 ml-1">
+                  Team Assigned {formatDistanceToNow(new Date(project.assignedAt), { addSuffix: true })}
+                </span>
+              )}
             </div>
-            <Button
-              variant="ghost"
-              onClick={() => setModalOpen(true)}
-              className="h-9 px-4 rounded-full bg-slate-50 hover:bg-[#1C3384] hover:text-white text-slate-500 font-black text-[9px] uppercase tracking-widest transition-all gap-2"
-            >
-              <Eye size={14} /> Inspect Data
-            </Button>
-            <div className="flex items-center gap-3">
+            
+            <div className="flex items-center gap-6 ml-auto">
               {project.assignedEngineers?.length > 0 && (
-                  <div className="flex flex-col items-end">
+                  <div className="flex items-center gap-2">
                      <div className="flex -space-x-2">
                         {project.assignedEngineers.map((eng: any) => (
                            <Badge key={eng.id} className={cn(
-                              "font-black px-3 py-1 uppercase tracking-wider text-[8px] rounded-full border-2 border-white",
+                              "font-black px-2.5 py-1 uppercase tracking-wider text-[8px] rounded-full border-2 border-white shadow-sm",
                               eng.id === user?.id ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-400"
                            )}>
-                              {eng.email.slice(0, 2).toUpperCase()}
+                              {eng.email.split('@')[0].toUpperCase()}
                            </Badge>
                         ))}
                      </div>
-                     {project.assignedAt && (
-                        <span className="text-[8px] font-bold text-slate-300 uppercase mt-0.5">
-                           TEAM ASSIGNED {formatDistanceToNow(new Date(project.assignedAt), { addSuffix: false }).toUpperCase()} AGO
-                        </span>
-                     )}
                   </div>
               )}
-              {project.claimedByUserId ? (
-                <div className="flex items-center gap-2">
-                  <Badge className={cn(
-                    "font-black px-3 py-1 uppercase tracking-wider text-[8px] rounded-full",
-                    project.claimedByUserId === user?.id
-                      ? "bg-green-100 text-green-700"
-                      : "bg-slate-100 text-slate-500"
-                  )}>
-                    {project.claimedByUserId === user?.id
-                      ? "Claimed by you"
-                      : `Claimed by ${project.claimedBy?.email?.split('@')[0]}`}
-                  </Badge>
-                  {(project.claimedByUserId === user?.id || isOwner) && (
-                    <button
-                      onClick={handleUnclaim}
-                      className="text-[8px] font-black uppercase tracking-widest text-slate-400 hover:text-red-500 transition-colors"
-                    >
-                      [Release]
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleClaim}
-                  className="h-7 px-3 rounded-full border-slate-200 text-slate-500 font-black text-[8px] uppercase tracking-widest hover:bg-[#1C3384] hover:text-white transition-all"
-                >
-                  Claim Project
-                </Button>
-              )}
+
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => setModalOpen(true)}
+                className="h-9 w-9 rounded-full bg-slate-50 hover:bg-[#1C3384] hover:text-white text-slate-400 transition-all border border-slate-100"
+              >
+                <Eye size={16} />
+              </Button>
             </div>
           </div>
 
@@ -592,48 +566,6 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
           </form>
         </div>
       </div>
-
-      {/* Comment Section Footer */}
-      {project.claimedByUserId === user?.id && (
-        <div className="border-t border-slate-50 bg-slate-50/30">
-            <button 
-                onClick={() => setCommentsExpanded(!commentsExpanded)}
-                className="w-full p-6 flex items-center justify-between hover:bg-slate-50/50 transition-colors group"
-            >
-                <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover:text-[#1C3384] transition-colors shadow-sm">
-                        <MessageSquare size={16} />
-                    </div>
-                    <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 group-hover:text-slate-800 transition-colors">
-                        {project._count?.comments > 0 
-                            ? `${project._count.comments} Comments — Click to view` 
-                            : "Add a note..."}
-                    </span>
-                </div>
-                {commentsExpanded ? <ChevronUp size={20} className="text-slate-300" /> : <ChevronDown size={20} className="text-slate-300" />}
-            </button>
-            
-            <AnimatePresence>
-                {commentsExpanded && (
-                    <motion.div 
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3, ease: "easeInOut" }}
-                        className="overflow-hidden"
-                    >
-                        <div className="p-10 pt-0">
-                            <ProjectCommentBox 
-                                projectId={project.id} 
-                                currentUserId={user?.id || ""} 
-                                project={project}
-                            />
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
-      )}
 
       <Project360Modal projectId={project.id} open={modalOpen} onOpenChange={setModalOpen} initialData={project} />
     </Card>
