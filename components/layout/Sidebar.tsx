@@ -6,6 +6,7 @@ import { UserButton, useUser, OrganizationSwitcher } from "@clerk/nextjs";
 import { LayoutDashboard, Mail, Calendar, Briefcase, Users, ChevronLeft, ChevronRight, ShieldCheck, Menu, X, CreditCard, Crown, MapPin, Hammer, Package, Flag, ShieldAlert } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 const NAV_ITEMS = [
   // --- OWNER / SHARED ITEMS ---
