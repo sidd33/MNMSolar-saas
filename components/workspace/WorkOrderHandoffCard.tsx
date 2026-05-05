@@ -89,7 +89,7 @@ export function WorkOrderHandoffCard({ project, dept, initialFiles }: UniversalE
 
   const canDispatch = designDone && liaisoningDone && scopeReviewed;
 
-  const handleFileUpload = async (tag: string, category: string, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (tag: string, category: "GENERAL" | "TECHNICAL" | "LIAISONING" | "COMMERCIAL" | "HANDOVER_SHEET" | "EXECUTION", e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingTag(tag);
@@ -106,7 +106,7 @@ export function WorkOrderHandoffCard({ project, dept, initialFiles }: UniversalE
     }
   };
 
-  const MiniSlot = ({ label, tag, category, fileObject, locked = false }: any) => {
+  const MiniSlot = ({ label, tag, category, fileObject, locked = false }: { label: string, tag: string, category: "GENERAL" | "TECHNICAL" | "LIAISONING" | "COMMERCIAL" | "HANDOVER_SHEET" | "EXECUTION", fileObject: any, locked?: boolean }) => {
     const isComplete = !!fileObject;
     return (
       <div className={cn(
@@ -200,7 +200,7 @@ export function WorkOrderHandoffCard({ project, dept, initialFiles }: UniversalE
                         "font-black px-3 py-1 uppercase tracking-widest text-[9px] rounded-full shrink-0 border-none",
                         eng.id === user?.id ? "bg-[#1C3384] text-white shadow-md shadow-[#1C3384]/20" : "bg-slate-100 text-slate-500"
                       )}>
-                        {eng.email.split('@')[0]}
+                        {eng.email.split('@')[0].toUpperCase()}
                       </Badge>
                     ))}
                   </div>
@@ -234,9 +234,9 @@ export function WorkOrderHandoffCard({ project, dept, initialFiles }: UniversalE
                   </div>
                   <span className="text-[10px] font-black text-[#1C3384]">{sanctionedLoad || "---"}</span>
                 </div>
-                <MiniSlot label="SITE IMAGES" tag="SURVEY" category="SURVEY" fileObject={surveyFiles[0]} />
-                <MiniSlot label="ROOF CONDITION" tag="SURVEY" category="SURVEY" fileObject={surveyFiles[1]} />
-                <MiniSlot label="ELEVATION DATA" tag="SURVEY" category="SURVEY" fileObject={surveyFiles[2]} />
+                <MiniSlot label="SITE IMAGES" tag="SURVEY" category="TECHNICAL" fileObject={surveyFiles[0]} />
+                <MiniSlot label="ROOF CONDITION" tag="SURVEY" category="TECHNICAL" fileObject={surveyFiles[1]} />
+                <MiniSlot label="ELEVATION DATA" tag="SURVEY" category="TECHNICAL" fileObject={surveyFiles[2]} />
               </div>
             </div>
 
