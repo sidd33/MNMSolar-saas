@@ -134,7 +134,7 @@ export function WorkOrderHandoffCard({ project, dept, initialFiles }: UniversalE
              </a>
              {!locked && (
                 <button onClick={() => {
-                  deleteProjectFile(fileObject.id).then(() => {
+                  deleteProjectFile(fileObject.id, project.id).then(() => {
                     setFiles(files.filter(f => f.id !== fileObject.id));
                     refresh();
                   });
