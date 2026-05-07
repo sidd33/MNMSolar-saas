@@ -113,7 +113,7 @@ export function ProjectHandoffCard({ project, dept, initialFiles }: ProjectHando
   };
 
   return (
-    <Card className="overflow-hidden border border-slate-100 shadow-xl bg-white [contain:paint] will-change-transform group rounded-[2.5rem] transition-all hover:shadow-2xl hover:border-[#1C3384]/20">
+    <Card className="overflow-hidden border-none ring-0 p-0 shadow-xl bg-white [contain:paint] will-change-transform group rounded-[2.5rem] transition-all hover:shadow-2xl hover:border-[#1C3384]/20">
       <div className="grid grid-cols-1 lg:grid-cols-3">
         {/* Left Section: Project Details */}
         <div className="lg:col-span-2 p-10">

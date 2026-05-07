@@ -35,6 +35,7 @@ export async function getOwnerDashboardData() {
         updatedAt: true,
         clientName: true,
         isBottlenecked: true,
+        createdByUserId: true,
       }
     }),
     prisma.auditLog.findMany({
@@ -64,6 +65,7 @@ export async function getOwnerDashboardData() {
         status: true,
         capacityKw: true,
         updatedAt: true,
+        assignedToId: true,
       }
     }),
     prisma.quote.findMany({
@@ -77,6 +79,7 @@ export async function getOwnerDashboardData() {
         status: true,
         quotedValue: true,
         updatedAt: true,
+        assignedToId: true,
       }
     })
   ]);

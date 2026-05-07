@@ -37,8 +37,31 @@ async function main() {
       organizationId: realOrgId
     }
   })
+  
+  // 1.5 Seed StageConfigs (Crucial for Gantt Chart)
+  console.log('📊 Seeding StageConfigs...')
+  const defaultStages = [
+    { stage: "SITE_SURVEY", label: "Site Survey", days: 3 },
+    { stage: "DETAILED_ENGG", label: "Detailed Engineering", days: 7 },
+    { stage: "WORK_ORDER", label: "Work Order Release", days: 2 },
+    { stage: "HANDOVER_TO_EXECUTION", label: "Project Handover", days: 1 },
+    { stage: "MATERIAL_PROCUREMENT", label: "Procurement", days: 14 },
+    { stage: "STRUCTURE_ERECTION", label: "Structure Installation", days: 10 },
+    { stage: "PV_PANEL_INSTALLATION", label: "Panel Installation", days: 5 },
+    { stage: "AC_DC_INSTALLATION", label: "Electrical Work", days: 5 },
+    { stage: "NET_METERING", label: "Net Metering", days: 30 },
+    { stage: "FINAL_HANDOVER", label: "Handover & Close", days: 1 }
+  ]
 
-  // 2. Create 'Ruby Mills' Project under the REAL Org
+  for (const s of defaultStages) {
+    await prisma.stageConfig.upsert({
+      where: { stage: s.stage },
+      update: { expectedDays: s.days, label: s.label },
+      create: { stage: s.stage, expectedDays: s.days, label: s.label }
+    })
+  }
+
+  // 2. Create 'Ruby Mills' Project
   // Wipe any existing one first to avoid unique constraint issues if any
   await prisma.project.deleteMany({ where: { name: 'Ruby Mills Solar Installation' } })
 

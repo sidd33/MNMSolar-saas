@@ -119,9 +119,28 @@ export function ProjectsClient({ projects }: { projects: any[] }) {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge className="rounded-xl px-3 py-1 text-[10px] font-black uppercase tracking-widest border-none bg-[#1C3384]/5 text-[#1C3384] shadow-none">
-                        {project.stage.replace(/_/g, ' ')}
-                    </Badge>
+                    <div className="flex items-center gap-3">
+                      <Badge className="rounded-xl px-3 py-1 text-[10px] font-black uppercase tracking-widest border-none bg-[#1C3384]/5 text-[#1C3384] shadow-none">
+                          {project.stage.replace(/_/g, ' ')}
+                      </Badge>
+                      
+                      {(project.assignedEngineers?.length > 0 || project.claimedBy) && (
+                        <div className="flex -space-x-1.5">
+                          {[...(project.assignedEngineers || []), ...(project.claimedBy ? [project.claimedBy] : [])]
+                            .filter((eng, index, self) => self.findIndex(e => e.id === eng.id) === index) // Unique
+                            .map((eng: any) => (
+                              <Badge 
+                                key={eng.id} 
+                                className="h-6 px-2 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100 font-black text-[8px] uppercase tracking-tighter shadow-sm"
+                                title={eng.email}
+                              >
+                                {eng.email.split('@')[0].toUpperCase()}
+                              </Badge>
+                            ))
+                          }
+                        </div>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="px-8 text-right">
                     <Button 

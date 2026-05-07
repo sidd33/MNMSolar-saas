@@ -55,8 +55,11 @@ export async function getProjectGanttData(projectId: string) {
 
   for (let i = 0; i < stages.length; i++) {
     const stageKey = stages[i];
-    const config = stageConfigs.find((c: any) => c.stage === stageKey);
-    if (!config) continue;
+    const config = stageConfigs.find((c: any) => c.stage === stageKey) || {
+      stage: stageKey,
+      label: stageKey.replace(/_/g, ' '),
+      expectedDays: 5 // Default fallback
+    };
 
     // 1. Determine Start Date
     let start: Date;

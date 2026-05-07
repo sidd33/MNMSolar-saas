@@ -259,7 +259,7 @@ export default function WorkspacePage() {
             </div>
           </div>
 
-          <Card className="border-none shadow-xl shadow-slate-200/50 rounded-3xl overflow-hidden bg-white">
+          <Card className="border-none ring-0 p-0 shadow-xl shadow-slate-200/50 rounded-3xl overflow-hidden bg-white">
             <CardHeader className="bg-[#1C3384] text-white p-8">
               <div className="flex items-center gap-4 mb-2">
                 <div className="h-10 w-10 rounded-xl bg-[#FFC800] flex items-center justify-center shadow-lg shadow-yellow-400/20">

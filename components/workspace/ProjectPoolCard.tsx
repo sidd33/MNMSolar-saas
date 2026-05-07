@@ -219,7 +219,13 @@ export function ProjectPoolCard({ project }: ProjectPoolCardProps) {
                         {isClaimedByMe && (
                             <>
                                 <Link 
-                                    href={`/dashboard/engineering/${project.stage.toLowerCase()}`}
+                                    href={
+                                      project.stage === "SITE_SURVEY" 
+                                        ? `/dashboard/engineering/survey?search=${encodeURIComponent(project.name)}`
+                                        : project.stage === "DETAILED_ENGG"
+                                        ? `/dashboard/engineering/detailed?search=${encodeURIComponent(project.name)}`
+                                        : `/dashboard/engineering/work-order?search=${encodeURIComponent(project.name)}`
+                                    }
                                     className={cn(
                                         buttonVariants({ variant: "outline", size: "default" }),
                                         "h-12 rounded-xl bg-white border-none text-[#38A169] font-black text-[10px] uppercase tracking-widest hover:bg-emerald-50"

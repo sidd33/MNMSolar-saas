@@ -143,14 +143,14 @@ export const RubyProjectCard = React.memo(function RubyProjectCard({ project }: 
               <form action={handleQuickAdd} className="relative group/input">
                  <input type="hidden" name="projectId" value={project.id} />
                  <Input 
-                   name="title" 
+                   id={`quick-add-${project.id}`} name="title" 
                    placeholder="Log site update..." 
                    className="pl-9 pr-12 py-5 bg-slate-50/50 border-slate-100 focus-visible:ring-[#1C3384] focus-visible:bg-white rounded-xl text-xs font-medium transition-all font-[family-name:var(--font-geist-sans)]"
                    required
                  />
                  <CornerDownRight size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within/input:text-[#1C3384] transition-colors" />
                  <Button 
-                   type="submit" 
+                   id={`quick-add-btn-${project.id}`} type="submit" 
                    disabled={isPending}
                    className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 px-2.5 bg-[#1C3384] text-white hover:bg-[#0F172A] rounded-lg text-[9px] font-black opacity-0 group-focus-within/input:opacity-100 transition-all scale-90 group-focus-within/input:scale-100"
                  >

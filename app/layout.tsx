@@ -37,7 +37,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      appearance={{
+        layout: {
+          logoImageUrl: "/logo.png",
+          logoPlacement: "inside",
+          socialButtonsPlacement: "bottom",
+        },
+        variables: {
+          colorPrimary: "#1C3384",
+          fontFamily: "var(--font-montserrat)",
+        }
+      }}
+    >
       <html lang="en" suppressHydrationWarning>
         <body
           className={`${geistSans.variable} ${geistMono.variable} ${montserrat.variable} antialiased`}

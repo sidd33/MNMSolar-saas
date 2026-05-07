@@ -593,22 +593,22 @@ export async function getMyProjects(page: number = 1) {
     take: 50,
     skip: (page - 1) * 50,
     orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      name: true,
-      clientName: true,
-      stage: true,
-      currentDepartment: true,
-      updatedAt: true,
-      createdAt: true,
-      tasks: {
-        select: {
-          id: true,
-          title: true,
-          status: true,
-        }
+      select: {
+        id: true,
+        name: true,
+        clientName: true,
+        address: true,
+        dcCapacity: true,
+        orderValue: true,
+        stage: true,
+        currentDepartment: true,
+        updatedAt: true,
+        createdAt: true,
+        assignedToEngineerId: true,
+        claimedByUserId: true,
+        claimedBy: { select: { id: true, email: true } },
+        assignedEngineers: { select: { id: true, email: true } },
       }
-    }
   });
 
   return Object.assign(data, { page, hasMore: data.length === 50 }) as any;

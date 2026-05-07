@@ -86,7 +86,7 @@ export function ProjectIntakeDialog({
           trigger ? (
             trigger as React.ReactElement
           ) : (
-            <Button className="bg-[#38A169] hover:bg-[#2F855A] text-white rounded-xl font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-green-600/20 active:scale-95 transition-all">
+            <Button id="intake-trigger-btn" className="bg-[#38A169] hover:bg-[#2F855A] text-white rounded-xl font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-green-600/20 active:scale-95 transition-all">
               <Plus size={18} strokeWidth={3} />
               New Project
             </Button>
@@ -120,7 +120,7 @@ export function ProjectIntakeDialog({
                   Project Name
                 </Label>
                 <Input 
-                  id="name" 
+                  id="intake-name" 
                   name="name" 
                   defaultValue={projectName}
                   placeholder="e.g., Green Valley Commercial 50KW" 
@@ -131,12 +131,12 @@ export function ProjectIntakeDialog({
 
               {/* Client Name */}
               <div className="space-y-2">
-                <Label htmlFor="clientName" className="text-xs font-black uppercase tracking-widest text-[#64748B] flex items-center gap-2">
+                <Label htmlFor="intake-clientName" className="text-xs font-black uppercase tracking-widest text-[#64748B] flex items-center gap-2">
                   <User size={14} className="text-[#FFC800]" />
                   Client Name
                 </Label>
                 <Input 
-                  id="clientName" 
+                  id="intake-clientName" 
                   name="clientName" 
                   defaultValue={clientName}
                   placeholder="e.g., John Doe Enterprises" 
@@ -148,12 +148,12 @@ export function ProjectIntakeDialog({
 
             {/* Site Address */}
             <div className="space-y-2">
-              <Label htmlFor="address" className="text-xs font-black uppercase tracking-widest text-[#64748B] flex items-center gap-2">
+              <Label htmlFor="intake-address" className="text-xs font-black uppercase tracking-widest text-[#64748B] flex items-center gap-2">
                 <MapPin size={14} className="text-[#FFC800]" />
                 Site Address
               </Label>
               <Input 
-                id="address" 
+                id="intake-address" 
                 name="address" 
                 defaultValue={address}
                 placeholder="e.g., 123 Solar Way" 
@@ -165,12 +165,12 @@ export function ProjectIntakeDialog({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* DC Capacity */}
               <div className="space-y-2">
-                <Label htmlFor="dcCapacity" className="text-xs font-black uppercase tracking-widest text-[#64748B] flex items-center gap-2">
+                <Label htmlFor="intake-dcCapacity" className="text-xs font-black uppercase tracking-widest text-[#64748B] flex items-center gap-2">
                   <Zap size={14} className="text-[#FFC800]" />
                   DC Capacity
                 </Label>
                 <Input 
-                  id="dcCapacity" 
+                  id="intake-dcCapacity" 
                   name="dcCapacity" 
                   defaultValue={capacityKw ? `${capacityKw} kWp` : ""}
                   placeholder="e.g., 50 kWp" 
@@ -180,12 +180,12 @@ export function ProjectIntakeDialog({
 
               {/* Order Value */}
               <div className="space-y-2">
-                <Label htmlFor="orderValue" className="text-xs font-black uppercase tracking-widest text-[#64748B] flex items-center gap-2">
+                <Label htmlFor="intake-orderValue" className="text-xs font-black uppercase tracking-widest text-[#64748B] flex items-center gap-2">
                   <ShieldCheck size={14} className="text-[#FFC800]" />
                   Order Value (₹)
                 </Label>
                 <Input 
-                  id="orderValue" 
+                  id="intake-orderValue" 
                   name="orderValue" 
                   defaultValue={quotedValue}
                   placeholder="e.g., 2500000" 

@@ -67,8 +67,8 @@ export function Sidebar({}: SidebarProps) {
         <div className="flex items-center justify-between">
           {!collapsed && (
             <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-extrabold shadow-sm italic">
-                M
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white p-2 shadow-sm overflow-hidden">
+                <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
               </div>
               <span className="text-lg font-black tracking-tighter text-white">
                 MNM<span className="text-white">SOLAR</span>
@@ -76,8 +76,8 @@ export function Sidebar({}: SidebarProps) {
             </Link>
           )}
           {collapsed && (
-             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-yellow-400 text-blue-900 font-extrabold mx-auto shadow-sm">
-                M
+             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white p-2 mx-auto shadow-sm overflow-hidden">
+                <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
              </div>
           )}
           <button 

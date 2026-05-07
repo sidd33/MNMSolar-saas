@@ -85,13 +85,18 @@ export function SurveyHandoffCard({ project, dept, initialFiles }: SurveyHandoff
       return;
     }
 
-    formData.append("nextStage", "DETAILED_ENGG");
-    formData.append("department", "Engineering");
+    const isPreliminary = project.isPreliminary;
+    formData.append("nextStage", isPreliminary ? "SITE_SURVEY" : "DETAILED_ENGG");
+    formData.append("department", isPreliminary ? "Sales" : "Engineering");
     formData.append("currentStage", project.stage);
 
     try {
       await forwardProject(formData);
-      toast.success(`Survey data dispatched to Detailed Engineering`);
+      if (isPreliminary) {
+        toast.success(`Survey data dispatched for quotation to Sales`);
+      } else {
+        toast.success(`Survey data dispatched to Detailed Engineering`);
+      }
       refresh();
     } catch (error: any) {
       toast.error(error.message || "Failed to dispatch survey data");

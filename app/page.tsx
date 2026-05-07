@@ -10,8 +10,8 @@ export default async function Home() {
       {userId ? (
         /* ── Authenticated State ── */
         <div className="flex flex-col items-center gap-6 text-center animate-in fade-in zoom-in duration-500">
-          <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10 text-primary text-3xl font-extrabold shadow-inner">
-            M
+          <div className="flex h-38 w-38 items-center justify-center rounded-3xl bg-white p-4 shadow-sm border border-slate-100">
+            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
           </div>
           <div>
             <h1 className="text-4xl font-extrabold tracking-tight text-foreground">
@@ -23,7 +23,7 @@ export default async function Home() {
           </div>
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-base font-semibold text-primary-foreground shadow-md transition-all hover:bg-primary/90 hover:shadow-lg hover:-translate-y-0.5 active:scale-95"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#1C3384] px-8 py-3 text-base font-semibold text-white shadow-md transition-all hover:bg-[#1A2E75] hover:shadow-lg hover:-translate-y-0.5 active:scale-95"
           >
             Enter Workspace
             <svg
@@ -45,8 +45,8 @@ export default async function Home() {
       ) : (
         /* ── Guest State ── */
         <div className="flex flex-col items-center gap-8 text-center max-w-xl animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-primary/10 text-primary text-4xl font-extrabold shadow-inner">
-            M
+          <div className="flex h-32 w-32 items-center justify-center rounded-3xl bg-white p-5 shadow-sm border border-slate-100">
+            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
           </div>
           <div className="space-y-3">
             <h1 className="text-5xl font-extrabold tracking-tight text-foreground">
