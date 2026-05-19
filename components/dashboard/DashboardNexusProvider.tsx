@@ -314,7 +314,7 @@ function GlobalNexusPulse() {
     const { lastSyncedAt, isRefreshing, refresh } = context;
 
     return (
-        <div className="fixed bottom-4 left-4 md:bottom-8 md:left-auto md:right-8 z-[999] group">
+        <div className="fixed bottom-4 left-4 lg:bottom-8 lg:left-auto lg:right-8 z-[999] group">
             <div className="flex items-center gap-3 bg-white/90 backdrop-blur-md border border-slate-200/50 p-2 pl-4 rounded-full shadow-2xl transition-all">
                 <div className="flex flex-col items-end">
                     <span className="text-[9px] font-black uppercase tracking-tighter text-slate-400">MNMSOLAR NEXUS</span>
