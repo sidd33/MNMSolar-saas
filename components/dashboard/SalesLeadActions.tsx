@@ -31,7 +31,7 @@ interface SalesLeadActionsProps {
 }
 
 export function SalesLeadActions({ leadId, leadName, status, onActionComplete, onMarkLost }: SalesLeadActionsProps) {
-    const [engineeringTeam, setEngineeringTeam] = useState<{ id: string; email: string }[]>([]);
+    const [engineeringTeam, setEngineeringTeam] = useState<{ id: string; email: string; name?: string | null }[]>([]);
     const [isLoadingTeam, setIsLoadingTeam] = useState(false);
     const [isPending, setIsPending] = useState(false);
     const router = useRouter();
