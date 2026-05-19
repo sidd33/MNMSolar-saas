@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { logInspection, updateSiteReadiness } from "@/lib/actions/execution";
 import { useDashboardNexus } from "../dashboard/DashboardNexusProvider";
@@ -221,7 +222,7 @@ export function OperationsHub({ project }: OperationsHubProps) {
                                 <div className="flex gap-2">
                                     <Input 
                                         value={punchInput}
-                                        onChange={(e) => setPunchInput(e.target.value)}
+                                        onChange={(e: any) => setPunchInput(e.target.value)}
                                         placeholder="Add issue (e.g. Loose DC termination)"
                                         className="h-10 bg-slate-50 border-slate-100 text-xs font-medium rounded-xl"
                                     />

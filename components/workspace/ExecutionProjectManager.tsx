@@ -84,7 +84,7 @@ export function ExecutionProjectManager({ project, onBack, forcedSection }: Exec
                         </div>
                         <div>
                             <h4 className="text-xl font-black uppercase tracking-tight text-slate-800">Module Pending</h4>
-                            <p className="text-sm font-medium text-slate-500 max-w-xs mx-auto">Specific technical workflows for {activeSection.replace('_', ' ')} are coming in the next sync phase.</p>
+                            <p className="text-sm font-medium text-slate-500 max-w-xs mx-auto">Specific technical workflows for {String(activeSection).replace('_', ' ')} are coming in the next sync phase.</p>
                         </div>
                     </div>
                 );

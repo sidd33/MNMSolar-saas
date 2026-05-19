@@ -5,6 +5,7 @@ import { currentUser, auth } from "@clerk/nextjs/server";
 import { LeadStatus, QuoteStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { syncUserAndOrg } from "@/app/actions/sync";
 
 /**
  * Security middleware for Sales actions

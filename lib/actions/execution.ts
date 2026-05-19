@@ -126,7 +126,7 @@ export async function getExecutionNexus() {
     return { stats, projects };
 }
 
-export async function updateExecutionMetadata(projectId: string, section: 'logistics' | 'readiness' | 'qc', data: any) {
+export async function updateExecutionMetadata(projectId: string, sectionOrData: string | any, data?: any) {
     const { orgId, user } = await validateExecutionAccess();
     if (!orgId) throw new Error("Unauthorized");
 
@@ -136,15 +136,25 @@ export async function updateExecutionMetadata(projectId: string, section: 'logis
     });
 
     const currentMetadata = (project?.executionMetadata as any) || {};
-    const updatedMetadata = {
-        ...currentMetadata,
-        [section]: {
-            ...currentMetadata[section],
-            ...data,
-            lastUpdatedBy: user.id,
-            lastUpdatedAt: new Date().toISOString()
-        }
-    };
+    let updatedMetadata;
+
+    if (data !== undefined && typeof sectionOrData === 'string') {
+        const section = sectionOrData;
+        updatedMetadata = {
+            ...currentMetadata,
+            [section]: {
+                ...currentMetadata[section],
+                ...data,
+                lastUpdatedBy: user.id,
+                lastUpdatedAt: new Date().toISOString()
+            }
+        };
+    } else {
+        updatedMetadata = {
+            ...currentMetadata,
+            ...sectionOrData
+        };
+    }
 
     const result = await prisma.project.update({
         where: { id: projectId, organizationId: orgId },
