@@ -10,27 +10,39 @@ import { syncUserAndOrg } from "@/app/actions/sync";
  * Verifies authentication, role (EMPLOYEE), and department (ENGINEERING)
  */
 async function validateEngineeringAccess() {
-  const [{ orgId }, user] = await Promise.all([auth(), currentUser()]);
-  
-  if (!user) throw new Error("Unauthorized");
+  const { userId, orgId, sessionClaims } = await auth();
+  if (!userId) throw new Error("Unauthorized");
 
-  const metadata = user.publicMetadata as any;
-  const role = metadata?.role;
-  const department = metadata?.department;
+  const metadata = (sessionClaims as any)?.publicMetadata || {};
+  let role = (metadata.role as string)?.toUpperCase();
+  let department = (metadata.department as string)?.toUpperCase();
+  let name = (sessionClaims as any)?.full_name || (sessionClaims as any)?.name;
+  const sessionOrgId = orgId || (metadata.orgId as string);
 
-  // Resilience: Always sync to ensure new users are bootstrapped in the DB
-  const syncResult = await syncUserAndOrg();
-  const finalOrgId = syncResult?.orgId || null;
+  // HYBRID HARDENING: Fallback to DB if session claims are missing
+  if (!role || !department || !name) {
+    const sync = await syncUserAndOrg();
+    if (sync?.user) {
+      role = role || (sync.user.role as string)?.toUpperCase();
+      department = department || (sync.user.department as string)?.toUpperCase();
+      name = name || sync.user.name || "Employee";
+    }
+  }
+
+  name = name || "Employee";
 
   if (role === "OWNER" || role === "SUPER_ADMIN") {
-      return { user, orgId: finalOrgId, isEngineering: false, isOwner: true };
+      return { user: { id: userId, name }, orgId: sessionOrgId, isEngineering: false, isOwner: true };
   }
 
-  if (role !== "EMPLOYEE" || (department !== "ENGINEERING" && department !== "SALES" && department !== "EXECUTION")) {
-    throw new Error("Access Denied: Engineering, Sales, or Execution Access Required");
+  const allowedDepts = ["ENGINEERING", "SALES", "EXECUTION"];
+  const currentDept = department?.toUpperCase() || "";
+
+  if (role !== "EMPLOYEE" || !allowedDepts.includes(currentDept)) {
+    throw new Error(`Access Denied: Engineering Access Required (Found: ${currentDept || 'None'})`);
   }
 
-  return { user, orgId: finalOrgId, isEngineering: true, isOwner: false };
+  return { user: { id: userId, name }, orgId: sessionOrgId, isEngineering: true, isOwner: false };
 }
 
 export async function getEngineeringDashboardStats(providedOrgId?: string) {
@@ -80,11 +92,11 @@ export async function getEngineeringQueue(stages?: string[], providedOrgId?: str
           sanctionedLoad: true,
           claimedByUserId: true,
           claimedAt: true,
-          claimedBy: { select: { id: true, email: true } },
+          claimedBy: { select: { id: true, name: true, email: true } },
           assignedToEngineerId: true,
           assignedByUserId: true,
-          assignedBy: { select: { id: true, email: true } },
-          assignedEngineers: { select: { id: true, email: true } }
+          assignedBy: { select: { id: true, name: true, email: true } },
+          assignedEngineers: { select: { id: true, name: true, email: true } }
       }
   });
 }
@@ -110,7 +122,7 @@ export async function getRecentEngineeringActivity(providedOrgId?: string) {
             project: {
                 select: { id: true, name: true, stage: true }
             },
-            user: { select: { email: true } }
+            user: { select: { id: true, name: true, email: true } }
         }
     });
 }
@@ -147,11 +159,11 @@ export async function getProjectDetail(projectId: string) {
             sanctionedLoad: true,
             updatedAt: true,
             claimedByUserId: true,
-            claimedBy: { select: { id: true, email: true } },
+            claimedBy: { select: { id: true, name: true, email: true } },
             assignedToEngineerId: true,
             assignedByUserId: true,
-            assignedBy: { select: { id: true, email: true } },
-            assignedEngineers: { select: { id: true, email: true } },
+            assignedBy: { select: { id: true, name: true, email: true } },
+            assignedEngineers: { select: { id: true, name: true, email: true } },
             projectFiles: {
                 where: {
                     OR: [
@@ -175,7 +187,7 @@ export async function getProjectDetail(projectId: string) {
                     title: true,
                     priority: true,
                     status: true,
-                    assignee: { select: { email: true } }
+                    assignee: { select: { id: true, name: true, email: true } }
                 }
             }
         }
@@ -203,11 +215,11 @@ export async function getBulkProjectDetails(projectIds: string[]) {
             sanctionedLoad: true,
             updatedAt: true,
             claimedByUserId: true,
-            claimedBy: { select: { id: true, email: true } },
+            claimedBy: { select: { id: true, name: true, email: true } },
             assignedToEngineerId: true,
             assignedByUserId: true,
-            assignedBy: { select: { id: true, email: true } },
-            assignedEngineers: { select: { id: true, email: true } },
+            assignedBy: { select: { id: true, name: true, email: true } },
+            assignedEngineers: { select: { id: true, name: true, email: true } },
             projectFiles: {
                 select: {
                     id: true,
@@ -225,7 +237,7 @@ export async function getBulkProjectDetails(projectIds: string[]) {
                     title: true,
                     priority: true,
                     status: true,
-                    assignee: { select: { email: true } }
+                    assignee: { select: { id: true, name: true, email: true } }
                 }
             }
         }
@@ -243,21 +255,38 @@ export async function claimProject(projectId: string, note?: string) {
     if (!project) throw new Error("Project not found");
     if (project.claimedByUserId) throw new Error("Project already claimed");
 
-    await prisma.project.update({
-        where: { id: projectId },
-        data: {
-            claimedByUserId: user.id,
-            claimedAt: new Date(),
-            poolClaimNote: note,
-            poolNoteAt: new Date(),
-            assignedEngineers: {
-                connect: { id: user.id }
+    try {
+        await prisma.project.update({
+            where: { 
+                id: projectId,
+                organizationId: orgId,
+                claimedByUserId: null // ATOMIC GATE: Only succeed if still unclaimed
+            },
+            data: {
+                claimedByUserId: user.id,
+                claimedAt: new Date(),
+                poolClaimNote: note,
+                poolNoteAt: new Date(),
+                assignedEngineers: {
+                    connect: { id: user.id }
+                }
             }
+        });
+    } catch (error: any) {
+        // Prisma error P2025 means the record wasn't found (already claimed or deleted)
+        if (error.code === 'P2025') {
+            throw new Error("This project has already been claimed by another user.");
         }
-    });
+        throw error;
+    }
 
     revalidatePath('/dashboard/engineering/survey');
     revalidatePath('/dashboard/engineering');
+
+    // TRIGGER REAL-TIME UPDATE
+    import('@/lib/pusher').then(({ triggerPipelineUpdate }) => {
+        triggerPipelineUpdate(orgId, `Project claimed by ${user.name}`);
+    }).catch(e => console.error("Pusher trigger failed:", e));
     return { success: true };
 }
 
@@ -277,6 +306,12 @@ export async function unclaimProject(projectId: string, note?: string) {
 
     revalidatePath("/dashboard/engineering/pool");
     revalidatePath("/dashboard/department/Engineering");
+
+    // TRIGGER REAL-TIME UPDATE
+    import('@/lib/pusher').then(({ triggerPipelineUpdate }) => {
+        triggerPipelineUpdate(orgId, `Project unclaimed`);
+    }).catch(e => console.error("Pusher trigger failed:", e));
+
     return { success: true };
 }
 
@@ -289,7 +324,7 @@ export async function getEngineeringTeamMembers() {
             organizationId: orgId,
             department: { equals: 'Engineering', mode: 'insensitive' }
         },
-        select: { id: true, email: true }
+        select: { id: true, name: true, email: true }
     });
 }
 
@@ -340,7 +375,7 @@ export async function assignProjectToEngineer(projectId: string, engineerIds: st
                 organizationId: orgId,
                 type: 'PROJECT_ASSIGNED' as any,
                 title: 'Project assigned to you',
-                message: `${project.name} has been assigned to you by ${currentUser.emailAddresses[0]?.emailAddress}`,
+                message: `${project.name} has been assigned to you by ${currentUser.name}`,
                 projectId: projectId,
                 isRead: false
             }))
@@ -392,7 +427,7 @@ export async function addProjectComment(
             data: {
                 claimedByUserId: handoffToUserId,
                 claimedAt: new Date(),
-                poolClaimNote: `Handed off by ${currentUser.emailAddresses[0]?.emailAddress}: ${content}`,
+                poolClaimNote: `Handed off by ${currentUser.name}: ${content}`,
                 poolNoteAt: new Date()
             }
         });
@@ -417,7 +452,7 @@ export async function addProjectComment(
                 organizationId: orgId,
                 type: 'PROJECT_HANDOFF' as any,
                 title: 'Project handed off to you',
-                message: `${currentUser.emailAddresses[0]?.emailAddress} handed off ${project.name} to you. Note: ${content}`,
+                message: `${currentUser.name} handed off ${project.name} to you. Note: ${content}`,
                 projectId: projectId,
                 isRead: false
             }
@@ -430,7 +465,7 @@ export async function addProjectComment(
                 organizationId: orgId,
                 type: 'HANDOFF_CONFIRMED' as any,
                 title: 'Handoff confirmed',
-                message: `You handed off ${project.name} to ${handoffToUser.email}`,
+                message: `You handed off ${project.name} to ${handoffToUser.name || handoffToUser.email}`,
                 projectId: projectId,
                 isRead: false
             }
@@ -443,7 +478,7 @@ export async function addProjectComment(
                 organizationId: orgId,
                 type: 'MENTION' as any,
                 title: 'You were mentioned',
-                message: `${currentUser.emailAddresses[0]?.emailAddress} mentioned you in ${project.name}: "${content}"`,
+                message: `${currentUser.name} mentioned you in ${project.name}: "${content}"`,
                 projectId: projectId,
                 isRead: false
             }))
@@ -470,7 +505,7 @@ export async function getProjectComments(projectId: string) {
             mentionedUserIds: true,
             createdAt: true,
             handoffToUserId: true,
-            user: { select: { id: true, email: true } }
+            user: { select: { id: true, name: true, email: true } }
         }
     });
 }

@@ -22,6 +22,8 @@ import { cn } from "@/lib/utils";
 import { Tooltip } from "@/components/ui/tooltip";
 const Project360Modal = dynamic(() => import("@/components/dashboard/Project360Modal").then(mod => mod.Project360Modal), { ssr: false });
 import { useUser } from "@clerk/nextjs";
+import { getProjectDetail } from "@/lib/actions/engineering";
+import { useEffect } from "react";
 
 interface ProjectHandoffCardProps {
   project: any;
@@ -39,13 +41,30 @@ const PIPELINE_STAGES = [
 const DEPARTMENTS = ["Sales", "Engineering", "Execution", "Accounts"];
 
 export function ProjectHandoffCard({ project, dept, initialFiles }: ProjectHandoffCardProps) {
-  const [canHandoff, setCanHandoff] = useState(initialFiles.some(f => f.category === "LIAISONING" && f.uploadedAtStage === project.stage) || dept === 'ENGINEERING'); // Engineering uses technical files usually handled by the vault internally
+  const [files, setFiles] = useState(initialFiles || []);
+  const [tasks, setTasks] = useState(project.tasks || []);
+  const [isLoadingDetails, setIsLoadingDetails] = useState((!initialFiles || initialFiles.length === 0) && (!project.tasks || project.tasks.length === 0));
+
+  const [canHandoff, setCanHandoff] = useState(files.some(f => f.category === "LIAISONING" && f.uploadedAtStage === project.stage) || dept === 'ENGINEERING'); 
   const [modalOpen, setModalOpen] = useState(false);
   const [sanctionedInput, setSanctionedInput] = useState(project.sanctionedLoad?.replace(" kW", "") || "");
   const [isSavingLoad, setIsSavingLoad] = useState(false);
   const [isForwarding, setIsForwarding] = useState(false);
 
   const { user } = useUser();
+
+  // Lazy Load Hydration
+  useEffect(() => {
+    if (isLoadingDetails) {
+        getProjectDetail(project.id).then(data => {
+            if (data) {
+                setFiles(data.projectFiles || []);
+                setTasks(data.tasks || []);
+                setCanHandoff((data.projectFiles || []).some((f: any) => f.category === "LIAISONING" && f.uploadedAtStage === project.stage) || dept === 'ENGINEERING');
+            }
+        }).finally(() => setIsLoadingDetails(false));
+    }
+  }, [project.id, isLoadingDetails, project.stage, dept]);
   const role = user?.publicMetadata?.role as string;
   const isOwner = role === 'OWNER' || role === 'SUPER_ADMIN';
 
@@ -175,9 +194,9 @@ export function ProjectHandoffCard({ project, dept, initialFiles }: ProjectHando
               
               {dept === 'ENGINEERING' && (
                 <div className="flex flex-col gap-2 shrink-0">
-                    {salesHandover && (
+                    {files.find((f: any) => f.category === "HANDOVER_SHEET") && (
                         <a 
-                            href={salesHandover.fileUrl || `/api/files/proxy?url=${encodeURIComponent(salesHandover.content)}`}
+                            href={`/api/files/proxy?fileId=${files.find((f: any) => f.category === "HANDOVER_SHEET").id}`}
                             target="_blank" rel="noreferrer"
                             className="bg-[#1C3384]/10 hover:bg-[#1C3384]/20 text-[#1C3384] px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-colors border border-[#1C3384]/10"
                         >
@@ -217,11 +236,17 @@ export function ProjectHandoffCard({ project, dept, initialFiles }: ProjectHando
                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#1C3384]">Current Operations</span>
                </div>
                <div className="grid gap-3">
-                  {!project.tasks || project.tasks.length === 0 ? (
+                  {isLoadingDetails ? (
+                    <div className="space-y-3">
+                        {[1, 2].map(i => (
+                            <div key={i} className="h-14 bg-slate-50 animate-pulse rounded-2xl border border-slate-100" />
+                        ))}
+                    </div>
+                  ) : tasks.length === 0 ? (
                     <div className="p-4 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 text-center">
                       <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest italic">No critical sub-tasks defined.</p>
                     </div>
-                  ) : project.tasks.map((task: any) => (
+                  ) : tasks.map((task: any) => (
                     <div key={task.id} className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group/task">
                        <div className="flex flex-col">
                           <span className="text-xs font-black text-[#0F172A] tracking-tight group-hover/task:text-[#1C3384] transition-colors">{task.title}</span>
@@ -254,7 +279,7 @@ export function ProjectHandoffCard({ project, dept, initialFiles }: ProjectHando
               <DocumentationVault 
                 projectId={project.id} 
                 projectStage={project.stage}
-                initialFiles={initialFiles} 
+                initialFiles={files} 
                 onFilesChange={setCanHandoff}
               />
             </div>

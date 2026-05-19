@@ -11,27 +11,36 @@ import { z } from "zod";
  * Verifies authentication, role (EMPLOYEE), and department (SALES)
  */
 async function validateSalesAccess() {
-  const user = await currentUser();
-  if (!user) throw new Error("Unauthorized");
+  const { userId, orgId, sessionClaims } = await auth();
+  if (!userId) throw new Error("Unauthorized");
 
-  // Resilience: Ensure user and org are synced and get the verified orgId
-  const { syncUserAndOrg } = await import("@/app/actions/sync");
-  const syncResult = await syncUserAndOrg();
-  const orgId = syncResult?.orgId || null;
+  const metadata = (sessionClaims as any)?.publicMetadata || {};
+  let role = (metadata.role as string)?.toUpperCase();
+  let department = (metadata.department as string)?.toUpperCase();
+  let name = (sessionClaims as any)?.full_name || (sessionClaims as any)?.name;
+  const sessionOrgId = orgId || (metadata.orgId as string);
 
-  const metadata = user.publicMetadata as any;
-  const role = metadata?.role;
-  const department = metadata?.department;
+  // HYBRID HARDENING: Fallback to DB if session claims are missing
+  if (!role || !department || !name) {
+    const sync = await syncUserAndOrg();
+    if (sync?.user) {
+      role = role || (sync.user.role as string)?.toUpperCase();
+      department = department || (sync.user.department as string)?.toUpperCase();
+      name = name || sync.user.name || "Employee";
+    }
+  }
+
+  name = name || "Employee";
 
   if (role === "OWNER" || role === "SUPER_ADMIN") {
-      return { user, orgId, isSales: false, isOwner: true };
+      return { user: { id: userId, name }, orgId: sessionOrgId, isSales: false, isOwner: true };
   }
 
   if (role !== "EMPLOYEE" || department !== "SALES") {
-    throw new Error("Access Denied: Sales Department Only");
+    throw new Error(`Access Denied: Sales Department Only (Found: ${department || 'None'})`);
   }
 
-  return { user, orgId, isSales: true, isOwner: false };
+  return { user: { id: userId, name }, orgId: sessionOrgId, isSales: true, isOwner: false };
 }
 
 // --- ZOD SCHEMAS ---
@@ -130,7 +139,9 @@ export async function getMyLeads(page: number = 1) {
           quotedValue: true,
           status: true,
           updatedAt: true,
-        }
+        },
+        take: 5,
+        orderBy: { updatedAt: 'desc' }
       }
     }
   });
@@ -251,6 +262,21 @@ export async function initiatePreliminarySurvey(leadId: string, engineerIds?: st
         throw new Error("Lead not found");
     }
 
+    // Pre-flight check: Verify all engineer IDs exist if provided
+    if (engineerIds && engineerIds.length > 0) {
+        const existingUsers = await prisma.user.findMany({
+            where: { 
+                id: { in: engineerIds },
+                organizationId: orgId
+            },
+            select: { id: true }
+        });
+        
+        if (existingUsers.length !== engineerIds.length) {
+            throw new Error("One or more assigned engineers could not be found in your organization.");
+        }
+    }
+
     // Run in transaction
     const result = await prisma.$transaction(async (tx) => {
         console.log("Transaction started...");
@@ -314,22 +340,16 @@ export async function initiatePreliminarySurvey(leadId: string, engineerIds?: st
     console.log("Transaction committed successfully.");
 
     // --- NOTIFICATION ENGINE ---
-    const engineeringUsers = await prisma.user.findMany({
-        where: {
-            organizationId: orgId,
-            department: 'ENGINEERING'
-        },
-        select: { id: true }
-    });
-
-    if (engineeringUsers.length > 0) {
+    // Optimized: We no longer broadcast to all 30+ engineers to prevent thundering herd database crashes.
+    // We only notify the specifically assigned engineers. Unassigned projects appear silently in the Pool.
+    if (engineerIds && engineerIds.length > 0) {
         await prisma.notification.createMany({
-            data: engineeringUsers.map(u => ({
-                userId: u.id,
+            data: engineerIds.map(id => ({
+                userId: id,
                 organizationId: orgId,
-                type: 'PROJECT_ARRIVED',
-                title: 'New Survey Initiated',
-                message: `${result.name} preliminary survey has been initiated.`,
+                type: 'PROJECT_ASSIGNED',
+                title: 'New Survey Assigned',
+                message: `${result.name} preliminary survey has been assigned to you.`,
                 projectId: result.id,
                 isRead: false,
             }))
@@ -340,6 +360,12 @@ export async function initiatePreliminarySurvey(leadId: string, engineerIds?: st
     revalidatePath("/dashboard/engineering/survey");
     revalidatePath("/dashboard/engineering/pool");
     revalidatePath("/dashboard");
+
+    // TRIGGER REAL-TIME UPDATE
+    import('@/lib/pusher').then(({ triggerPipelineUpdate }) => {
+        triggerPipelineUpdate(orgId, `New Survey Launched: ${result.name}`);
+    }).catch(e => console.error("Pusher trigger failed:", e));
+
     return result;
 }
 

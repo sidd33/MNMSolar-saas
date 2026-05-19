@@ -47,7 +47,7 @@ export async function getOwnerDashboardData() {
         action: true,
         newValue: true,
         createdAt: true,
-        user: { select: { email: true } },
+        user: { select: { name: true, email: true } },
         task: {
           select: {
             project: { select: { name: true } }
@@ -170,28 +170,8 @@ export async function getDepartmentalProjects(department: string) {
       createdAt: true,
       isBottlenecked: true,
       sanctionedLoad: true,
-      tasks: {
-        select: {
-          id: true,
-          title: true,
-          status: true,
-          priority: true,
-          assignee: { select: { email: true } }
-        },
-        orderBy: { createdAt: 'desc' } as any
-      },
-      projectFiles: {
-        select: {
-          id: true,
-          name: true,
-          category: true,
-          fileUrl: true,
-          utFileKey: true,
-          isArchived: true,
-          uploadedAtStage: true,
-          createdAt: true
-        }
-      }
+      claimedByUserId: true,
+      claimedBy: { select: { id: true, email: true } },
     } as any
   });
 }

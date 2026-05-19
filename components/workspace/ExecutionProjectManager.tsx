@@ -8,6 +8,7 @@ import {
 import { ProcurementModule } from "./ProcurementModule";
 import { SafetyModule } from "./SafetyModule";
 import SiteWorkModule from "./SiteWorkModule";
+import { OperationsHub } from "./OperationsHub";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ExternalLink, Share2, AlertCircle } from "lucide-react";
@@ -15,8 +16,12 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
 import { claimProject, unclaimProject } from "@/lib/actions/execution";
+import { updateExecutionMetadata, logChallanReceipt } from "@/lib/actions/execution";
 import { toast } from "sonner";
 import { useDashboardNexus } from "../dashboard/DashboardNexusProvider";
+import { forwardProject } from "@/app/actions/project";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface ExecutionProjectManagerProps {
     project: any;
@@ -68,6 +73,9 @@ export function ExecutionProjectManager({ project, onBack, forcedSection }: Exec
                 return <SafetyModule project={project} />;
             case "SITE_WORK":
                 return <SiteWorkModule project={project} />;
+            case "QUALITY":
+            case "HANDOVER":
+                return <OperationsHub project={project} />;
             default:
                 return (
                     <div className="flex flex-col items-center justify-center p-20 text-center space-y-4 bg-slate-50/50 rounded-[3rem] border border-dashed border-slate-200">
@@ -120,7 +128,7 @@ export function ExecutionProjectManager({ project, onBack, forcedSection }: Exec
                             )}>
                                 {project.claimedByUserId === user?.id 
                                 ? "You are handling this site" 
-                                : `Handled by ${project.claimedBy?.email?.split('@')[0]}`}
+                                : `Handled by ${project.claimedBy?.name || project.claimedBy?.email?.split('@')[0]}`}
                             </Badge>
                             {(project.claimedByUserId === user?.id || isOwner) && (
                                 <button 

@@ -2,15 +2,19 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { auth } from "@clerk/nextjs/server";
 
 export async function archiveProjectFiles(projectId: string) {
+  const { orgId } = await auth();
+  if (!orgId) throw new Error("Unauthorized: Organization context required");
+
   const project = await prisma.project.findUnique({
-    where: { id: projectId },
+    where: { id: projectId, organizationId: orgId },
     select: { id: true, name: true }
   });
 
   if (!project) {
-    return { archived: 0, failed: 0, errors: ["Project not found"] };
+    return { archived: 0, failed: 0, errors: ["Project not found or access denied"] };
   }
 
   const files = await prisma.projectFile.findMany({
@@ -100,9 +104,12 @@ export async function archiveProjectFiles(projectId: string) {
 }
 
 export async function getArchiveStatus(projectId: string) {
+  const { orgId } = await auth();
+  if (!orgId) throw new Error("Unauthorized");
+
   const [total, archived] = await Promise.all([
-    prisma.projectFile.count({ where: { projectId } }),
-    prisma.projectFile.count({ where: { projectId, isArchived: true } })
+    prisma.projectFile.count({ where: { projectId, organizationId: orgId } }),
+    prisma.projectFile.count({ where: { projectId, organizationId: orgId, isArchived: true } })
   ]);
 
   return { 

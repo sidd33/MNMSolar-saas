@@ -56,8 +56,13 @@ export function WorkOrderHandoffCard({ project, dept, initialFiles }: UniversalE
 
   // --- FILE CATEGORIZATION ---
   
-  // 1. SURVEY PILLAR
-  const surveyFiles = files.filter(f => f.category === "SURVEY" || f.name.includes("[SURVEY]"));
+  // 1. SURVEY PILLAR (Sync with SurveyHandoffCard tags)
+  const sarFile = files.find(f => f.name.includes("[SAR]") || f.name.toUpperCase().includes("AUDIT_REPORT"));
+  const roofDimFile = files.find(f => f.name.includes("[ROOF_DIM]") || f.name.toUpperCase().includes("ROOF_DIMENSIONS"));
+  const ePanelFile = files.find(f => f.name.includes("[E_PANEL]") || f.name.toUpperCase().includes("ELECTRICAL_PANEL"));
+  const shadowFile = files.find(f => f.name.includes("[SHADOW]") || f.name.toUpperCase().includes("SHADOW_ANALYSIS") || f.name.toUpperCase().includes("SUNPATH"));
+  const photoGallery = files.filter(f => f.name.includes("[SITE_PHOTO]") || f.name.toUpperCase().includes("PHOTO"));
+
   const sanctionedLoad = project.sanctionedLoad;
 
   // 2. DESIGN PILLAR
@@ -65,7 +70,6 @@ export function WorkOrderHandoffCard({ project, dept, initialFiles }: UniversalE
   const layoutFile = files.find(f => f.name.includes("[LAYOUT]") || f.name.toUpperCase().includes("LAYOUT"));
   const structuralFile = files.find(f => f.name.includes("[STRUCTURAL]") || f.name.toUpperCase().includes("STRUCTURAL"));
   const bomFile = files.find(f => f.name.includes("[BOM]") || f.name.toUpperCase().includes("BOM"));
-  const shadowFile = files.find(f => f.name.includes("[SHADOW]") || f.name.toUpperCase().includes("SHADOW"));
 
   // 3. LIAISONING PILLAR
   const agreementFile = files.find(f => f.name.includes("[AGREEMENT]") || f.name.toUpperCase().includes("AGREEMENT"));
@@ -76,18 +80,20 @@ export function WorkOrderHandoffCard({ project, dept, initialFiles }: UniversalE
   const annexures = files.filter(f => f.name.toLowerCase().includes("annexure"));
 
   // --- PROGRESS TRACKING ---
-  const surveyDone = !!sanctionedLoad && surveyFiles.length >= 3;
+  const surveyDone = !!sanctionedLoad && !!sarFile && !!roofDimFile && !!ePanelFile && !!shadowFile && photoGallery.length > 0;
   const designDone = !!sldFile && !!layoutFile && !!structuralFile && !!bomFile && !!shadowFile;
   const liaisoningDone = !!agreementFile && !!testRecordFile && !!earthTestFile && !!workCompFile && annexures.length >= 5 && !!netMeteringFile;
 
-  const totalGates = 14; // (1 Load + 3 Survey) + 5 Design + 5 Liaisoning (Annexure is 1 gate)
+  const totalGates = 15; // 1 Load + 5 Survey + 4 Design + 5 Liaisoning
   const gatesPassed = [
-    !!sanctionedLoad, surveyFiles.length >= 1, surveyFiles.length >= 2, surveyFiles.length >= 3,
-    !!sldFile, !!layoutFile, !!structuralFile, !!bomFile, !!shadowFile,
+    !!sanctionedLoad, !!sarFile, !!roofDimFile, !!ePanelFile, !!shadowFile, photoGallery.length > 0,
+    !!sldFile, !!layoutFile, !!structuralFile, !!bomFile,
     !!agreementFile, !!testRecordFile, !!earthTestFile, !!workCompFile, !!netMeteringFile, annexures.length >= 5
   ].filter(Boolean).length;
 
-  const canDispatch = designDone && liaisoningDone && scopeReviewed;
+  // Dispatch Gate: Execution only needs Design + Survey + Scope Review to start.
+  // Liaisoning can continue in parallel.
+  const canDispatch = designDone && surveyDone && scopeReviewed;
 
   const handleFileUpload = async (tag: string, category: "GENERAL" | "TECHNICAL" | "LIAISONING" | "COMMERCIAL" | "HANDOVER_SHEET" | "EXECUTION", e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -234,9 +240,11 @@ export function WorkOrderHandoffCard({ project, dept, initialFiles }: UniversalE
                   </div>
                   <span className="text-[10px] font-black text-[#1C3384]">{sanctionedLoad || "---"}</span>
                 </div>
-                <MiniSlot label="SITE IMAGES" tag="SURVEY" category="TECHNICAL" fileObject={surveyFiles[0]} />
-                <MiniSlot label="ROOF CONDITION" tag="SURVEY" category="TECHNICAL" fileObject={surveyFiles[1]} />
-                <MiniSlot label="ELEVATION DATA" tag="SURVEY" category="TECHNICAL" fileObject={surveyFiles[2]} />
+                <MiniSlot label="SITE AUDIT (SAR)" tag="SAR" category="TECHNICAL" fileObject={sarFile} />
+                <MiniSlot label="ROOF DIMENSIONS" tag="ROOF_DIM" category="TECHNICAL" fileObject={roofDimFile} />
+                <MiniSlot label="E-PANEL AUDIT" tag="E_PANEL" category="TECHNICAL" fileObject={ePanelFile} />
+                <MiniSlot label="SHADOW ANALYSIS" tag="SHADOW" category="TECHNICAL" fileObject={shadowFile} />
+                <MiniSlot label="SITE PHOTOS" tag="SITE_PHOTO" category="TECHNICAL" fileObject={photoGallery[0]} />
               </div>
             </div>
 

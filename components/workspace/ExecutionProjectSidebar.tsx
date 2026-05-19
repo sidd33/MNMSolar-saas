@@ -64,6 +64,15 @@ export function ExecutionProjectSidebar({ activeSection, onChange, project }: Ex
                 if (siteWorkStages.includes(project.executionStage)) return <Loader2 size={12} className="text-blue-500 animate-spin" />;
                 return <CircleDashed size={12} className="text-slate-300" />;
 
+            case "QUALITY":
+                if (metadata.qc?.finalInspection?.result === 'PASS') return <CheckCircle2 size={12} className="text-emerald-500" />;
+                if (metadata.qc?.midInspection) return <Loader2 size={12} className="text-blue-500 animate-spin" />;
+                return <CircleDashed size={12} className="text-slate-300" />;
+
+            case "HANDOVER":
+                if (project.stage === "FINAL_HANDOVER") return <CheckCircle2 size={12} className="text-emerald-500" />;
+                return <CircleDashed size={12} className="text-slate-300" />;
+
             default:
                 return <CircleDashed size={12} className="text-slate-300" />;
         }

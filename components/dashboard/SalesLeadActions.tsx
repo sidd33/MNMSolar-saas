@@ -120,7 +120,7 @@ export function SalesLeadActions({ leadId, leadName, status, onActionComplete, o
                                         className="flex items-center justify-between gap-2 p-2 rounded-lg cursor-pointer focus:bg-blue-50 focus:text-[#1C3384]"
                                     >
                                         <div className="flex flex-col items-start gap-0.5">
-                                            <span className="text-xs font-bold">{eng.email.split('@')[0]}</span>
+                                            <span className="text-xs font-bold">{eng.name || eng.email.split('@')[0]}</span>
                                             <span className="text-[9px] text-slate-400 font-medium truncate w-32">{eng.email}</span>
                                         </div>
                                         {processingId === eng.id && <Loader2 size={12} className="animate-spin text-blue-600" />}

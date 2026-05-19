@@ -7,9 +7,11 @@ import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { updateExecutionMetadata } from "@/lib/actions/execution";
+import { updateExecutionMetadata, logChallanReceipt } from "@/lib/actions/execution";
 import { useDashboardNexus } from "../dashboard/DashboardNexusProvider";
 import { forwardProject } from "@/app/actions/project";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { 
     Dialog,
     DialogContent,
@@ -32,11 +34,20 @@ export function ProcurementModule({ project }: ProcurementModuleProps) {
     
     // Extract metadata or use defaults
     const metadata = project.executionMetadata || {};
+    
+    // Icon mapping for UI only
+    const iconMap: Record<string, any> = {
+        modules: Layers,
+        inverters: Zap,
+        structure: Box,
+        bos: Package
+    };
+
     const materials = metadata.materials || [
-        { id: "modules", label: "Solar Modules", icon: Layers, ordered: 0, atSite: 0, unit: "Nos" },
-        { id: "inverters", label: "Inverters", icon: Zap, ordered: 0, atSite: 0, unit: "Nos" },
-        { id: "structure", label: "Mounting Structure", icon: Box, ordered: 0, atSite: 0, unit: "Set" },
-        { id: "bos", label: "DC/AC Cables & BOS", icon: Package, ordered: 0, atSite: 0, unit: "Lot" }
+        { id: "modules", label: "Solar Modules", ordered: 0, atSite: 0, unit: "Nos" },
+        { id: "inverters", label: "Inverters", ordered: 0, atSite: 0, unit: "Nos" },
+        { id: "structure", label: "Mounting Structure", ordered: 0, atSite: 0, unit: "Set" },
+        { id: "bos", label: "DC/AC Cables & BOS", ordered: 0, atSite: 0, unit: "Lot" }
     ];
 
     const handleUpdateMaterial = async (id: string, field: "ordered" | "atSite", value: string) => {
@@ -45,7 +56,9 @@ export function ProcurementModule({ project }: ProcurementModuleProps) {
             m.id === id ? { ...m, [field]: numValue } : m
         );
 
-        const newMetadata = { ...metadata, materials: updatedMaterials };
+        // Ensure we don't accidentally include non-serializable icons in metadata
+        const cleanMaterials = updatedMaterials.map(({ icon, ...m }: any) => m);
+        const newMetadata = { ...metadata, materials: cleanMaterials };
         
         // Optimistic UI
         updateLocalProject(project.id, { executionMetadata: newMetadata });
@@ -111,12 +124,12 @@ export function ProcurementModule({ project }: ProcurementModuleProps) {
 
                 <Dialog open={isOpen} onOpenChange={setIsOpen}>
                     <DialogTrigger render={
-                        <Button 
-                            className="bg-[#1C3384] hover:bg-[#0F172A] text-white font-black uppercase tracking-widest text-[10px] h-12 px-6 rounded-2xl shadow-lg shadow-blue-900/20 gap-2"
+                        <button 
+                            className="bg-[#1C3384] hover:bg-[#0F172A] text-white font-black uppercase tracking-widest text-[10px] h-12 px-6 rounded-2xl shadow-lg shadow-blue-900/20 gap-2 flex items-center justify-center"
                         >
                             <CheckCircle2 size={16} />
                             Complete & Forward
-                        </Button>
+                        </button>
                     } />
                     <DialogContent className="rounded-[2rem] border-none shadow-2xl">
                         <DialogHeader>
@@ -159,7 +172,7 @@ export function ProcurementModule({ project }: ProcurementModuleProps) {
                         <TableBody>
                             {materials.map((m: any) => {
                                 const isComplete = m.atSite >= m.ordered && m.ordered > 0;
-                                const Icon = m.icon || Box;
+                                const Icon = iconMap[m.id] || Box;
                                 
                                 return (
                                     <TableRow key={m.id} className="group hover:bg-slate-50/50 transition-colors">
@@ -216,19 +229,74 @@ export function ProcurementModule({ project }: ProcurementModuleProps) {
                     </Table>
 
                     <div className="p-8 border-t border-slate-100 bg-slate-50/30">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                             <div className="flex items-center gap-4">
-                               <div className="h-10 w-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100">
-                                    <FileUp size={18} />
+                               <div className="h-12 w-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100 shadow-sm">
+                                    <Truck size={20} />
                                </div>
                                <div>
-                                   <p className="text-xs font-black text-slate-800 uppercase tracking-tight">Material Challans</p>
-                                   <p className="text-[10px] text-slate-500 font-medium">Upload site-received delivery notes</p>
+                                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Logistics Intel</p>
+                                   <p className="text-sm font-black text-[#1C3384] uppercase tracking-tight">
+                                       {metadata.logistics?.status === 'VERIFIED' 
+                                         ? `Challan #${metadata.logistics.challanNumber} Verified` 
+                                         : "Material Receipt Pending"}
+                                   </p>
+                                   {metadata.logistics?.verifiedAt && (
+                                       <p className="text-[9px] text-slate-500 font-bold uppercase mt-1">
+                                           Acknowledged by {metadata.logistics.verifiedBy} • {new Date(metadata.logistics.verifiedAt).toLocaleDateString()}
+                                       </p>
+                                   )}
                                </div>
                             </div>
-                            <Badge className="bg-[#1C3384] md:h-10 px-6 rounded-xl hover:bg-[#1C3384] cursor-pointer text-[10px] font-black uppercase tracking-widest flex items-center justify-center">
-                                Upload New Challan
-                            </Badge>
+                            
+                            <Dialog>
+                                <DialogTrigger render={
+                                    <button className="bg-[#1C3384] h-12 px-8 rounded-2xl hover:bg-[#0F172A] text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-900/10 gap-2 text-white flex items-center justify-center">
+                                        <FileUp size={16} />
+                                        Log Material Receipt
+                                    </button>
+                                } />
+                                <DialogContent className="rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden max-w-md">
+                                    <div className="bg-[#1C3384] p-8 text-white">
+                                        <Truck className="mb-4 opacity-50" size={32} />
+                                        <h3 className="text-2xl font-black uppercase tracking-tight">Challan Verification</h3>
+                                        <p className="text-blue-100/60 text-xs font-medium mt-1">Acknowledge physical receipt of materials at site.</p>
+                                    </div>
+                                    <div className="p-8 space-y-6">
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Challan / Delivery Note #</Label>
+                                            <Input 
+                                                id="challanNumber"
+                                                placeholder="e.g. MNM/CH/2024/089"
+                                                className="h-12 bg-slate-50 border-slate-100 rounded-xl focus:ring-[#1C3384] font-bold"
+                                            />
+                                        </div>
+                                        <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100">
+                                            <p className="text-[10px] font-bold text-amber-800 uppercase tracking-tight flex items-center gap-2">
+                                                <CheckCircle2 size={14} />
+                                                Inventory Snapshot
+                                            </p>
+                                            <p className="text-[9px] text-amber-700/60 mt-1">This will lock the current "At Site" quantities as verified by the physical delivery.</p>
+                                        </div>
+                                        <Button 
+                                            onClick={async () => {
+                                                const num = (document.getElementById('challanNumber') as HTMLInputElement).value;
+                                                if(!num) return toast.error("Enter challan number");
+                                                try {
+                                                    await logChallanReceipt(project.id, { challanNumber: num, items: materials });
+                                                    toast.success("Challan verified and logged");
+                                                    window.location.reload();
+                                                } catch(e) {
+                                                    toast.error("Failed to log challan");
+                                                }
+                                            }}
+                                            className="w-full h-12 bg-[#1C3384] text-white font-black uppercase tracking-widest rounded-2xl"
+                                        >
+                                            Confirm Receipt
+                                        </Button>
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
                         </div>
                     </div>
                 </div>

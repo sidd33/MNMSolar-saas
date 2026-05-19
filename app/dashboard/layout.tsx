@@ -20,14 +20,15 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   let initialData = null;
   
   if (user) {
+    const deptUpper = department?.toUpperCase();
     if (role === 'OWNER' || role === 'SUPER_ADMIN') {
         initialData = await getOwnerDashboardData();
-    } else if (department === 'ENGINEERING') {
+    } else if (deptUpper === 'ENGINEERING') {
         initialData = await getEngineeringNexus();
-    } else if (department === 'EXECUTION') {
+    } else if (deptUpper === 'EXECUTION') {
         initialData = await getExecutionNexus();
     } else {
-        initialData = await getOwnerDashboardData(); // Fallback to safe structure
+        initialData = await getOwnerDashboardData();
     }
   }
 

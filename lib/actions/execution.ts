@@ -10,28 +10,39 @@ import { syncUserAndOrg } from "@/app/actions/sync";
  * Verifies authentication, role, and department
  */
 async function validateExecutionAccess() {
-  const [{ orgId }, user] = await Promise.all([auth(), currentUser()]);
-  
-  if (!user) throw new Error("Unauthorized");
+  const { userId, orgId, sessionClaims } = await auth();
+  if (!userId) throw new Error("Unauthorized");
 
-  const metadata = user.publicMetadata as any;
-  const role = metadata?.role;
-  const department = metadata?.department;
+  const metadata = (sessionClaims as any)?.publicMetadata || {};
+  let role = (metadata.role as string)?.toUpperCase();
+  let department = (metadata.department as string)?.toUpperCase();
+  let name = (sessionClaims as any)?.full_name || (sessionClaims as any)?.name;
+  const sessionOrgId = orgId || (metadata.orgId as string);
 
-  // Resilience: Always sync to ensure new users are bootstrapped in the DB
-  const syncResult = await syncUserAndOrg();
-  const finalOrgId = syncResult?.orgId || null;
+  // HYBRID HARDENING: Fallback to DB if session claims are missing
+  if (!role || !department || !name) {
+    const sync = await syncUserAndOrg();
+    if (sync?.user) {
+      role = role || (sync.user.role as string)?.toUpperCase();
+      department = department || (sync.user.department as string)?.toUpperCase();
+      name = name || sync.user.name || "Employee";
+    }
+  }
+
+  name = name || "Employee";
 
   if (role === "OWNER" || role === "SUPER_ADMIN") {
-      return { user, orgId: finalOrgId, isExecution: false, isOwner: true };
+      return { user: { id: userId, name }, orgId: sessionOrgId, isExecution: false, isOwner: true };
   }
 
-  // Allow Engineering and Execution for cross-department sync testing
-  if (role !== "EMPLOYEE" || (department !== "EXECUTION" && department !== "ENGINEERING")) {
-    throw new Error("Access Denied: Execution Access Required");
+  const allowedDepts = ["EXECUTION", "ENGINEERING"];
+  const currentDept = department?.toUpperCase() || "";
+
+  if (role !== "EMPLOYEE" || !allowedDepts.includes(currentDept)) {
+    throw new Error(`Access Denied: Execution Access Required (Found: ${currentDept || 'None'})`);
   }
 
-  return { user, orgId: finalOrgId, isExecution: true, isOwner: false };
+  return { user: { id: userId, name }, orgId: sessionOrgId, isExecution: true, isOwner: false };
 }
 
 export async function getExecutionQueue() {
@@ -58,7 +69,7 @@ export async function getExecutionQueue() {
           executionMetadata: true,
           claimedByUserId: true,
           claimedAt: true,
-          claimedBy: { select: { id: true, email: true } }
+          claimedBy: { select: { id: true, name: true, email: true } }
       }
   });
 }
@@ -115,17 +126,63 @@ export async function getExecutionNexus() {
     return { stats, projects };
 }
 
-export async function updateExecutionMetadata(projectId: string, metadata: any) {
-    const { orgId } = await validateExecutionAccess();
+export async function updateExecutionMetadata(projectId: string, section: 'logistics' | 'readiness' | 'qc', data: any) {
+    const { orgId, user } = await validateExecutionAccess();
     if (!orgId) throw new Error("Unauthorized");
+
+    const project = await prisma.project.findUnique({
+        where: { id: projectId, organizationId: orgId },
+        select: { executionMetadata: true }
+    });
+
+    const currentMetadata = (project?.executionMetadata as any) || {};
+    const updatedMetadata = {
+        ...currentMetadata,
+        [section]: {
+            ...currentMetadata[section],
+            ...data,
+            lastUpdatedBy: user.id,
+            lastUpdatedAt: new Date().toISOString()
+        }
+    };
 
     const result = await prisma.project.update({
         where: { id: projectId, organizationId: orgId },
-        data: { executionMetadata: metadata },
+        data: { executionMetadata: updatedMetadata },
     });
 
-    revalidatePath(`/dashboard/execution/ops`);
+    revalidatePath(`/dashboard/execution`);
     return result;
+}
+
+export async function logChallanReceipt(projectId: string, challanData: { challanNumber: string, items: any[] }) {
+    const { orgId, user } = await validateExecutionAccess();
+    if (!orgId) throw new Error("Unauthorized");
+
+    return await updateExecutionMetadata(projectId, 'logistics', {
+        ...challanData,
+        status: 'VERIFIED',
+        verifiedBy: user.name,
+        verifiedAt: new Date().toISOString()
+    });
+}
+
+export async function updateSiteReadiness(projectId: string, readinessData: any) {
+    return await updateExecutionMetadata(projectId, 'readiness', readinessData);
+}
+
+export async function logInspection(projectId: string, type: 'MID' | 'FINAL', result: 'PASS' | 'FAIL', punchPoints: string[]) {
+    const { orgId, user } = await validateExecutionAccess();
+    if (!orgId) throw new Error("Unauthorized");
+
+    return await updateExecutionMetadata(projectId, 'qc', {
+        [`${type.toLowerCase()}Inspection`]: {
+            result,
+            punchPoints,
+            inspector: user.name,
+            date: new Date().toISOString()
+        }
+    });
 }
 
 export async function claimProject(projectId: string) {
@@ -138,17 +195,27 @@ export async function claimProject(projectId: string) {
 
     if (!project) throw new Error("Project not found");
 
-    if (project.claimedByUserId && project.claimedByUserId !== user.id && !isOwner) {
-        throw new Error("This project is already claimed by another team member.");
-    }
-
-    await prisma.project.update({
-        where: { id: projectId },
-        data: {
-            claimedByUserId: user.id,
-            claimedAt: new Date()
+    try {
+        await prisma.project.update({
+            where: { 
+                id: projectId,
+                organizationId: orgId,
+                OR: [
+                    { claimedByUserId: null },
+                    { claimedByUserId: user.id }
+                ]
+            },
+            data: {
+                claimedByUserId: user.id,
+                claimedAt: new Date()
+            }
+        });
+    } catch (error: any) {
+        if (error.code === 'P2025') {
+            throw new Error("This project has already been claimed by another team member.");
         }
-    });
+        throw error;
+    }
 
     revalidatePath("/dashboard/department/Execution");
     return { success: true };

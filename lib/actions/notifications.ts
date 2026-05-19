@@ -5,9 +5,15 @@ import { currentUser, auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 
 async function validateAccess() {
-  const [{ orgId }, user] = await Promise.all([auth(), currentUser()]);
-  if (!user || !orgId) throw new Error("Unauthorized");
-  return { user, orgId };
+  const { userId, orgId, sessionClaims } = await auth();
+  if (!userId || !orgId) {
+      // Fallback for metadata if orgId not in primary session
+      const metadata = (sessionClaims as any)?.publicMetadata || {};
+      const resolvedOrgId = orgId || metadata.orgId;
+      if (!userId || !resolvedOrgId) throw new Error("Unauthorized");
+      return { user: { id: userId }, orgId: resolvedOrgId };
+  }
+  return { user: { id: userId }, orgId };
 }
 
 export async function getMyNotifications() {

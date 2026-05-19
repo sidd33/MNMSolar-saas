@@ -112,13 +112,13 @@ export function SiteWorkModule({ project }: SiteWorkModuleProps) {
 
                     <Dialog open={isOpen} onOpenChange={setIsOpen}>
                         <DialogTrigger render={
-                            <Button 
+                            <button 
                                 disabled={progressPercent < 100}
-                                className="bg-[#1C3384] hover:bg-[#0F172A] text-white font-black uppercase tracking-widest text-[10px] h-12 px-6 rounded-2xl shadow-lg shadow-blue-900/20 gap-2"
+                                className="bg-[#1C3384] hover:bg-[#0F172A] text-white font-black uppercase tracking-widest text-[10px] h-12 px-6 rounded-2xl shadow-lg shadow-blue-900/20 gap-2 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                             >
                                 <ArrowRight size={16} />
                                 Forward Stage
-                            </Button>
+                            </button>
                         } />
                         <DialogContent className="rounded-[2rem] border-none shadow-2xl">
                             <DialogHeader>

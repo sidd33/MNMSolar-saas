@@ -111,7 +111,7 @@ export function DocumentationVault({ projectId, projectStage, initialFiles, onFi
                     onClick={() => {
                       const file = getFileForCategory(cat.id);
                       if (file) {
-                        const url = file.fileUrl || (file.content.startsWith('http') ? file.content : `/api/files/proxy?url=${encodeURIComponent(file.content)}`);
+                        const url = file.fileUrl || (file.content.startsWith('http') ? `/api/files/proxy?fileId=${file.id}` : `/api/files/proxy?fileId=${file.id}`);
                         window.open(url, '_blank');
                       }
                     }}

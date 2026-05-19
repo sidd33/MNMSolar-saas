@@ -28,6 +28,7 @@ model Organization {
 model User {
   id             String       @id
   email          String       @unique
+  name           String?
   role           String?
   isSuperAdmin   Boolean      @default(false)
   department     String?
@@ -95,6 +96,7 @@ model Project {
   @@index([currentDepartment])
   @@index([stage])
   @@index([isBottlenecked])
+  @@index([updatedAt(sort: Desc)])
 }
 
 model ProjectFile {
@@ -175,6 +177,7 @@ model HandoffLog {
   @@index([projectId])
   @@index([userId])
   @@index([organizationId])
+  @@index([createdAt(sort: Desc)])
 }
 
 model StageConfig {
@@ -211,6 +214,7 @@ model Lead {
 
   @@index([assignedToId])
   @@index([organizationId])
+  @@index([updatedAt(sort: Desc)])
 }
 
 model Quote {
@@ -240,6 +244,7 @@ model Quote {
   @@index([leadId])
   @@index([assignedToId])
   @@index([organizationId])
+  @@index([updatedAt(sort: Desc)])
 }
 
 enum PipelineStage {

@@ -56,6 +56,7 @@ export async function getProjectsWithTasks(showOnlyMyTasks?: boolean) {
           assignee: {
             select: {
               id: true,
+              name: true,
               email: true,
             },
           },
@@ -270,8 +271,8 @@ export async function forwardProject(formData: FormData) {
     const nextIndex = PIPELINE_ORDER.indexOf(nextStage);
     const isOwner = sync.user?.role === 'OWNER' || sync.user?.role === 'SUPER_ADMIN';
 
-    if (!isOwner && nextIndex !== currentIndex + 1) {
-      throw new Error("Cannot advance past one stage at a time");
+    if (!isOwner && nextIndex <= currentIndex) {
+      throw new Error("Cannot move project backwards through the pipeline via this desk.");
     }
 
     // FIX 4: Technical Gate Enforcement
@@ -279,8 +280,8 @@ export async function forwardProject(formData: FormData) {
     const hasFile = (pattern: string) => projectFiles.some(f => f.name.includes(`[${pattern}]`) || f.name.toUpperCase().includes(pattern));
 
     if (previousProject.stage === "SITE_SURVEY") {
-      const surveyReport = projectFiles.some(f => f.name.includes("[SURVEY_REPORT]") || f.name.toUpperCase().includes("SURVEY"));
-      if (!surveyReport) throw new Error("Technical Gate: Survey Report missing. Engineering must upload it before dispatch.");
+      const surveyReport = projectFiles.some(f => f.name.includes("[SURVEY_REPORT]") || f.name.toUpperCase().includes("SURVEY") || f.name.includes("[SAR]"));
+      if (!surveyReport) throw new Error("Technical Gate: Survey data missing. Please ensure Site Audit Report (SAR) is uploaded.");
     }
 
     if (previousProject.stage === "DETAILED_ENGG") {
@@ -294,15 +295,7 @@ export async function forwardProject(formData: FormData) {
           throw new Error("Technical Gate: Engineering checklist incomplete (SLD, Layout, Structural, or BoM missing).");
       }
       
-      const agreement = hasFile("AGREEMENT");
-      const testRecord = hasFile("TEST_RECORD") || hasFile("TEST_RECORDS");
-      const earthTest = hasFile("EARTH_TEST");
-      const workComp = hasFile("WORK_COMP") || hasFile("WORK COMPLETION") || hasFile("WORK_COMPLETION");
-      const annexures = projectFiles.filter(f => f.name.toLowerCase().includes("annexure")).length;
-      
-      if (!agreement || !testRecord || !earthTest || !workComp || annexures < 5) {
-          throw new Error("Technical Gate: Liaisoning documentation incomplete (Agreement, Test Records, or Annexures missing).");
-      }
+      // Liaisoning files are no longer a hard blocker for transfer to Execution/Work Order
     }
 
     // Determine track stage updates
@@ -441,6 +434,11 @@ export async function forwardProject(formData: FormData) {
   revalidatePath('/dashboard/sales/quotes');
   revalidatePath('/dashboard/sales');
   revalidatePath('/dashboard/sales/leads');
+
+  // TRIGGER REAL-TIME UPDATE
+  import('@/lib/pusher').then(({ triggerPipelineUpdate }) => {
+    triggerPipelineUpdate(sync.orgId, `Project ${project.name} forwarded to ${nextStage}`);
+  }).catch(e => console.error("Pusher trigger failed:", e));
   
   return project;
 }
@@ -480,11 +478,13 @@ export async function getProject360Data(projectId: string) {
           user: {
             select: {
               id: true,
+              name: true,
               email: true
             }
           }
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
+        take: 50
       },
       projectFiles: {
         select: {
@@ -497,7 +497,8 @@ export async function getProject360Data(projectId: string) {
           uploadedAtStage: true,
           createdAt: true
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
+        take: 50
       },
       tasks: {
         select: {
@@ -512,23 +513,27 @@ export async function getProject360Data(projectId: string) {
             }
           }
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
+        take: 50
       },
       assignedEngineers: {
         select: {
           id: true,
+          name: true,
           email: true
         }
       },
       claimedBy: {
         select: {
           id: true,
+          name: true,
           email: true
         }
       },
       assignedBy: {
         select: {
           id: true,
+          name: true,
           email: true
         }
       },
@@ -568,11 +573,13 @@ export async function uploadProjectFile(formData: FormData) {
       } as any,
     });
   } else {
-    // Fetch current stage as fallback
+    // Fetch current stage as fallback - Org Locked
     const project = await prisma.project.findUnique({
-      where: { id: projectId },
+      where: { id: projectId, organizationId: sync.orgId },
       select: { stage: true }
     });
+
+    if (!project) throw new Error("Project not found or access denied");
 
     file = await prisma.projectFile.create({
       data: {

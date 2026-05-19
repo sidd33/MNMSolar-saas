@@ -180,14 +180,16 @@ export function Sidebar({}: SidebarProps) {
               href={item.href}
               onClick={() => setMobileOpen(false)}
               className={cn(
-                "flex items-center gap-3 rounded-xl px-3 text-sm font-bold transition-all duration-200 group relative min-h-[48px]",
+                "flex items-center rounded-xl transition-all duration-200 group relative min-h-[48px]",
+                collapsed ? "justify-center px-0 mx-2" : "gap-3 px-3",
+                "text-sm font-bold",
                 isActive 
                   ? (isOwnerLink ? "bg-red-600 text-white shadow-lg shadow-red-600/20" : "bg-accent text-accent-foreground shadow-lg shadow-yellow-400/20") 
                   : (isOwnerLink ? "text-red-400/70 hover:bg-red-600/5 hover:text-red-400" : isPriorityLink ? "text-[#FFC800] hover:bg-white/5" : "text-white/60 hover:bg-white/5 hover:text-white")
               )}
             >
-              <Icon size={20} className={cn(
-                "shrink-0",
+              <Icon size={collapsed ? 24 : 20} className={cn(
+                "shrink-0 transition-all",
                 isActive ? (isOwnerLink ? "text-white" : "text-[#1A365D]") : (isOwnerLink ? "text-red-500/50 group-hover:text-red-400" : isPriorityLink ? "text-[#FFC800]" : "text-slate-400 group-hover:text-white")
               )} />
               {!collapsed && <span>{item.label}</span>}
@@ -212,7 +214,7 @@ export function Sidebar({}: SidebarProps) {
                   {stats[(item as any).countKey]}
                 </Badge>
               )}
-              {(isActive || (isPriorityLink && !collapsed)) && (
+              {isActive && !collapsed && (
                 <div className={cn("absolute left-0 w-1.5 h-6 rounded-r-full", isOwnerLink ? "bg-white" : "bg-[#FFC800]")} />
               )}
             </Link>

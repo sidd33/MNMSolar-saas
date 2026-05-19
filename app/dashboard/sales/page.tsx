@@ -4,7 +4,6 @@ import { Zap, Target, FileText, Plus, ArrowUpRight, Clock, TrendingUp, CircleArr
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { ProjectIntakeDialog } from "@/components/dashboard/ProjectIntakeDialog";
 import { formatDistanceToNow } from "date-fns";
 
 export default async function SalesDashboardPage() {
@@ -26,14 +25,12 @@ export default async function SalesDashboardPage() {
         </div>
 
         <div className="flex items-center gap-3">
-           <ProjectIntakeDialog 
-            trigger={
+           <Link href="/dashboard/sales/leads/new">
                 <Button className="bg-[#38A169] hover:bg-[#2F855A] text-white rounded-2xl h-12 px-6 font-black uppercase tracking-widest shadow-xl shadow-green-600/20 active:scale-95 transition-all gap-2">
-                    <Zap size={18} fill="currentColor" />
-                    Launch Project
+                    <Plus size={18} strokeWidth={3} />
+                    New Lead
                 </Button>
-            }
-           />
+           </Link>
         </div>
       </div>
 

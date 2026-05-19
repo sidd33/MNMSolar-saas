@@ -29,9 +29,12 @@ export function ProjectPoolCard({ project }: ProjectPoolCardProps) {
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
 
-  const isClaimedByMe = project.claimedByUserId === user?.id;
-  const isClaimedByTeam = project.claimedByUserId && project.claimedByUserId !== user?.id;
-  const isUnclaimed = !project.claimedByUserId;
+  const isAssignedToMe = project.assignedToEngineerId === user?.id || 
+                         project.assignedEngineers?.some((eng: any) => eng.id === user?.id);
+  const isClaimedByMe = project.claimedByUserId === user?.id || isAssignedToMe;
+  const isClaimedByTeam = (project.claimedByUserId && project.claimedByUserId !== user?.id && !isAssignedToMe) || 
+                          (project.assignedToEngineerId && project.assignedToEngineerId !== user?.id && !isAssignedToMe);
+  const isUnclaimed = !project.claimedByUserId && !project.assignedToEngineerId;
 
   // Urgency logic: based on updatedAt or isBottlenecked
   const isHighUrgency = project.isBottlenecked || (Date.now() - new Date(project.updatedAt).getTime() > 1000 * 60 * 60 * 48);
@@ -105,7 +108,7 @@ export function ProjectPoolCard({ project }: ProjectPoolCardProps) {
                         "font-black px-2 py-0.5 uppercase tracking-wider text-[7px] rounded-full shrink-0 border-2 border-white",
                         eng.id === user?.id ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-400"
                       )}>
-                        {eng.email.split('@')[0].toUpperCase()}
+                        {(eng.name || eng.email.split('@')[0]).toUpperCase()}
                       </Badge>
                     ))}
                   </div>
@@ -131,9 +134,9 @@ export function ProjectPoolCard({ project }: ProjectPoolCardProps) {
                   (project.assignedToEngineerId || project.claimedByUserId) ? "text-[#1C3384]" : "text-[#A0AEC0]"
                 )}>
                   {project.assignedToEngineerId 
-                    ? `ASSIGNED TO ${project.assignedEngineers?.[0]?.email?.split('@')[0]?.toUpperCase() || 'ENGINEER'}`
+                    ? `ASSIGNED TO ${project.assignedEngineers?.[0]?.name || project.assignedEngineers?.[0]?.email?.split('@')[0]?.toUpperCase() || 'ENGINEER'}`
                     : project.claimedByUserId
-                    ? `CLAIMED BY ${project.claimedBy?.email?.split('@')[0]?.toUpperCase() || 'ENGINEER'}`
+                    ? `CLAIMED BY ${project.claimedBy?.name || project.claimedBy?.email?.split('@')[0]?.toUpperCase() || 'ENGINEER'}`
                     : "VERIFICATION PENDING / UNCLAIMED"
                   }
                 </span>
@@ -188,7 +191,7 @@ export function ProjectPoolCard({ project }: ProjectPoolCardProps) {
                 <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10 relative z-10 text-center">
                     <Lock size={24} className="text-white/40 mx-auto mb-2" />
                     <p className="text-[10px] font-black text-white uppercase tracking-widest">Unavailable</p>
-                    <p className="text-[9px] font-bold text-white/60 truncate mt-1">{project.claimedBy?.email}</p>
+                    <p className="text-[9px] font-bold text-white/60 truncate mt-1">{project.claimedBy?.name || project.claimedBy?.email || project.assignedEngineers?.[0]?.name || "Team Member"}</p>
                 </div>
             ) : (
                 <div className="space-y-4 relative z-10">

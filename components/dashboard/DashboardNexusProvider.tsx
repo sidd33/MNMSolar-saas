@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { getOwnerDashboardData } from "@/app/actions/dashboard";
 import { getEngineeringNexus } from "@/lib/actions/engineering";
 import { getMyNotifications } from "@/lib/actions/notifications";
+import Pusher from "pusher-js";
 import { toast } from "sonner";
 import { RefreshCw, Clock } from "lucide-react";
 import { format } from "date-fns";
@@ -70,6 +71,7 @@ export function DashboardNexusProvider({
     auditLogs: initialData.auditLogs 
   } : null);
   
+  
   const [isLoading, setIsLoading] = useState(!initialData);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(initialData ? new Date() : null);
@@ -125,6 +127,30 @@ export function DashboardNexusProvider({
     }
   }, [userId, role, department, pipelineData]);
 
+  const orgId = pipelineData?.projects?.[0]?.organizationId;
+
+  // REAL-TIME ENGINE (Pusher)
+  useEffect(() => {
+    if (!orgId) return;
+
+    // Using the imported Pusher from 'pusher-js'
+    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+    });
+
+    const channel = pusher.subscribe(`org-${orgId}`);
+
+    channel.bind("pipeline-update", (data: any) => {
+      console.log("[PUSHER] Real-time pulse received:", data.message);
+      fetchData(true);
+    });
+
+    return () => {
+      pusher.unsubscribe(`org-${orgId}`);
+      pusher.disconnect();
+    };
+  }, [orgId, fetchData]);
+
   // Global Pulse System
   useEffect(() => {
     isMounted.current = true;
@@ -150,12 +176,20 @@ export function DashboardNexusProvider({
         const now = Date.now();
         const inactiveTime = now - lastActivityRef.current;
         const staleTime = now - lastFetchRef.current;
-        if (userId && inactiveTime < 600000 && !document.hidden && staleTime > 60000) {
+        
+        // Add randomized jitter (0-15s) to the 60s threshold to stagger DB hits across users
+        const jitterThreshold = 60000 + (Math.random() * 15000);
+        
+        if (userId && inactiveTime < 600000 && !document.hidden && staleTime > jitterThreshold) {
           fetchData(true);
         }
     }, 60000);
 
-    // RAPID NOTIFICATION PULSE (Every 15s)
+    let syncTimeout: any;
+
+    // BACKGROUND NOTIFICATION PULSE (Every 30s)
+    // We increase this from 15s to 30s because Pusher now handles the 'instant' updates.
+    // This saves even more database bandwidth while maintaining a fallback.
     const notifInterval = setInterval(() => {
         if (document.visibilityState !== 'visible' || !userId) return;
         
@@ -164,11 +198,19 @@ export function DashboardNexusProvider({
             if (isMounted.current) {
                 setPipelineData((prev: any) => {
                     if (!prev) return prev;
-                    // Only update if count changed to prevent unnecessary re-renders
-                    if (prev.unreadCount === notifResult.unreadCount && 
-                        prev.notifications?.length === notifResult.notifications?.length) {
+                    
+                    const isChanged = prev.unreadCount !== notifResult.unreadCount || 
+                                     prev.notifications?.length !== notifResult.notifications?.length;
+                    
+                    if (isChanged) {
+                        // NEW ACTIVITY DETECTED -> Trigger full dashboard sync with jitter
+                        // We use a randomized delay (1-5s) so 40 users don't hit the DB at the exact same millisecond
+                        const jitterDelay = 1000 + (Math.random() * 4000);
+                        syncTimeout = setTimeout(() => fetchData(true), jitterDelay);
+                    } else {
                         return prev;
                     }
+                    
                     return {
                         ...prev,
                         notifications: notifResult.notifications || [],
@@ -182,8 +224,9 @@ export function DashboardNexusProvider({
     return () => {
       isMounted.current = false;
       window.removeEventListener('focus', handleFocus);
-      clearInterval(syncInterval);
+      clearTimeout(syncTimeout);
       clearInterval(notifInterval);
+      clearInterval(syncInterval);
     };
   }, [fetchData, userId]);
 
@@ -271,7 +314,7 @@ function GlobalNexusPulse() {
     const { lastSyncedAt, isRefreshing, refresh } = context;
 
     return (
-        <div className="fixed bottom-8 left-8 md:left-auto md:right-8 z-[999] group">
+        <div className="fixed bottom-8 right-8 z-[999] group">
             <div className="flex items-center gap-3 bg-white/90 backdrop-blur-md border border-slate-200/50 p-2 pl-4 rounded-full shadow-2xl transition-all">
                 <div className="flex flex-col items-end">
                     <span className="text-[9px] font-black uppercase tracking-tighter text-slate-400">MNMSOLAR NEXUS</span>

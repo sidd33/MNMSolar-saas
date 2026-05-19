@@ -7,6 +7,7 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { ProjectHandoffCard } from "@/components/workspace/ProjectHandoffCard";
 import { DepartmentQueueSearch } from "@/components/dashboard/DepartmentQueueSearch";
 import { SalesPipelineView } from "@/components/dashboard/SalesPipelineView";
+import { ProjectErrorBoundary } from "@/components/workspace/ProjectErrorBoundary";
 
 import { currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
@@ -88,12 +89,13 @@ export default async function DepartmentDashboard({ params }: { params: Promise<
           dept={dept}
         >
           {projectList.map((project: any) => (
-            <ProjectHandoffCard 
-              key={project.id} 
-              project={project} 
-              dept={dept} 
-              initialFiles={project.projectFiles || []} 
-            />
+            <ProjectErrorBoundary key={project.id}>
+              <ProjectHandoffCard 
+                project={project} 
+                dept={dept} 
+                initialFiles={[]} 
+              />
+            </ProjectErrorBoundary>
           ))}
         </DepartmentQueueSearch>
       )}

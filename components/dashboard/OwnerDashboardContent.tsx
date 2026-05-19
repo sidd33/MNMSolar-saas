@@ -170,7 +170,7 @@ export function OwnerDashboardContent() {
                   <div key={log.id} className="relative pl-8 group">
                     <div className="absolute left-0 top-1.5 w-4 h-4 rounded-full border-4 border-white bg-[#0F172A] shadow-sm z-10 group-hover:scale-125 transition-transform" />
                     <p className="text-xs leading-relaxed text-[#64748B]">
-                      <span className="font-black text-[#0F172A] uppercase tracking-tighter">{log.user?.email?.split('@')[0] || "System"}</span>
+                      <span className="font-black text-[#0F172A] uppercase tracking-tighter">{log.user?.name || log.user?.email?.split('@')[0] || "System"}</span>
                       <span className="mx-1.5 text-[#64748B]">performed</span>
                       <span className="font-bold text-[#0F172A]">{log.action?.replace(/_/g, ' ') || "Update"}</span>
                       <span className="mx-1 text-[#64748B]">to</span>

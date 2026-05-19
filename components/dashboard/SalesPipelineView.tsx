@@ -115,7 +115,7 @@ export function SalesPipelineView() {
                   <SelectContent className="rounded-xl border-slate-100 shadow-2xl">
                     {employees.map(emp => (
                       <SelectItem key={emp.id} value={emp.id} className="text-[9px] font-black uppercase tracking-widest">
-                        {emp.email.split('@')[0]}
+                        {emp.name || emp.email.split('@')[0]}
                       </SelectItem>
                     ))}
                   </SelectContent>

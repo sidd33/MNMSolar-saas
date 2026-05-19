@@ -13,14 +13,23 @@ interface SafetyModuleProps {
 export function SafetyModule({ project }: SafetyModuleProps) {
     const { updateLocalProject } = useDashboardNexus();
     
+    // Icon mapping for UI only
+    const iconMap: Record<string, any> = {
+        ppe: HardHat,
+        harness: ShieldAlert,
+        briefing: AlertTriangle,
+        shoes: Footprints,
+        tools: ClipboardCheck
+    };
+
     // Extract metadata or use defaults
     const metadata = project.executionMetadata || {};
     const safetyItems = metadata.safetyItems || [
-        { id: "ppe", label: "PPE Kits Verified", icon: HardHat, description: "Helmets, Jackets, Gloves distributed", status: false },
-        { id: "harness", label: "Full Body Harness", icon: ShieldAlert, description: "Inspected for height work (>2m)", status: false },
-        { id: "briefing", label: "Site Tool-Box Talk", icon: AlertTriangle, description: "Daily safety briefing completed", status: false },
-        { id: "shoes", label: "Quality Safety Shoes", icon: Footprints, description: "Verification for all site workers", status: false },
-        { id: "tools", label: "Tools & Equipment", icon: ClipboardCheck, description: "Power tools health check completed", status: false }
+        { id: "ppe", label: "PPE Kits Verified", description: "Helmets, Jackets, Gloves distributed", status: false },
+        { id: "harness", label: "Full Body Harness", description: "Inspected for height work (>2m)", status: false },
+        { id: "briefing", label: "Site Tool-Box Talk", description: "Daily safety briefing completed", status: false },
+        { id: "shoes", label: "Quality Safety Shoes", description: "Verification for all site workers", status: false },
+        { id: "tools", label: "Tools & Equipment", description: "Power tools health check completed", status: false }
     ];
 
     const handleToggleSafety = async (id: string) => {
@@ -28,14 +37,15 @@ export function SafetyModule({ project }: SafetyModuleProps) {
             item.id === id ? { ...item, status: !item.status } : item
         );
 
-        const newMetadata = { ...metadata, safetyItems: updatedItems };
+        // Ensure we don't include non-serializable icons in metadata
+        const cleanItems = updatedItems.map(({ icon, ...i }: any) => i);
+        const newMetadata = { ...metadata, safetyItems: cleanItems };
         
         // Optimistic UI
         updateLocalProject(project.id, { executionMetadata: newMetadata });
 
         try {
             await updateExecutionMetadata(project.id, newMetadata);
-            // toast.success("Safety state updated");
         } catch (e) {
             toast.error("Failed to sync safety state");
         }
@@ -87,7 +97,10 @@ export function SafetyModule({ project }: SafetyModuleProps) {
                                 ? "bg-emerald-500 text-white" 
                                 : "bg-slate-100 text-slate-400 group-hover:bg-amber-500 group-hover:text-white"
                         )}>
-                            <item.icon size={24} />
+                            {(() => {
+                                const Icon = iconMap[item.id] || ShieldAlert;
+                                return <Icon size={24} />;
+                            })()}
                         </div>
                         
                         <div className="flex-1 min-w-0">

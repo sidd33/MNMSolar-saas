@@ -122,7 +122,7 @@ export function SalesPipelineSidebar() {
               <SelectContent className="rounded-xl border-slate-100">
                 {employees.map(emp => (
                   <SelectItem key={emp.id} value={emp.id} className="text-[10px] font-bold uppercase tracking-widest">
-                    {emp.email.split('@')[0]}
+                    {emp.name || emp.email.split('@')[0]}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -399,14 +399,14 @@ export function Project360Modal({ projectId, open, onOpenChange, initialData }: 
                                     "h-5 w-5 rounded-full border-2 border-white flex items-center justify-center text-[7px] text-white font-black shadow-sm",
                                     ["bg-blue-600", "bg-emerald-600", "bg-indigo-600", "bg-rose-600", "bg-amber-600"][idx % 5]
                                   )} title={eng.email}>
-                                    {eng.email.slice(0, 1).toUpperCase()}
+                                    {(eng.name || eng.email).slice(0, 1).toUpperCase()}
                                   </div>
                                 ))}
                               </div>
                               <span className="text-[10px] font-bold text-slate-700 uppercase tracking-tight">
                                 {project.assignedEngineers?.length > 0 
-                                  ? project.assignedEngineers.map((e: any) => e.email.split('@')[0]).join(' + ')
-                                  : project.claimedBy.email.split('@')[0]
+                                  ? project.assignedEngineers.map((e: any) => e.name || e.email.split('@')[0]).join(' + ')
+                                  : (project.claimedBy?.name || project.claimedBy?.email?.split('@')[0] || "Unknown")
                                 }
                               </span>
                             </div>
@@ -500,7 +500,7 @@ export function Project360Modal({ projectId, open, onOpenChange, initialData }: 
                                         <div className="flex -space-x-1.5">
                                           {project.assignedEngineers.map((eng: any) => (
                                             <div key={eng.id} className="h-5 w-5 rounded-full bg-[#1C3384] border-2 border-white flex items-center justify-center text-[7px] text-white font-black" title={eng.email}>
-                                              {eng.email.slice(0, 1).toUpperCase()}
+                                              {(eng.name || eng.email).slice(0, 1).toUpperCase()}
                                             </div>
                                           ))}
                                         </div>
@@ -509,7 +509,7 @@ export function Project360Modal({ projectId, open, onOpenChange, initialData }: 
                                         <div className="h-5 w-5 rounded-md bg-slate-100 flex items-center justify-center">
                                           <User size={10} className="text-slate-400" />
                                         </div>
-                                        <p className="text-[10px] font-medium text-slate-500">@{log.user?.email?.split("@")[0] || "system"}</p>
+                                        <p className="text-[10px] font-medium text-slate-500">@{log.user?.name || log.user?.email?.split("@")[0] || "system"}</p>
                                       </div>
                                     </div>
                                   </div>
