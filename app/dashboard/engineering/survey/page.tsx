@@ -26,8 +26,19 @@ export default function EngineeringSurveyQueue() {
   useEffect(() => {
     if (initialSearch) {
       setSearchQuery(initialSearch);
+      
+      // Auto-switch to detailed-survey tab if the searched project is in DETAILED_ENGG stage
+      const matchedProject = data?.projects?.find((p: any) => 
+        p.name.toLowerCase().includes(initialSearch.toLowerCase()) || 
+        p.id.toLowerCase().includes(initialSearch.toLowerCase())
+      );
+      if (matchedProject && matchedProject.stage === "DETAILED_ENGG") {
+        setActiveTab("detailed-survey");
+      } else if (matchedProject && matchedProject.stage === "SITE_SURVEY") {
+        setActiveTab("site-survey");
+      }
     }
-  }, [initialSearch]);
+  }, [initialSearch, data?.projects]);
 
   const projects = data?.projects?.filter((p: any) => 
     (p.stage === "SITE_SURVEY" || p.stage === "DETAILED_ENGG") && (

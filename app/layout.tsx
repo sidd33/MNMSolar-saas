@@ -39,11 +39,6 @@ export default function RootLayout({
   return (
     <ClerkProvider
       appearance={{
-        layout: {
-          logoImageUrl: "/logo.png",
-          logoPlacement: "inside",
-          socialButtonsPlacement: "bottom",
-        },
         variables: {
           colorPrimary: "#1C3384",
           fontFamily: "var(--font-montserrat)",

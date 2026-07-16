@@ -3,6 +3,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { getOwnerDashboardData } from "@/app/actions/dashboard";
 import { getEngineeringNexus } from "@/lib/actions/engineering";
+import { getAccountsNexus } from "@/lib/actions/accounts";
+import { getProcurementNexus } from "@/lib/actions/procurement";
+import { getExecutionNexus } from "@/lib/actions/execution";
 import { getMyNotifications } from "@/lib/actions/notifications";
 import Pusher from "pusher-js";
 import { toast } from "sonner";
@@ -22,6 +25,7 @@ interface PipelineContextType {
   stats: any;
   leads: any[];
   quotes: any[];
+  queues?: any;
   isLoading: boolean;
   isRefreshing: boolean;
   lastSyncedAt: Date | null;
@@ -64,6 +68,7 @@ export function DashboardNexusProvider({
     activity: initialData.activity,
     leads: initialData.leads || [],
     quotes: initialData.quotes || [],
+    queues: initialData.queues,
     notifications: [],
     unreadCount: 0
   } : null);
@@ -93,6 +98,12 @@ export function DashboardNexusProvider({
         result = await getOwnerDashboardData();
       } else if (department === 'ENGINEERING') {
         result = await getEngineeringNexus();
+      } else if (department === 'ACCOUNTS') {
+        result = await getAccountsNexus();
+      } else if (department === 'PROCUREMENT') {
+        result = await getProcurementNexus();
+      } else if (department === 'EXECUTION') {
+        result = await getExecutionNexus();
       } else {
         result = await getOwnerDashboardData();
       }
@@ -106,6 +117,7 @@ export function DashboardNexusProvider({
           activity: result.activity || undefined,
           leads: result.leads || [],
           quotes: result.quotes || [],
+          queues: result.queues || undefined,
           notifications: notifResult.notifications || [],
           unreadCount: notifResult.unreadCount || 0
         });
@@ -265,6 +277,7 @@ export function DashboardNexusProvider({
     activity: pipelineData?.activity,
     leads: pipelineData?.leads || [],
     quotes: pipelineData?.quotes || [],
+    queues: pipelineData?.queues,
     isLoading,
     isRefreshing,
     lastSyncedAt,
@@ -357,7 +370,7 @@ export function useDashboardNexus() {
   
   if (!pipeline || !audit) {
     return {
-      data: { projects: [], stats: null, auditLogs: [], activity: [] },
+      data: { projects: [], stats: null, auditLogs: [], activity: [], queues: undefined },
       isLoading: true,
       isRefreshing: false,
       lastSyncedAt: null,
@@ -374,7 +387,8 @@ export function useDashboardNexus() {
       projects: pipeline.projects,
       stats: pipeline.stats,
       auditLogs: audit.auditLogs,
-      activity: pipeline.activity || []
+      activity: pipeline.activity || [],
+      queues: pipeline.queues
     },
     isLoading: pipeline.isLoading,
     isRefreshing: pipeline.isRefreshing,

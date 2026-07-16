@@ -32,10 +32,11 @@ export function GlobalUIProvider({ children, userId }: { children: React.ReactNo
       ENGINEERING: 0,
       EXECUTION: 0,
       ACCOUNTS: 0,
+      PROCUREMENT: 0,
       SURVEY_QUEUE: 0,
       DETAILED_ENGG: 0,
-      WORK_ORDER: 0,
-      MY_ENGINEERING_DESK: 0
+      MY_ENGINEERING_DESK: 0,
+      ACCOUNTS_PENDING: (data?.queues?.advances?.length || 0) + (data?.queues?.materials?.length || 0) + (data?.queues?.finals?.length || 0)
     };
 
     projects.forEach((p: any) => {
@@ -47,6 +48,7 @@ export function GlobalUIProvider({ children, userId }: { children: React.ReactNo
       if (p.stage === "SITE_SURVEY") derived.SURVEY_QUEUE++;
       if (p.stage === "DETAILED_ENGG") derived.DETAILED_ENGG++;
       if (p.stage === "WORK_ORDER") derived.WORK_ORDER++;
+      if (p.stage === "HANDOVER_TO_EXECUTION" || p.stage === "MATERIAL_PROCUREMENT") derived.PROCUREMENT++;
 
       // Personal counter for the Unified Desk (Excluding Preliminary Surveys)
       const isAssigned = (

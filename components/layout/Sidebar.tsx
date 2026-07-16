@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { UserButton, useUser, OrganizationSwitcher } from "@clerk/nextjs";
-import { LayoutDashboard, Mail, Calendar, Briefcase, Users, ChevronLeft, ChevronRight, ShieldCheck, Menu, X, CreditCard, Crown, MapPin, Hammer, Package, Flag, ShieldAlert } from "lucide-react";
+import { LayoutDashboard, Mail, Calendar, Briefcase, Users, ChevronLeft, ChevronRight, ShieldCheck, Menu, X, CreditCard, Crown, MapPin, Hammer, Package, Flag, ShieldAlert, FileText, Truck, ShoppingCart, RefreshCcw, Camera, PackageSearch, FolderOpen, ClipboardList, CheckSquare, CalendarDays } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { label: "Sales Pipeline", icon: Users, href: "/dashboard/department/Sales", dept: "SALES", ownerOnly: true },
   { label: "Engineering", icon: Calendar, href: "/dashboard/department/Engineering", dept: "ENGINEERING", ownerOnly: true },
   { label: "Execution", icon: Briefcase, href: "/dashboard/department/Execution", dept: "EXECUTION", ownerOnly: true },
+  { label: "Procurement", icon: Package, href: "/dashboard/department/Procurement", dept: "PROCUREMENT", ownerOnly: true },
   { label: "Accounts", icon: CreditCard, href: "/dashboard/department/Accounts", dept: "ACCOUNTS", ownerOnly: true },
 
   // --- SALES DEPARTMENT EXCLUSIVE ---
@@ -34,26 +35,39 @@ const NAV_ITEMS = [
 
   // --- EXECUTION DEPARTMENT EXCLUSIVE ---
   { label: "Execution Hub", icon: LayoutDashboard, href: "/dashboard/execution", execOnly: true },
-  { label: "Procurement", icon: Package, href: "/dashboard/execution/procurement", execOnly: true },
-  { label: "Site Work", icon: Hammer, href: "/dashboard/execution/sitework", execOnly: true },
-  { label: "Quality & Punch", icon: ShieldCheck, href: "/dashboard/execution/quality", execOnly: true },
-  { label: "Handover", icon: Flag, href: "/dashboard/execution/handover", execOnly: true },
-  { label: "Safety/HSE", icon: ShieldAlert, href: "/dashboard/execution/safety", execOnly: true },
+  { label: "Labor Calendar", icon: CalendarDays, href: "/dashboard/execution/calendar", execOnly: true },
+
+
+  // --- ACCOUNTS DEPARTMENT EXCLUSIVE ---
+  { label: "Accounts Command", icon: LayoutDashboard, href: "/dashboard/accounts", acctOnly: true, countKey: "ACCOUNTS_PENDING" },
+
+  // --- PROCUREMENT DEPARTMENT EXCLUSIVE ---
+  { label: "Procurement Hub", icon: LayoutDashboard, href: "/dashboard/procurement", procOnly: true },
+  { label: "Inventory & Returns", icon: PackageSearch, href: "/dashboard/procurement/inventory", procOnly: true },
+  { label: "BOM Review", icon: FileText, href: "/dashboard/procurement/bom", procOnly: true },
+  { label: "Purchase Orders", icon: ShoppingCart, href: "/dashboard/procurement/purchase-orders", procOnly: true },
+  { label: "Dispatch & Logistics", icon: Truck, href: "/dashboard/procurement/dispatch", procOnly: true },
 ];
 
 import { useGlobalUI } from "@/components/dashboard/GlobalUIProvider";
+
+import { useDashboardNexus } from "@/components/dashboard/DashboardNexusProvider";
 
 interface SidebarProps {}
 
 export function Sidebar({}: SidebarProps) {
   const { stats } = useGlobalUI();
+  const { data: nexusData } = useDashboardNexus();
+  const projects = nexusData?.projects || [];
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentSearch = searchParams.get("search") || "";
   const { user, isLoaded } = useUser();
-  const role = (user?.publicMetadata as any)?.role;
-  const department = (user?.publicMetadata as any)?.department;
+  const role = ((user?.publicMetadata as any)?.role as string)?.toUpperCase();
+  const department = ((user?.publicMetadata as any)?.department as string)?.toUpperCase();
   const isOwner = role === 'OWNER' || role === 'SUPER_ADMIN';
 
   useEffect(() => {
@@ -123,6 +137,8 @@ export function Sidebar({}: SidebarProps) {
           const isSales = role === 'EMPLOYEE' && department === 'SALES';
           const isEngineering = role === 'EMPLOYEE' && department === 'ENGINEERING';
           const isExecution = role === 'EMPLOYEE' && department === 'EXECUTION';
+          const isAccounts = role === 'EMPLOYEE' && department === 'ACCOUNTS';
+          const isProcurement = role === 'EMPLOYEE' && department === 'PROCUREMENT';
 
           // --- ACCESS CONTROL LOGIC ---
           
@@ -138,6 +154,16 @@ export function Sidebar({}: SidebarProps) {
 
           // 2.5 Execution Employees strictly only see "execOnly" items
           if (isExecution && !(item as any).execOnly) {
+              return null;
+          }
+
+          // 2.7 Accounts Employees strictly only see "acctOnly" items
+          if (isAccounts && !(item as any).acctOnly) {
+              return null;
+          }
+
+          // 2.8 Procurement Employees strictly only see "procOnly" items
+          if (isProcurement && !(item as any).procOnly) {
               return null;
           }
 
@@ -166,6 +192,16 @@ export function Sidebar({}: SidebarProps) {
               return null;
           }
 
+          // 8. If someone isn't strictly Accounts, hide Accounts-only items
+          if (!isAccounts && (item as any).acctOnly) {
+              return null;
+          }
+
+          // 9. If someone isn't strictly Procurement, hide Procurement-only items
+          if (!isProcurement && (item as any).procOnly) {
+              return null;
+          }
+
           const isActive = pathname === item.href || (item.href === "/dashboard" && pathname === "/dashboard/owner");
           const isOwnerLink = index === 0 && isOwner;
           const Icon = isOwnerLink ? Crown : item.icon;
@@ -175,51 +211,197 @@ export function Sidebar({}: SidebarProps) {
           const isExecLink = (item as any).execOnly && item.href !== "/dashboard/execution";
 
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setMobileOpen(false)}
-              className={cn(
-                "flex items-center rounded-xl transition-all duration-200 group relative min-h-[48px]",
-                collapsed ? "justify-center px-0 mx-2" : "gap-3 px-3",
-                "text-sm font-bold",
-                isActive 
-                  ? (isOwnerLink ? "bg-red-600 text-white shadow-lg shadow-red-600/20" : "bg-accent text-accent-foreground shadow-lg shadow-yellow-400/20") 
-                  : (isOwnerLink ? "text-red-400/70 hover:bg-red-600/5 hover:text-red-400" : isPriorityLink ? "text-[#FFC800] hover:bg-white/5" : "text-white/60 hover:bg-white/5 hover:text-white")
-              )}
-            >
-              <Icon size={collapsed ? 24 : 20} className={cn(
-                "shrink-0 transition-all",
-                isActive ? (isOwnerLink ? "text-white" : "text-[#1A365D]") : (isOwnerLink ? "text-red-500/50 group-hover:text-red-400" : isPriorityLink ? "text-[#FFC800]" : "text-slate-400 group-hover:text-white")
-              )} />
-              {!collapsed && <span>{item.label}</span>}
+            <div key={item.href}>
+              <Link
+                href={item.href}
+                onClick={() => setMobileOpen(false)}
+                className={cn(
+                  "flex items-center rounded-xl transition-all duration-200 group relative min-h-[48px]",
+                  collapsed ? "justify-center px-0 mx-2" : "gap-3 px-3",
+                  "text-sm font-bold",
+                  isActive 
+                    ? (isOwnerLink ? "bg-red-600 text-white shadow-lg shadow-red-600/20" : "bg-accent text-accent-foreground shadow-lg shadow-yellow-400/20") 
+                    : (isOwnerLink ? "text-red-400/70 hover:bg-red-600/5 hover:text-red-400" : isPriorityLink ? "text-[#FFC800] hover:bg-white/5" : "text-white/60 hover:bg-white/5 hover:text-white")
+                )}
+              >
+                <Icon size={collapsed ? 24 : 20} className={cn(
+                  "shrink-0 transition-all",
+                  isActive ? (isOwnerLink ? "text-white" : "text-[#1A365D]") : (isOwnerLink ? "text-red-500/50 group-hover:text-red-400" : isPriorityLink ? "text-[#FFC800]" : "text-slate-400 group-hover:text-white")
+                )} />
+                {!collapsed && <span>{item.label}</span>}
+                
+                {/* Status Pip for Execution items */}
+                {!collapsed && isExecLink && (
+                  <div className="ml-auto flex items-center gap-1.5">
+                     <div className="h-2 w-2 rounded-full bg-slate-500/30" />
+                  </div>
+                )}
+
+                {!collapsed && item.dept && stats[item.dept] > 0 && (
+                  <span className={cn(
+                    "ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-full",
+                    isActive ? "bg-white text-slate-900" : "bg-white/10 text-white group-hover:bg-white/20 group-hover:text-white"
+                  )}>
+                    {stats[item.dept]}
+                  </span>
+                )}
+                {(item as any).countKey && !collapsed && stats[(item as any).countKey] > 0 && (
+                  <Badge className="ml-auto bg-white/10 text-white border-none font-black px-2 py-0.5 text-[9px] rounded-full">
+                    {stats[(item as any).countKey]}
+                  </Badge>
+                )}
+                {isActive && !collapsed && (
+                  <div className={cn("absolute left-0 w-1.5 h-6 rounded-r-full", isOwnerLink ? "bg-white" : "bg-[#FFC800]")} />
+                )}
+              </Link>
               
-              {/* Status Pip for Execution items */}
-              {!collapsed && isExecLink && (
-                <div className="ml-auto flex items-center gap-1.5">
-                   <div className="h-2 w-2 rounded-full bg-slate-500/30" />
-                </div>
+              {/* 🏗️ ENGINEERING DYNAMIC SUBMENUS */}
+              {!collapsed && isActive && role === 'EMPLOYEE' && department === 'ENGINEERING' && projects.length > 0 && (
+                <>
+                  {item.href === "/dashboard/engineering/survey" && (
+                    <div className="flex flex-col gap-2 mt-1 mb-2 ml-11 pr-3">
+                      {(() => {
+                        const engProjects = projects.filter((p: any) => p.claimedByUserId === user?.id || p.assignedEngineers?.some((e: any) => e.id === user?.id));
+                        const siteSurvey = engProjects.filter((p: any) => p.stage === "SITE_SURVEY");
+                        const detailedSurvey = engProjects.filter((p: any) => p.stage === "DETAILED_ENGG");
+
+                        return (
+                          <>
+                            {siteSurvey.length > 0 && (
+                              <div className="space-y-1">
+                                <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-1">Site Survey</p>
+                                {siteSurvey.map((p: any) => (
+                                  <Link key={p.id} href={`/dashboard/engineering/survey?search=${encodeURIComponent(p.name)}`} onClick={() => setMobileOpen(false)} className={cn("block text-xs font-bold truncate transition-colors", currentSearch === p.name ? "text-[#FFC800]" : "text-white/50 hover:text-white")}>
+                                    {p.name.replace(/\[.*?\]\s*/, '')}
+                                  </Link>
+                                ))}
+                              </div>
+                            )}
+                            {detailedSurvey.length > 0 && (
+                              <div className="space-y-1 mt-2">
+                                <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-1">Detailed Survey</p>
+                                {detailedSurvey.map((p: any) => (
+                                  <Link key={p.id} href={`/dashboard/engineering/survey?search=${encodeURIComponent(p.name)}`} onClick={() => setMobileOpen(false)} className={cn("block text-xs font-bold truncate transition-colors", currentSearch === p.name ? "text-[#FFC800]" : "text-white/50 hover:text-white")}>
+                                    {p.name.replace(/\[.*?\]\s*/, '')}
+                                  </Link>
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
+                  
+                  {item.href === "/dashboard/engineering/detailed" && (
+                    <div className="flex flex-col gap-1.5 mt-1 mb-2 ml-11 pr-3">
+                      {(() => {
+                        const engProjects = projects.filter((p: any) => p.claimedByUserId === user?.id || p.assignedEngineers?.some((e: any) => e.id === user?.id));
+                        const detailedEngg = engProjects.filter((p: any) => p.stage === "DETAILED_ENGG");
+                        
+                        return detailedEngg.map((p: any) => (
+                          <Link key={p.id} href={`/dashboard/engineering/detailed?search=${encodeURIComponent(p.name)}`} onClick={() => setMobileOpen(false)} className={cn("flex items-center gap-2 text-xs font-bold truncate transition-colors py-0.5", currentSearch === p.name ? "text-[#FFC800]" : "text-white/50 hover:text-white")}>
+                            <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", currentSearch === p.name ? "bg-[#FFC800]" : "bg-white/20")} />
+                            <span className="truncate">{p.name.replace(/\[.*?\]\s*/, '')}</span>
+                          </Link>
+                        ));
+                      })()}
+                    </div>
+                  )}
+
+                  {item.href === "/dashboard/engineering/work-order" && (
+                    <div className="flex flex-col gap-1.5 mt-1 mb-2 ml-11 pr-3">
+                      {(() => {
+                        const engProjects = projects.filter((p: any) => p.claimedByUserId === user?.id || p.assignedEngineers?.some((e: any) => e.id === user?.id));
+                        const workOrder = engProjects.filter((p: any) => p.stage !== "SITE_SURVEY");
+                        
+                        return workOrder.map((p: any) => (
+                          <Link key={p.id} href={`/dashboard/engineering/work-order?search=${encodeURIComponent(p.name)}`} onClick={() => setMobileOpen(false)} className={cn("flex items-center gap-2 text-xs font-bold truncate transition-colors py-0.5", currentSearch === p.name ? "text-[#FFC800]" : "text-white/50 hover:text-white")}>
+                            <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", currentSearch === p.name ? "bg-[#FFC800]" : "bg-white/20")} />
+                            <span className="truncate">{p.name.replace(/\[.*?\]\s*/, '')}</span>
+                          </Link>
+                        ));
+                      })()}
+                    </div>
+                  )}
+                </>
               )}
 
-              {!collapsed && item.dept && stats[item.dept] > 0 && (
-                <span className={cn(
-                  "ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-full",
-                  isActive ? "bg-white text-slate-900" : "bg-white/10 text-white group-hover:bg-white/20 group-hover:text-white"
-                )}>
-                  {stats[item.dept]}
-                </span>
+              {/* 📦 PROCUREMENT DYNAMIC SUBMENUS */}
+              {!collapsed && isActive && role === 'EMPLOYEE' && department === 'PROCUREMENT' && projects.length > 0 && (
+                <>
+                  {item.href === "/dashboard/procurement/bom" && (
+                    <div className="flex flex-col gap-1.5 mt-1 mb-2 ml-11 pr-3">
+                      {(() => {
+                        const activeStages = ['HANDOVER_TO_EXECUTION', 'MATERIAL_PROCUREMENT', 'STRUCTURE_ERECTION', 'PV_PANEL_INSTALLATION', 'AC_DC_INSTALLATION', 'NET_METERING', 'FINAL_HANDOVER'];
+                        const bomProjects = projects.filter((p: any) => activeStages.includes(p.stage));
+                        return bomProjects.map((p: any) => (
+                          <Link key={p.id} href={`/dashboard/procurement/bom?search=${encodeURIComponent(p.name)}`} onClick={() => setMobileOpen(false)} className={cn("flex items-center gap-2 text-xs font-bold truncate transition-colors py-0.5", currentSearch === p.name ? "text-[#FFC800]" : "text-white/50 hover:text-white")}>
+                            <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", currentSearch === p.name ? "bg-[#FFC800]" : "bg-white/20")} />
+                            <span className="truncate">{p.name.replace(/\[.*?\]\s*/, '')}</span>
+                          </Link>
+                        ));
+                      })()}
+                    </div>
+                  )}
+                  {item.href === "/dashboard/procurement/purchase-orders" && (
+                    <div className="flex flex-col gap-1.5 mt-1 mb-2 ml-11 pr-3">
+                      {(() => {
+                        const activeStages = ['MATERIAL_PROCUREMENT', 'STRUCTURE_ERECTION', 'PV_PANEL_INSTALLATION', 'AC_DC_INSTALLATION', 'NET_METERING', 'FINAL_HANDOVER'];
+                        const poProjects = projects.filter((p: any) => activeStages.includes(p.stage));
+                        return poProjects.map((p: any) => (
+                          <Link key={p.id} href={`/dashboard/procurement/purchase-orders?search=${encodeURIComponent(p.name)}`} onClick={() => setMobileOpen(false)} className={cn("flex items-center gap-2 text-xs font-bold truncate transition-colors py-0.5", currentSearch === p.name ? "text-[#FFC800]" : "text-white/50 hover:text-white")}>
+                            <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", currentSearch === p.name ? "bg-[#FFC800]" : "bg-white/20")} />
+                            <span className="truncate">{p.name.replace(/\[.*?\]\s*/, '')}</span>
+                          </Link>
+                        ));
+                      })()}
+                    </div>
+                  )}
+                  {item.href === "/dashboard/procurement/dispatch" && (
+                    <div className="flex flex-col gap-1.5 mt-1 mb-2 ml-11 pr-3">
+                      {(() => {
+                        const activeStages = ['MATERIAL_PROCUREMENT', 'STRUCTURE_ERECTION', 'PV_PANEL_INSTALLATION', 'AC_DC_INSTALLATION', 'NET_METERING', 'FINAL_HANDOVER'];
+                        const dispatchProjects = projects.filter((p: any) => activeStages.includes(p.stage));
+                        return dispatchProjects.map((p: any) => (
+                          <Link key={p.id} href={`/dashboard/procurement/dispatch?search=${encodeURIComponent(p.name)}`} onClick={() => setMobileOpen(false)} className={cn("flex items-center gap-2 text-xs font-bold truncate transition-colors py-0.5", currentSearch === p.name ? "text-[#FFC800]" : "text-white/50 hover:text-white")}>
+                            <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", currentSearch === p.name ? "bg-[#FFC800]" : "bg-white/20")} />
+                            <span className="truncate">{p.name.replace(/\[.*?\]\s*/, '')}</span>
+                          </Link>
+                        ));
+                      })()}
+                    </div>
+                  )}
+                </>
               )}
-              {(item as any).countKey && !collapsed && stats[(item as any).countKey] > 0 && (
-                <Badge className="ml-auto bg-white/10 text-white border-none font-black px-2 py-0.5 text-[9px] rounded-full">
-                  {stats[(item as any).countKey]}
-                </Badge>
-              )}
-              {isActive && !collapsed && (
-                <div className={cn("absolute left-0 w-1.5 h-6 rounded-r-full", isOwnerLink ? "bg-white" : "bg-[#FFC800]")} />
-              )}
-            </Link>
+            </div>
           );
         })}
+
+        {/* 🏗️ ACTIVE SITE WORKSPACES (Execution Only) */}
+        {!collapsed && role === 'EMPLOYEE' && department === 'EXECUTION' && projects.length > 0 && (
+           <div className="mt-8 mb-4 px-3">
+              <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3 px-2">Active Site Workspaces</p>
+              <div className="space-y-1">
+                 {projects.map((p: any) => (
+                    <Link
+                       key={p.id}
+                       href={`/dashboard/execution/fielduploads?search=${encodeURIComponent(p.name)}`}
+                       onClick={() => setMobileOpen(false)}
+                       className={cn(
+                          "flex items-center gap-2 rounded-xl transition-all duration-200 group relative min-h-[40px] px-3 text-xs font-bold",
+                          pathname.includes("fielduploads") && pathname.includes(encodeURIComponent(p.name))
+                             ? "bg-white/5 text-white" 
+                             : "text-white/60 hover:bg-white/5 hover:text-white"
+                       )}
+                    >
+                       <MapPin size={14} className="shrink-0 text-slate-500 group-hover:text-emerald-400 transition-colors" />
+                       <span className="truncate">{p.name.replace(/\[.*?\]\s*/, '')}</span> {/* Strip the [PROJ-XXX] for sidebar brevity */}
+                    </Link>
+                 ))}
+              </div>
+           </div>
+        )}
       </nav>
 
     </div>

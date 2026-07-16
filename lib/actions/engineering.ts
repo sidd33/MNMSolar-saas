@@ -295,7 +295,7 @@ export async function unclaimProject(projectId: string, note?: string) {
     if (!orgId) throw new Error("No organization context found");
 
     await prisma.project.update({
-        where: { id: projectId },
+        where: { id: projectId, organizationId: orgId },
         data: {
             claimedByUserId: null,
             claimedAt: null,
@@ -353,7 +353,7 @@ export async function assignProjectToEngineer(projectId: string, engineerIds: st
 
     const now = new Date();
     await prisma.project.update({
-        where: { id: projectId },
+        where: { id: projectId, organizationId: orgId },
         data: {
             assignedByUserId: currentUser.id,
             assignedAt: now,

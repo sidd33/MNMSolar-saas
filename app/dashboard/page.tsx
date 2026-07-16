@@ -11,7 +11,7 @@ export default async function DashboardPage() {
   const role = user.publicMetadata?.role as string | undefined;
   const department = user.publicMetadata?.department as string | undefined;
 
-  if (role === 'OWNER') {
+  if (role === 'OWNER' || role === 'SUPER_ADMIN') {
     redirect('/dashboard/owner');
   }
 
@@ -24,6 +24,9 @@ export default async function DashboardPage() {
     }
     if (department === 'EXECUTION') {
       redirect('/dashboard/execution');
+    }
+    if (department === 'ACCOUNTS') {
+      redirect('/dashboard/accounts');
     }
     redirect(`/dashboard/department/${department}`);
   }

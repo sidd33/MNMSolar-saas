@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useDashboardNexus } from "@/components/dashboard/DashboardNexusProvider";
 import { useState, useEffect } from "react";
 import { HardHat, Search } from "lucide-react";
@@ -12,30 +12,48 @@ import { ExecutionSection } from "@/components/workspace/ExecutionProjectSidebar
 
 export default function ExecutionStagePage() {
   const params = useParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const stageSlug = params.stage as string;
   const { data } = useDashboardNexus();
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [detailCache, setDetailCache] = useState<Record<string, any>>({});
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Map slug to internal section ID
-  const slugMap: Record<string, ExecutionSection> = {
-    procurement: "PROCUREMENT",
-    sitework: "SITE_WORK",
-    quality: "QUALITY",
-    handover: "HANDOVER",
-    safety: "SAFETY"
+  // Sync searchQuery when URL changes
+  useEffect(() => {
+    setSearchQuery(searchParams.get("search") || "");
+  }, [searchParams]);
+
+  // Handle search input changes
+  const handleSearch = (value: string) => {
+    setSearchQuery(value);
+    const params = new URLSearchParams(window.location.search);
+    if (value) {
+      params.set("search", value);
+    } else {
+      params.delete("search");
+    }
+    router.replace(`?${params.toString()}`);
   };
 
-  const activeSection = slugMap[stageSlug] || "PROCUREMENT";
+  // Map slug to internal section ID
+  const slugMap: Record<string, ExecutionSection> = {
+    fielduploads: "FIELD_UPLOAD",
+    materials: "MATERIAL_REQUEST",
+    docs: "DOCS",
+    testing: "TESTING",
+    handover: "HANDOVER"
+  };
 
-  // Map slug to internal PipelineStage names for filtering
+  const activeSection = slugMap[stageSlug] || "FIELD_UPLOAD";
+
   const slugToStages: Record<string, string[]> = {
-    procurement: ["HANDOVER_TO_EXECUTION", "MATERIAL_PROCUREMENT"],
-    sitework: ["STRUCTURE_ERECTION", "PV_PANEL_INSTALLATION", "AC_DC_INSTALLATION"],
-    quality: ["NET_METERING"],
-    handover: ["FINAL_HANDOVER"],
-    safety: ["HANDOVER_TO_EXECUTION", "MATERIAL_PROCUREMENT", "STRUCTURE_ERECTION", "PV_PANEL_INSTALLATION", "AC_DC_INSTALLATION", "NET_METERING"]
+    fielduploads: ["HANDOVER_TO_EXECUTION", "MATERIAL_PROCUREMENT", "STRUCTURE_ERECTION", "PV_PANEL_INSTALLATION", "AC_DC_INSTALLATION"],
+    materials: ["HANDOVER_TO_EXECUTION", "MATERIAL_PROCUREMENT", "STRUCTURE_ERECTION", "PV_PANEL_INSTALLATION", "AC_DC_INSTALLATION"],
+    docs: ["HANDOVER_TO_EXECUTION", "MATERIAL_PROCUREMENT", "STRUCTURE_ERECTION", "PV_PANEL_INSTALLATION", "AC_DC_INSTALLATION", "NET_METERING", "FINAL_HANDOVER"],
+    testing: ["AC_DC_INSTALLATION", "NET_METERING"],
+    handover: ["NET_METERING", "FINAL_HANDOVER"]
   };
 
   const allowedStages = slugToStages[stageSlug] || [];
@@ -78,11 +96,8 @@ export default function ExecutionStagePage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-100 pb-8">
         <div className="space-y-1">
           <Badge className="bg-[#1C3384]/10 text-[#1C3384] hover:bg-[#1C3384]/10 font-bold px-3 py-1 rounded-full uppercase tracking-widest text-[10px] mb-2">
-            Execution Workspace
+            Project Workspace
           </Badge>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tight font-[family-name:var(--font-montserrat)] uppercase">
-            {stageSlug.replace(/-/g, ' ')}
-          </h1>
           <p className="text-slate-500 font-medium text-sm text-left">Internal site operations and stage management.</p>
         </div>
 

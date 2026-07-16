@@ -9,74 +9,80 @@ datasource db {
 }
 
 model Organization {
-  id           String        @id @default(cuid())
-  name         String
-  auditLogs    AuditLog[]
-  handoffLogs  HandoffLog[]
-  leads        Lead[]
-  projects     Project[]
-  projectFiles ProjectFile[]
-  quotes       Quote[]
-  tasks        Task[]
-  users        User[]
-  notifications  Notification[]
-  followUps      FollowUp[]
-  quoteVersions  QuoteVersion[]
+  id              String           @id @default(cuid())
+  name            String
+  auditLogs       AuditLog[]
+  handoffLogs     HandoffLog[]
+  leads           Lead[]
+  projects        Project[]
+  projectFiles    ProjectFile[]
+  quotes          Quote[]
+  tasks           Task[]
+  users           User[]
+  notifications   Notification[]
+  followUps       FollowUp[]
+  quoteVersions   QuoteVersion[]
   projectComments ProjectComment[]
+  laborLogs       LaborLog[]
+  inventoryItems  InventoryItem[]
+  purchaseOrders  PurchaseOrder[]
+  mrns            MaterialReleaseNote[]
+  challans        Challan[]
 }
 
 model User {
-  id             String       @id
-  email          String       @unique
-  name           String?
-  role           String?
-  isSuperAdmin   Boolean      @default(false)
-  department     String?
-  organizationId String
-  auditLogs      AuditLog[]
-  handoffLogs    HandoffLog[]
-  assignedLeads  Lead[]
-  assignedQuotes Quote[]
-  tasks          Task[]       @relation("AssignedTasks")
-  claimedProjects Project[]   @relation("ProjectClaims")
-  projectAssignments Project[] @relation("ProjectAssignments")
-  assignedProjects   Project[] @relation("ProjectAssignedEngineers")
-  notifications  Notification[]
-  followUps      FollowUp[]
-  quoteVersions  QuoteVersion[]
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  projectComments ProjectComment[]
+  id                 String           @id
+  email              String           @unique
+  name               String?
+  role               String?
+  isSuperAdmin       Boolean          @default(false)
+  department         String?
+  organizationId     String
+  auditLogs          AuditLog[]
+  handoffLogs        HandoffLog[]
+  assignedLeads      Lead[]
+  assignedQuotes     Quote[]
+  tasks              Task[]           @relation("AssignedTasks")
+  claimedProjects    Project[]        @relation("ProjectClaims")
+  projectAssignments Project[]        @relation("ProjectAssignments")
+  assignedProjects   Project[]        @relation("ProjectAssignedEngineers")
+  notifications      Notification[]
+  followUps          FollowUp[]
+  quoteVersions      QuoteVersion[]
+  organization       Organization     @relation(fields: [organizationId], references: [id])
+  projectComments    ProjectComment[]
+  laborLogs          LaborLog[]
 
   @@index([organizationId])
 }
 
 model Project {
-  id                   String         @id @default(cuid())
+  id                   String           @id @default(cuid())
   name                 String
-  stage                PipelineStage  @default(SITE_SURVEY)
-  liasoningStage       LiasoningStage @default(NOT_STARTED)
-  executionStage       ExecutionStage @default(SURVEY)
-  isBottlenecked       Boolean        @default(false)
-  isPreliminary        Boolean        @default(false)
+  stage                PipelineStage    @default(SITE_SURVEY)
+  liasoningStage       LiasoningStage   @default(NOT_STARTED)
+  executionStage       ExecutionStage   @default(SURVEY)
+  isBottlenecked       Boolean          @default(false)
+  isPreliminary        Boolean          @default(false)
   currentDepartment    String?
   organizationId       String
   clientName           String?
   address              String?
-  dcCapacity           String?        @default("50 kWp")
-  sanctionedLoad       String?        @default("40 kW")
+  dcCapacity           String?          @default("50 kWp")
+  sanctionedLoad       String?          @default("40 kW")
   orderValue           String?
   projectType          String?
   primaryContactName   String?
   primaryContactMobile String?
   createdByUserId      String?
-  updatedAt            DateTime       @updatedAt
-  createdAt            DateTime       @default(now())
+  updatedAt            DateTime         @updatedAt
+  createdAt            DateTime         @default(now())
   executionMetadata    Json?
   leadId               String?
   originatedByUserId   String?
   handoffLogs          HandoffLog[]
-  lead                 Lead?          @relation(fields: [leadId], references: [id])
-  organization         Organization   @relation(fields: [organizationId], references: [id])
+  lead                 Lead?            @relation(fields: [leadId], references: [id])
+  organization         Organization     @relation(fields: [organizationId], references: [id])
   projectFiles         ProjectFile[]
   tasks                Task[]
   claimedByUserId      String?
@@ -91,6 +97,10 @@ model Project {
   assignedBy           User?            @relation("ProjectAssignments", fields: [assignedByUserId], references: [id])
   assignedEngineers    User[]           @relation("ProjectAssignedEngineers")
   comments             ProjectComment[]
+  laborLogs            LaborLog[]
+  purchaseOrders       PurchaseOrder[]
+  mrns                 MaterialReleaseNote[]
+  challans             Challan[]
 
   @@index([organizationId])
   @@index([currentDepartment])
@@ -218,27 +228,27 @@ model Lead {
 }
 
 model Quote {
-  id                   String       @id @default(cuid())
+  id                   String         @id @default(cuid())
   leadId               String?
   projectName          String
   clientName           String
   capacityKw           Float?
   quotedValue          Float?
-  status               QuoteStatus  @default(DRAFT)
+  status               QuoteStatus    @default(DRAFT)
   notes                String?
   assignedToId         String?
   organizationId       String
   fileUrl              String?
   utFileKey            String?
-  createdAt            DateTime     @default(now())
-  updatedAt            DateTime     @updatedAt
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
   paymentTermsAdvance  Int?
   paymentTermsFinal    Int?
   paymentTermsMaterial Int?
   scopeOfWork          String?
-  assignedTo           User?        @relation(fields: [assignedToId], references: [id])
-  lead                 Lead?        @relation(fields: [leadId], references: [id])
-  organization         Organization @relation(fields: [organizationId], references: [id])
+  assignedTo           User?          @relation(fields: [assignedToId], references: [id])
+  lead                 Lead?          @relation(fields: [leadId], references: [id])
+  organization         Organization   @relation(fields: [organizationId], references: [id])
   versions             QuoteVersion[]
 
   @@index([leadId])
@@ -283,6 +293,33 @@ enum FileCategory {
   COMMERCIAL
   HANDOVER_SHEET
   EXECUTION
+}
+
+enum ChallanStatus {
+  RECEIVED
+  DISCREPANCY
+  CLEARED
+}
+
+model LaborLog {
+  id             String   @id @default(cuid())
+  projectId      String
+  date           DateTime @db.Date
+  laborCount     Int
+  notes          String?
+  loggedByUserId String
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id])
+  loggedBy     User         @relation(fields: [loggedByUserId], references: [id])
+
+  @@unique([projectId, date])
+  @@index([projectId])
+  @@index([organizationId])
+  @@index([date])
 }
 
 enum LeadStatus {
@@ -377,5 +414,112 @@ model ProjectComment {
 
   @@index([projectId])
   @@index([userId])
+  @@index([organizationId])
+}
+
+model InventoryItem {
+  id              String           @id @default(cuid())
+  organizationId  String
+  sku             String?
+  name            String
+  category        ItemCategory
+  trackingType    ItemTrackingType
+  quantityInStock Float            @default(0)
+  unit            String           @default("nos")
+
+  transactions InventoryTransaction[]
+  organization Organization           @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@index([category])
+}
+
+model InventoryTransaction {
+  id          String          @id @default(cuid())
+  itemId      String
+  quantity    Float
+  type        TransactionType
+  referenceId String?
+  notes       String?
+  createdAt   DateTime        @default(now())
+
+  item InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+}
+
+enum ItemTrackingType {
+  EXACT_COUNT
+  VARIABLE_BULK
+}
+
+enum ItemCategory {
+  MODULES
+  INVERTERS
+  STRUCTURES
+  ELECTRICAL_BOS
+  CIVIL_BOS
+  GENERAL_CONSUMABLES
+}
+
+enum TransactionType {
+  IN
+  OUT
+}
+
+model PurchaseOrder {
+  id             String       @id @default(cuid())
+  projectId      String
+  vendorName     String
+  orderType      String
+  amount         Float
+  items          Json?
+  status         String       @default("PENDING")
+  organizationId String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  project        Project      @relation(fields: [projectId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([projectId])
+  @@index([organizationId])
+}
+
+model MaterialReleaseNote {
+  id             String       @id @default(cuid())
+  projectId      String
+  mrnNumber      String
+  items          Json?
+  vehicleNumber  String?
+  driverName     String?
+  dispatchedBy   String
+  organizationId String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  project        Project      @relation(fields: [projectId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([projectId])
+  @@index([organizationId])
+}
+
+model Challan {
+  id             String       @id @default(cuid())
+  projectId      String
+  challanNumber  String
+  type           String       // 'INWARD' | 'RETURN'
+  items          Json?
+  loggedByUserId String
+  organizationId String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  project        Project      @relation(fields: [projectId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([projectId])
   @@index([organizationId])
 }

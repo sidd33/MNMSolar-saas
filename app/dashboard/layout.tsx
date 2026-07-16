@@ -6,6 +6,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import { getOwnerDashboardData } from "@/app/actions/dashboard";
 import { getEngineeringNexus } from "@/lib/actions/engineering";
 import { getExecutionNexus } from "@/lib/actions/execution";
+import { getAccountsNexus } from "@/lib/actions/accounts";
 
 /**
  * DASHBOARD LAYOUT: Zero-Latency Hybrid Shell
@@ -27,6 +28,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         initialData = await getEngineeringNexus();
     } else if (deptUpper === 'EXECUTION') {
         initialData = await getExecutionNexus();
+    } else if (deptUpper === 'ACCOUNTS') {
+        initialData = await getAccountsNexus();
     } else {
         initialData = await getOwnerDashboardData();
     }

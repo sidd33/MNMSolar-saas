@@ -24,7 +24,7 @@ export default clerkMiddleware(async (auth, request) => {
 
   // 3. Handle Dashboard Redirection
   if (userId && request.nextUrl.pathname === '/dashboard') {
-    if (role === 'OWNER') {
+    if (role === 'OWNER' || role === 'SUPER_ADMIN') {
       return NextResponse.redirect(new URL('/dashboard/owner', request.url));
     }
     if (role === 'EMPLOYEE' && department) {
@@ -36,6 +36,9 @@ export default clerkMiddleware(async (auth, request) => {
       }
       if (department === 'EXECUTION') {
         return NextResponse.redirect(new URL('/dashboard/execution', request.url));
+      }
+      if (department === 'ACCOUNTS') {
+        return NextResponse.redirect(new URL('/dashboard/accounts', request.url));
       }
       return NextResponse.redirect(new URL(`/dashboard/department/${department}`, request.url));
     }

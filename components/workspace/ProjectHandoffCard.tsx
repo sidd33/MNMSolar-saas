@@ -38,7 +38,7 @@ const PIPELINE_STAGES = [
   "NET_METERING", "FINAL_HANDOVER"
 ];
 
-const DEPARTMENTS = ["Sales", "Engineering", "Execution", "Accounts"];
+const DEPARTMENTS = ["Sales", "Engineering", "Execution", "Accounts", "Procurement", "PROCUREMENT"];
 
 export function ProjectHandoffCard({ project, dept, initialFiles }: ProjectHandoffCardProps) {
   const [files, setFiles] = useState(initialFiles || []);

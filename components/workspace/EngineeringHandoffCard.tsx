@@ -295,9 +295,9 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
 
   return (
     <Card className="overflow-hidden border border-slate-100 shadow-xl bg-white [contain:paint] will-change-transform group rounded-[2.5rem] transition-all hover:shadow-2xl hover:border-[#1C3384]/20 p-0">
-      <div className="grid grid-cols-1 lg:grid-cols-3">
-        {/* Left Section: Project Details & Checklist */}
-        <div className="lg:col-span-2 p-10">
+      <div>
+        {/* Main Content - Full Width */}
+        <div className="p-10">
           <div className="flex items-center justify-between mb-8">
             <div className="flex flex-col">
               <div className="flex items-center gap-3">
@@ -525,45 +525,56 @@ export function EngineeringHandoffCard({ project, dept, initialFiles }: Engineer
           </div>
         </div>
 
-        {/* Right Section: Handoff Protocol */}
-        <div className="bg-[#1C3384] p-10 text-white relative flex flex-col justify-center border-l-4" style={{ borderColor: checklistComplete ? "#10B981" : "transparent" }}>
-          <div className="absolute -right-8 -top-8 opacity-10 pointer-events-none text-white scale-150">
-            <FastForward size={140} />
-          </div>
-
-          <h4 className="font-black flex items-center gap-3 mb-8 text-[11px] uppercase tracking-[0.25em] text-[#FFC800] font-[family-name:var(--font-montserrat)] relative z-10">
-            <div className="h-5 w-5 rounded-full bg-[#FFC800]/20 flex items-center justify-center">
-              <FastForward size={12} />
-            </div>
-            Execute Transfer
-          </h4>
-
-          <div className="mb-8 p-5 bg-white/10 rounded-2xl border border-white/10 relative z-10">
-            <div className="flex items-center gap-2 mb-3 text-[#FFC800]">
-              <Split size={14} />
-              <span className="text-[9px] font-black uppercase tracking-widest">Dual-Track Active</span>
-            </div>
-            <p className="text-[11px] font-medium text-blue-100 leading-relaxed">
-              Engineering completion automatically provisions the project across <strong className="text-white bg-white/20 px-1 py-0.5 rounded">EXECUTION</strong> and <strong className="text-white bg-white/20 px-1 py-0.5 rounded">LIAISONING</strong> simultaneously.
-            </p>
-          </div>
-
-          <form action={handleHandoff} className="space-y-6 relative z-10">
-            <input type="hidden" name="projectId" value={project.id} />
-            <div className="space-y-2">
-              <Label htmlFor="comment" className="text-[9px] font-black uppercase tracking-widest text-blue-200 opacity-80">Final Observations</Label>
-              <Textarea name="comment" id="comment" placeholder="Log final engineering directives..." className="text-xs bg-white/10 border-white/10 text-white h-24 rounded-[1.5rem] resize-none focus:ring-0 placeholder:text-white/30 transition-all font-medium leading-relaxed" required />
-            </div>
-
-            <Tooltip content={isSiteSurveyStage ? "Upload the site survey report before dispatching." : "Upload all technical documents before dispatching."} enabled={!checklistComplete}>
-              <div className="relative">
-                <Button type="submit" disabled={!checklistComplete} className={cn("w-full h-14 font-black rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all", checklistComplete ? "bg-[#10B981] hover:bg-[#059669] text-white active:scale-95 group" : "bg-white/5 text-white/20 disabled:opacity-100 border border-white/10")}>
-                  {checklistComplete ? "CERTIFY & DISPATCH" : (isSiteSurveyStage ? "REPORT MISSING" : "CHECKLIST INCOMPLETE")}
-                  {checklistComplete ? <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" /> : <AlertCircle size={18} className="opacity-40" />}
-                </Button>
+        {/* Inline Progress Footer */}
+        <div className="border-t border-slate-100 px-10 py-5 flex items-center justify-between bg-slate-50/50">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                {[surveyVerified, !!sldFile, !!layoutFile, !!structuralFile, !!bomFile].map((done, i) => (
+                  <div key={i} className={cn(
+                    "h-2 w-8 rounded-full transition-colors",
+                    done ? "bg-emerald-500" : "bg-slate-200"
+                  )} />
+                ))}
               </div>
-            </Tooltip>
-          </form>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                {completedCount}/5 Technical
+              </span>
+            </div>
+            {!isSiteSurveyStage && (
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5">
+                  {[!!agreementFile, !!testRecordFile, !!earthTestFile, !!workCompFile, isAnnexuresComplete].map((done, i) => (
+                    <div key={i} className={cn(
+                      "h-2 w-6 rounded-full transition-colors",
+                      done ? "bg-blue-500" : "bg-slate-200"
+                    )} />
+                  ))}
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Liaisoning
+                </span>
+              </div>
+            )}
+          </div>
+
+          {checklistComplete ? (
+            <form action={handleHandoff} className="flex items-center gap-3">
+              <input type="hidden" name="projectId" value={project.id} />
+              <input type="hidden" name="comment" value="Engineering checklist complete — forwarding to next stage." />
+              <Button 
+                type="submit"
+                className="h-10 px-6 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[10px] uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
+              >
+                {isSiteSurveyStage ? "Forward to Detailed Engg" : "Forward to Work Order"}
+                <ArrowRight size={14} />
+              </Button>
+            </form>
+          ) : (
+            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">
+              Complete all items to forward
+            </span>
+          )}
         </div>
       </div>
 

@@ -5,10 +5,12 @@ import {
     ExecutionProjectSidebar, 
     ExecutionSection 
 } from "./ExecutionProjectSidebar";
-import { ProcurementModule } from "./ProcurementModule";
-import { SafetyModule } from "./SafetyModule";
-import SiteWorkModule from "./SiteWorkModule";
-import { OperationsHub } from "./OperationsHub";
+
+import { FieldUploadModule } from "./FieldUploadModule";
+import { DocsVaultModule } from "./DocsVaultModule";
+import { MaterialRequestModule } from "./MaterialRequestModule";
+import { TechnicalChecklistModule } from "./TechnicalChecklistModule";
+import { HandoverModule } from "./HandoverModule";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ExternalLink, Share2, AlertCircle } from "lucide-react";
@@ -16,7 +18,8 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
 import { claimProject, unclaimProject } from "@/lib/actions/execution";
-import { updateExecutionMetadata, logChallanReceipt } from "@/lib/actions/execution";
+import { updateProjectStage, updateExecutionMetadata, getProjectDetails, markSiteReady, addPunchPoint } from "@/lib/actions/execution";
+
 import { toast } from "sonner";
 import { useDashboardNexus } from "../dashboard/DashboardNexusProvider";
 import { forwardProject } from "@/app/actions/project";
@@ -30,7 +33,7 @@ interface ExecutionProjectManagerProps {
 }
 
 export function ExecutionProjectManager({ project, onBack, forcedSection }: ExecutionProjectManagerProps) {
-    const [activeSection, setActiveSection] = useState<ExecutionSection>(forcedSection || "PROCUREMENT");
+    const [activeSection, setActiveSection] = useState<ExecutionSection>(forcedSection || "FIELD_UPLOAD");
     const { refresh } = useDashboardNexus();
     const { user } = useUser();
     const role = user?.publicMetadata?.role as string;
@@ -67,15 +70,16 @@ export function ExecutionProjectManager({ project, onBack, forcedSection }: Exec
 
     const renderMainContent = () => {
         switch (activeSection) {
-            case "PROCUREMENT":
-                return <ProcurementModule project={project} />;
-            case "SAFETY":
-                return <SafetyModule project={project} />;
-            case "SITE_WORK":
-                return <SiteWorkModule project={project} />;
-            case "QUALITY":
+            case "FIELD_UPLOAD":
+                return <FieldUploadModule project={project} />;
+            case "DOCS":
+                return <DocsVaultModule project={project} />;
+            case "MATERIAL_REQUEST":
+                return <MaterialRequestModule project={project} />;
+            case "TESTING":
+                return <TechnicalChecklistModule project={project} />;
             case "HANDOVER":
-                return <OperationsHub project={project} />;
+                return <HandoverModule project={project} />;
             default:
                 return (
                     <div className="flex flex-col items-center justify-center p-20 text-center space-y-4 bg-slate-50/50 rounded-[3rem] border border-dashed border-slate-200">

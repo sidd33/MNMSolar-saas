@@ -179,9 +179,9 @@ export function SurveyHandoffCard({ project, dept, initialFiles }: SurveyHandoff
 
   return (
     <Card className="overflow-hidden border-none shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)] bg-white rounded-[2.5rem] transition-all hover:shadow-[0_30px_50px_-20px_rgba(0,0,0,0.12)] p-0">
-      <div className="grid grid-cols-1 lg:grid-cols-12">
-        {/* Left Section (White) */}
-        <div className="lg:col-span-8 p-8 lg:p-10 flex flex-col">
+      <div>
+        {/* Main Content - Full Width */}
+        <div className="p-8 lg:p-10 flex flex-col">
           <div className="flex items-center justify-between mb-8">
             <div className="flex flex-col">
               <div className="flex items-center gap-3">
@@ -323,53 +323,39 @@ export function SurveyHandoffCard({ project, dept, initialFiles }: SurveyHandoff
           </div>
         </div>
 
-        {/* Right Section (Deep Blue) */}
-        <div className="lg:col-span-4 bg-[#1C3384] p-8 lg:p-10 flex flex-col justify-center relative overflow-hidden">
-            {/* Background Icon Watermark */}
-            <div className="absolute top-0 right-0 p-6 opacity-5 scale-[2] pointer-events-none text-white">
-                <FastForward size={120} />
+        {/* Inline Progress Footer */}
+        <div className="border-t border-slate-100 px-8 lg:px-10 py-5 flex items-center justify-between bg-slate-50/50">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              {[!!sarFile, !!roofDimFile, !!ePanelFile, !!shadowFile, photoGallery.length > 0].map((done, i) => (
+                <div key={i} className={cn(
+                  "h-2 w-8 rounded-full transition-colors",
+                  done ? "bg-emerald-500" : "bg-slate-200"
+                )} />
+              ))}
             </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              {completedCount}/5 Survey Items
+            </span>
+          </div>
 
-            <h4 className="font-black flex items-center gap-2 mb-8 text-[10px] uppercase tracking-[0.3em] text-[#FFC800] font-[family-name:var(--font-montserrat)] relative z-10">
-                <Zap size={12} fill="#FFC800" /> EXECUTE TRANSFER
-            </h4>
-
-            <div className="mb-8 p-5 bg-white/10 backdrop-blur-sm rounded-[1.5rem] border border-white/10 relative z-10">
-                <div className="flex items-center gap-2 mb-3 text-[#FFC800]">
-                    <Split size={12} />
-                    <span className="text-[9px] font-black uppercase tracking-widest">DUAL-TRACK ACTIVE</span>
-                </div>
-                <p className="text-[10px] font-medium text-blue-100/80 leading-relaxed uppercase tracking-tight">
-                    Engineering completion automatically provisions the project across <strong className="text-white font-black">EXECUTION</strong> and <strong className="text-white font-black">LIAISONING</strong> simultaneously.
-                </p>
-            </div>
-
-            <form action={handleHandoff} className="space-y-6 relative z-10">
-                <input type="hidden" name="projectId" value={project.id} />
-                <div className="space-y-2">
-                    <Label className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-200/60 ml-1">FINAL OBSERVATIONS</Label>
-                    <Textarea 
-                        name="comment" 
-                        placeholder="Log final engineering directives..." 
-                        className="bg-white/5 border-white/10 text-white text-[11px] font-medium h-24 rounded-[1.25rem] p-4 focus:ring-0 placeholder:text-white/20 resize-none transition-all leading-relaxed" 
-                        required 
-                    />
-                </div>
-
-                <Button 
-                    type="submit" 
-                    disabled={!isSurveyComplete} 
-                    className={cn(
-                        "w-full h-14 rounded-[1.25rem] font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2",
-                        isSurveyComplete 
-                            ? "bg-[#FFC800] text-[#1C3384] hover:bg-yellow-400 shadow-xl shadow-yellow-400/20" 
-                            : "bg-white/5 text-white/20 border border-white/10 opacity-100 cursor-not-allowed"
-                    )}
-                >
-                    {isSurveyComplete ? "CERTIFY & DISPATCH" : "CHECKLIST INCOMPLETE"}
-                    {isSurveyComplete ? <ArrowRight size={16} /> : <AlertCircle size={18} className="opacity-40" />}
-                </Button>
+          {isSurveyComplete ? (
+            <form action={handleHandoff} className="flex items-center gap-3">
+              <input type="hidden" name="projectId" value={project.id} />
+              <input type="hidden" name="comment" value="Survey checklist complete — forwarding to next stage." />
+              <Button 
+                type="submit"
+                className="h-10 px-6 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[10px] uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
+              >
+                Forward to {project.isPreliminary ? "Sales" : "Detailed Engg"}
+                <ArrowRight size={14} />
+              </Button>
             </form>
+          ) : (
+            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">
+              Complete all items to forward
+            </span>
+          )}
         </div>
       </div>
 

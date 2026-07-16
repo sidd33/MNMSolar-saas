@@ -116,14 +116,30 @@ export async function getExecutionDashboardStats(providedOrgId?: string) {
 
 export async function getExecutionNexus() {
     const { orgId } = await validateExecutionAccess();
-    if (!orgId) return { stats: { setup: 0, logistics: 0, activeSites: 0, ready: 0 }, projects: [] };
+    if (!orgId) return { stats: { setup: 0, logistics: 0, activeSites: 0, ready: 0 }, projects: [], activity: [] };
 
-    const [stats, projects] = await Promise.all([
+    const [stats, projects, activity] = await Promise.all([
         getExecutionDashboardStats(orgId),
-        getExecutionQueue()
+        getExecutionQueue(),
+        prisma.handoffLog.findMany({
+            where: {
+                organizationId: orgId,
+                toStage: { in: ['HANDOVER_TO_EXECUTION', 'MATERIAL_PROCUREMENT', 'STRUCTURE_ERECTION', 'PV_PANEL_INSTALLATION', 'AC_DC_INSTALLATION', 'NET_METERING'] }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            select: {
+                id: true,
+                fromDept: true,
+                toDept: true,
+                toStage: true,
+                createdAt: true,
+                project: { select: { id: true, name: true } }
+            }
+        })
     ]);
 
-    return { stats, projects };
+    return { stats, projects, activity };
 }
 
 export async function updateExecutionMetadata(projectId: string, sectionOrData: string | any, data?: any) {
@@ -165,17 +181,6 @@ export async function updateExecutionMetadata(projectId: string, sectionOrData: 
     return result;
 }
 
-export async function logChallanReceipt(projectId: string, challanData: { challanNumber: string, items: any[] }) {
-    const { orgId, user } = await validateExecutionAccess();
-    if (!orgId) throw new Error("Unauthorized");
-
-    return await updateExecutionMetadata(projectId, 'logistics', {
-        ...challanData,
-        status: 'VERIFIED',
-        verifiedBy: user.name,
-        verifiedAt: new Date().toISOString()
-    });
-}
 
 export async function updateSiteReadiness(projectId: string, readinessData: any) {
     return await updateExecutionMetadata(projectId, 'readiness', readinessData);
@@ -246,7 +251,7 @@ export async function unclaimProject(projectId: string) {
     }
 
     await prisma.project.update({
-        where: { id: projectId },
+        where: { id: projectId, organizationId: orgId },
         data: {
             claimedByUserId: null,
             claimedAt: null
@@ -255,4 +260,59 @@ export async function unclaimProject(projectId: string) {
 
     revalidatePath("/dashboard/department/Execution");
     return { success: true };
+}
+
+export async function getLaborLogs(projectId: string, monthStart: Date, monthEnd: Date) {
+    const { orgId } = await validateExecutionAccess();
+    if (!orgId) throw new Error("Unauthorized");
+
+    const logs = await prisma.laborLog.findMany({
+        where: {
+            projectId,
+            organizationId: orgId,
+            date: {
+                gte: monthStart,
+                lte: monthEnd,
+            },
+        },
+        orderBy: {
+            date: "asc",
+        },
+    });
+
+    return logs;
+}
+
+export async function upsertLaborLog(projectId: string, date: Date, laborCount: number, notes?: string) {
+    const { orgId, user } = await validateExecutionAccess();
+    if (!orgId) throw new Error("Unauthorized");
+
+    // Ensure date is at the start of the day in UTC for consistency
+    const normalizedDate = new Date(date);
+    normalizedDate.setUTCHours(0, 0, 0, 0);
+
+    const log = await prisma.laborLog.upsert({
+        where: {
+            projectId_date: {
+                projectId,
+                date: normalizedDate,
+            },
+        },
+        update: {
+            laborCount,
+            notes,
+            loggedByUserId: user.id,
+        },
+        create: {
+            projectId,
+            date: normalizedDate,
+            laborCount,
+            notes,
+            loggedByUserId: user.id,
+            organizationId: orgId,
+        },
+    });
+
+    revalidatePath("/dashboard/execution/calendar");
+    return log;
 }

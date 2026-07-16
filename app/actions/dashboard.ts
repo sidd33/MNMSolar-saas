@@ -5,7 +5,7 @@ import { syncUserAndOrg } from "./sync";
 
 export async function getOwnerDashboardData() {
   const sync = await syncUserAndOrg();
-  if (!sync?.orgId) return { projects: [], heatmap: {}, workload: {}, bottlenecks: [], auditLogs: [] };
+  if (!sync?.orgId) return { projects: [], leads: [], quotes: [], stats: { heatmap: {}, workload: {} }, auditLogs: [] };
 
   const role = (sync as any).user?.role;
   const userDept = (sync as any).user?.department;
@@ -17,7 +17,7 @@ export async function getOwnerDashboardData() {
     if (userDept) {
       projectWhere.currentDepartment = { equals: userDept, mode: 'insensitive' };
     } else {
-      return { projects: [], heatmap: {}, workload: {}, bottlenecks: [], auditLogs: [] };
+      return { projects: [], leads: [], quotes: [], stats: { heatmap: {}, workload: {} }, auditLogs: [] };
     }
   }
 

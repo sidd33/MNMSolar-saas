@@ -16,7 +16,7 @@ interface DocumentationVaultProps {
 }
 
 export function DocumentationVault({ projectId, projectStage, initialFiles, onFilesChange }: DocumentationVaultProps) {
-  const [files, setFiles] = useState(initialFiles);
+  const [files, setFiles] = useState<any[]>(initialFiles || []);
   const { uploadFiles, isUploading, progress, status } = useProjectFileUpload();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
