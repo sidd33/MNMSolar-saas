@@ -90,7 +90,14 @@ export function BOMStockCard({ project, initialFiles }: BOMStockCardProps) {
     setIsProcessing(true);
     const toastId = toast.loading("Processing BOM Review...");
     try {
-      await forwardProject(project.id, nextStage);
+      const formData = new FormData();
+      formData.append("projectId", project.id);
+      formData.append("nextStage", nextStage);
+      formData.append("department", "PROCUREMENT");
+      formData.append("comment", "BOM Reviewed and Verified");
+      
+      await forwardProject(formData);
+      
       toast.success(`Project moved to ${nextStage.replace(/_/g, " ")}`, { id: toastId });
       refresh();
     } catch (err: any) {
