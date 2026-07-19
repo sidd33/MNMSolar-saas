@@ -91,7 +91,11 @@ export function PurchaseOrderCard({ project, initialFiles }: PurchaseOrderCardPr
     setIsProcessing(true);
     const toastId = toast.loading("Marking POs Issued...");
     try {
-      await forwardProject(project.id, "MATERIAL_PROCUREMENT");
+      const formData = new FormData();
+      formData.append("projectId", project.id);
+      formData.append("nextStage", "MATERIAL_PROCUREMENT");
+      formData.append("comment", "Purchase Orders Issued");
+      await forwardProject(formData);
       toast.success("POs Issued! Project ready for Dispatch", { id: toastId });
       refresh();
     } catch (err: any) {

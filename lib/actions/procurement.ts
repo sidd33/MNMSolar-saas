@@ -53,7 +53,7 @@ export async function getProcurementQueue() {
       where: {
           organizationId: orgId,
           stage: {
-              in: ['HANDOVER_TO_EXECUTION', 'MATERIAL_PROCUREMENT', 'STRUCTURE_ERECTION', 'PV_PANEL_INSTALLATION', 'AC_DC_INSTALLATION', 'NET_METERING']
+              in: ['HANDOVER_TO_EXECUTION', 'MATERIAL_PROCUREMENT', 'STRUCTURE_ERECTION', 'PV_PANEL_INSTALLATION', 'AC_DC_INSTALLATION', 'NET_METERING', 'FINAL_HANDOVER']
           }
       },
       take: 100,
@@ -177,17 +177,52 @@ export async function createMaterialReleaseNote(projectId: string, mrnNumber: st
     const { orgId, user } = await validateProcurementAccess();
     if (!orgId) throw new Error("Unauthorized");
 
-    const mrn = await prisma.materialReleaseNote.create({
-        data: {
-            projectId,
-            mrnNumber,
-            items,
-            vehicleNumber,
-            driverName,
-            dispatchedBy: user.id,
-            organizationId: orgId
+    const mrn = await prisma.$transaction(async (tx) => {
+        // 1. Auto-deduct inventory
+        for (const item of items) {
+            if (!item.name || !item.quantity) continue;
+            const qty = parseFloat(item.quantity);
+            if (isNaN(qty) || qty <= 0) continue;
+            
+            // Find inventory item by exact name (case-insensitive ideally, but using exact for now)
+            const invItem = await tx.inventoryItem.findFirst({
+                where: { organizationId: orgId, name: item.name }
+            });
+            
+            if (invItem) {
+                // Deduct stock
+                await tx.inventoryItem.update({
+                    where: { id: invItem.id },
+                    data: { quantityInStock: { decrement: qty } }
+                });
+                
+                // Create audit log
+                await tx.inventoryTransaction.create({
+                    data: {
+                        itemId: invItem.id,
+                        quantity: qty,
+                        type: 'OUT',
+                        referenceId: projectId,
+                        notes: `Auto-deducted via Dispatch MRN: ${mrnNumber}`
+                    }
+                });
+            }
         }
+
+        // 2. Create the MRN
+        return await tx.materialReleaseNote.create({
+            data: {
+                projectId,
+                mrnNumber,
+                items,
+                vehicleNumber,
+                driverName,
+                dispatchedBy: user.id,
+                organizationId: orgId
+            }
+        });
     });
+
     revalidatePath(`/dashboard/procurement`);
     return mrn;
 }
@@ -222,4 +257,85 @@ export async function getPurchaseOrders(projectId?: string) {
         include: { project: { select: { name: true } } },
         orderBy: { createdAt: 'desc' }
     });
+}
+
+export async function getDispatches(projectId?: string) {
+    const { orgId } = await validateProcurementAccess();
+    if (!orgId) return [];
+
+    // Fetch dispatches (MRNs)
+    const dispatches = await prisma.materialReleaseNote.findMany({
+        where: {
+            organizationId: orgId,
+            ...(projectId ? { projectId } : {})
+        },
+        include: { project: { select: { name: true } } },
+        orderBy: { createdAt: 'desc' }
+    });
+
+    // Fetch receipts (Challans) to see what's received
+    const receipts = await prisma.challan.findMany({
+         where: {
+             organizationId: orgId,
+             type: 'INWARD',
+             ...(projectId ? { projectId } : {})
+         }
+    });
+
+    // Combine them for the UI: if a dispatch has a corresponding receipt, it's "RECEIVED"
+    return dispatches.map(dispatch => {
+         const receipt = receipts.find(r => (r.items as any)?.dispatchId === dispatch.id);
+         return {
+             ...dispatch,
+             status: receipt ? 'RECEIVED' : 'IN_TRANSIT',
+             receiptDetails: receipt || null
+         };
+    });
+}
+
+export async function markDispatchReceived(dispatchId: string, projectId: string, notes: string, items: any[], hasDiscrepancy: boolean = false) {
+     const { orgId, user } = await validateProcurementAccess();
+     if (!orgId) throw new Error("Unauthorized");
+
+     const challan = await prisma.challan.create({
+         data: {
+             projectId,
+             challanNumber: `REC-${dispatchId.slice(-6)}`,
+             type: 'INWARD',
+             items: { dispatchId, notes, receivedItems: items, hasDiscrepancy },
+             loggedByUserId: user.id,
+             organizationId: orgId
+         }
+     });
+
+     revalidatePath(`/dashboard/procurement`);
+     revalidatePath(`/dashboard/execution`);
+     return challan;
+}
+
+export async function addPurchaseOrderLog(poId: string, logEntry: { message: string, fileUrl?: string, fileName?: string }) {
+     const { orgId, user } = await validateProcurementAccess();
+     if (!orgId) throw new Error("Unauthorized");
+
+     const po = await prisma.purchaseOrder.findUnique({ where: { id: poId, organizationId: orgId } });
+     if (!po) throw new Error("PO not found");
+
+     const currentItems = (po.items as any) || {};
+     const logs = Array.isArray(currentItems.activityLog) ? currentItems.activityLog : [];
+     
+     logs.push({
+         ...logEntry,
+         timestamp: new Date().toISOString(),
+         loggedBy: user.name
+     });
+
+     await prisma.purchaseOrder.update({
+         where: { id: poId },
+         data: {
+             items: { ...currentItems, activityLog: logs }
+         }
+     });
+     
+     revalidatePath(`/dashboard/procurement/po`);
+     return true;
 }

@@ -61,9 +61,9 @@ export function ProcurementProjectCard({ project, view, onActionComplete }: Proc
       </div>
 
       <Project360Modal 
-        project={project} 
-        isOpen={modalOpen} 
-        onClose={() => setModalOpen(false)} 
+        projectId={project.id} 
+        open={modalOpen} 
+        onOpenChange={setModalOpen} 
       />
     </>
   );

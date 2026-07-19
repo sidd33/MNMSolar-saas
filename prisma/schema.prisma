@@ -102,6 +102,17 @@ model Project {
   mrns                 MaterialReleaseNote[]
   challans             Challan[]
 
+  // Accounting
+  amountCollected      Float?           @default(0)
+  paymentStatusAdvance Boolean          @default(false)
+  paymentStatusMaterial Boolean         @default(false)
+  paymentStatusFinal   Boolean          @default(false)
+  accountsNote         String?          @db.Text
+
+  // Handover Lock
+  lockedQuoteVersionId String?
+  lockedQuoteVersion   QuoteVersion?    @relation(fields: [lockedQuoteVersionId], references: [id])
+
   @@index([organizationId])
   @@index([currentDepartment])
   @@index([stage])
@@ -250,6 +261,9 @@ model Quote {
   lead                 Lead?          @relation(fields: [leadId], references: [id])
   organization         Organization   @relation(fields: [organizationId], references: [id])
   versions             QuoteVersion[]
+  
+  lockedVersionId      String?
+  lockedVersion        QuoteVersion?  @relation("LockedQuoteVersion", fields: [lockedVersionId], references: [id])
 
   @@index([leadId])
   @@index([assignedToId])
@@ -393,6 +407,9 @@ model QuoteVersion {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
   createdAt      DateTime     @default(now())
+
+  lockedByQuotes Quote[]      @relation("LockedQuoteVersion")
+  lockedByProjects Project[]
 
   @@index([quoteId])
   @@index([organizationId])

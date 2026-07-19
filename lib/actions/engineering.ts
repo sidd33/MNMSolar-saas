@@ -35,7 +35,7 @@ async function validateEngineeringAccess() {
       return { user: { id: userId, name }, orgId: sessionOrgId, isEngineering: false, isOwner: true };
   }
 
-  const allowedDepts = ["ENGINEERING", "SALES", "EXECUTION"];
+  const allowedDepts = ["ENGINEERING", "SALES", "EXECUTION", "QUALITY", "PROCUREMENT"];
   const currentDept = department?.toUpperCase() || "";
 
   if (role !== "EMPLOYEE" || !allowedDepts.includes(currentDept)) {

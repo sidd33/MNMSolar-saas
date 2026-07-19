@@ -78,16 +78,16 @@ export default function ProcurementDashboardPage() {
             <h2 className="text-xl font-bold text-slate-900">Procurement Assembly Line</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-             <Link href="/dashboard/procurement/bom">
+             <Link href="/dashboard/procurement/po">
                 <div className="bg-[#1C3384] p-6 rounded-3xl group hover:scale-[1.02] transition-all cursor-pointer shadow-lg shadow-blue-900/10 h-full relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-4 opacity-10 scale-150 translate-x-4 -translate-y-4 text-white pointer-events-none transition-transform group-hover:scale-125">
-                      <FileText size={80} />
+                      <ShoppingCart size={80} />
                     </div>
                     <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center text-white mb-4 group-hover:bg-[#FFC800] group-hover:text-[#1C3384] transition-colors relative z-10">
-                        <FolderLock size={20} />
+                        <ShoppingCart size={20} />
                     </div>
-                    <h3 className="text-white font-bold mb-1 relative z-10">BOM Review</h3>
-                    <p className="text-white/60 text-xs font-medium relative z-10">Approve Bill of Materials from Engineering.</p>
+                    <h3 className="text-white font-bold mb-1 relative z-10">Purchase Orders</h3>
+                    <p className="text-white/60 text-xs font-medium relative z-10">Generate POs and log activity.</p>
                 </div>
              </Link>
 

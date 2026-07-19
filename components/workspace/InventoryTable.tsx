@@ -24,7 +24,7 @@ export function InventoryTable({ initialItems, organizationId, activeProjects = 
   
   // Adjust stock state
   const [adjustingId, setAdjustingId] = useState<string | null>(null);
-  const [adjustMode, setAdjustMode] = useState<"ADJUST" | "ALLOCATE">("ADJUST");
+  const [adjustMode, setAdjustMode] = useState<"ADJUST">("ADJUST");
   const [adjustData, setAdjustData] = useState({ quantity: 0, type: "IN", notes: "", referenceId: "" });
 
   const filteredItems = items.filter(item => 
@@ -195,7 +195,6 @@ export function InventoryTable({ initialItems, organizationId, activeProjects = 
                   <TableCell className="text-center">
                     {adjustingId === item.id ? (
                       <div className="flex items-center justify-end gap-2">
-                        {adjustMode === "ADJUST" ? (
                            <select 
                              className="h-8 rounded border-slate-200 text-xs px-2"
                              value={adjustData.type}
@@ -204,18 +203,6 @@ export function InventoryTable({ initialItems, organizationId, activeProjects = 
                              <option value="IN">IN (+)</option>
                              <option value="OUT">OUT (-)</option>
                            </select>
-                        ) : (
-                           <select 
-                             className="h-8 rounded border-slate-200 text-xs px-2 max-w-[150px] truncate"
-                             value={adjustData.referenceId}
-                             onChange={e => setAdjustData({...adjustData, referenceId: e.target.value})}
-                           >
-                             <option value="" disabled>Select Project...</option>
-                             {activeProjects.map(p => (
-                               <option key={p.id} value={p.id}>{p.name}</option>
-                             ))}
-                           </select>
-                        )}
                         <Input 
                           type="number" 
                           className="h-8 w-20 text-xs" 
@@ -223,7 +210,7 @@ export function InventoryTable({ initialItems, organizationId, activeProjects = 
                           onChange={e => setAdjustData({...adjustData, quantity: parseFloat(e.target.value) || 0})}
                           placeholder="Qty"
                         />
-                        <Button size="sm" onClick={() => handleAdjustStock(item.id)} className="h-8 bg-[#1C3384]" disabled={adjustMode === "ALLOCATE" && !adjustData.referenceId}>OK</Button>
+                        <Button size="sm" onClick={() => handleAdjustStock(item.id)} className="h-8 bg-[#1C3384]">OK</Button>
                         <Button size="sm" variant="ghost" onClick={() => setAdjustingId(null)} className="h-8">Cancel</Button>
                       </div>
                     ) : (
@@ -240,19 +227,6 @@ export function InventoryTable({ initialItems, organizationId, activeProjects = 
                         >
                           <ArrowDownUp size={16} className="mr-1" />
                           Adjust
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="text-[#1C3384] border-[#1C3384]/20 hover:bg-[#1C3384]/5"
-                          onClick={() => {
-                            setAdjustMode("ALLOCATE");
-                            setAdjustData({ quantity: 0, type: "OUT", notes: "Allocated to project", referenceId: "" });
-                            setAdjustingId(item.id);
-                          }}
-                        >
-                          <Package size={16} className="mr-1" />
-                          Allocate
                         </Button>
                       </div>
                     )}

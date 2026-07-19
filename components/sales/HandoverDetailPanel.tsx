@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { approveAndLaunchQuote } from "@/lib/actions/sales";
+import { approveAndLaunchQuote, getQuoteVersions } from "@/lib/actions/sales";
 import { useProjectFileUpload } from "@/hooks/useProjectFileUpload";
 import { Rocket, FileSpreadsheet, CheckCircle2, UploadCloud, Zap, AlertCircle, ArrowLeft, Briefcase } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -62,13 +62,27 @@ export function HandoverDetailPanel({ quote, onUpdate, onBack }: HandoverDetailP
   const [cursorPosition, setCursorPosition] = useState(0);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const [mentionedUserIds, setMentionedUserIds] = useState<string[]>([]);
+
+  // Quote Version Locking
+  const [versions, setVersions] = useState<any[]>([]);
+  const [selectedVersionId, setSelectedVersionId] = useState<string>("");
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     getEngineeringTeamMembers().then(setEngineeringTeam);
-  }, []);
+    
+    // Fetch available quote versions
+    if (quote?.id) {
+        getQuoteVersions(quote.id).then(data => {
+            setVersions(data);
+            if (data.length > 0) {
+                setSelectedVersionId(data[0].id);
+            }
+        });
+    }
+  }, [quote?.id]);
 
   const handleKeyUp = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const el = e.currentTarget;
@@ -206,6 +220,11 @@ export function HandoverDetailPanel({ quote, onUpdate, onBack }: HandoverDetailP
       toast.error("Handover Sheet is required to launch.");
       return;
     }
+    
+    if (!selectedVersionId && versions.length > 0) {
+      toast.error("You must select a locked Quote Version to launch.");
+      return;
+    }
 
     startTransition(async () => {
       try {
@@ -236,6 +255,7 @@ export function HandoverDetailPanel({ quote, onUpdate, onBack }: HandoverDetailP
         // 2. Finalize Launch
         const result = await approveAndLaunchQuote(
           quote.id,
+          selectedVersionId,
           finalFile.url,
           finalFile.key,
           finalFile.name,
@@ -590,6 +610,30 @@ export function HandoverDetailPanel({ quote, onUpdate, onBack }: HandoverDetailP
           <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4">Pipeline Gate</h4>
 
           <div className="space-y-4">
+            {/* Version Locking Selector */}
+            {versions.length > 0 && (
+                <div className="space-y-3 p-4 bg-emerald-50/50 rounded-xl border border-emerald-100">
+                    <Label className="text-[9px] font-black uppercase tracking-widest text-emerald-700 flex items-center gap-1.5">
+                        Lock Quote Version
+                    </Label>
+                    <Select value={selectedVersionId} onValueChange={setSelectedVersionId}>
+                        <SelectTrigger className="w-full h-10 font-black text-emerald-900 bg-white border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-300 transition-all text-[10px] uppercase shadow-sm">
+                            <SelectValue placeholder="Select final quote version" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {versions.map((v, i) => (
+                                <SelectItem key={v.id} value={v.id} className="text-[10px] font-black uppercase">
+                                    Version {v.versionNumber} {i === 0 ? "(Latest)" : ""} - ₹{v.quotedValue?.toLocaleString() || "N/A"}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <p className="text-[9px] font-bold text-emerald-600/70 italic leading-tight">
+                        This version will be immutably locked and permanently tied to the project for Engineering's reference.
+                    </p>
+                </div>
+            )}
+
             <div className="space-y-3 mb-4">
               <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Assign Engineers</Label>
               <div className="flex flex-wrap gap-2 mb-2">

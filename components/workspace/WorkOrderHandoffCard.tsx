@@ -8,18 +8,18 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { 
-  Shield, 
+import {
+  Shield,
   MapPin,
   Zap,
   User,
   Settings,
   ShieldCheck,
-  CheckCircle2, 
-  UploadCloud, 
-  AlertCircle, 
-  Trash2, 
-  FileText, 
+  CheckCircle2,
+  UploadCloud,
+  AlertCircle,
+  Trash2,
+  FileText,
   Rocket,
   ArrowRight,
   Eye,
@@ -55,7 +55,7 @@ export function WorkOrderHandoffCard({ project, dept, initialFiles }: UniversalE
   }, [initialFiles]);
 
   // --- FILE CATEGORIZATION ---
-  
+
   // 1. SURVEY PILLAR (Sync with SurveyHandoffCard tags)
   const sarFile = files.find(f => f.name.includes("[SAR]") || f.name.toUpperCase().includes("AUDIT_REPORT"));
   const roofDimFile = files.find(f => f.name.includes("[ROOF_DIM]") || f.name.toUpperCase().includes("ROOF_DIMENSIONS"));
@@ -84,7 +84,7 @@ export function WorkOrderHandoffCard({ project, dept, initialFiles }: UniversalE
   const designDone = !!sldFile && !!layoutFile && !!structuralFile && !!bomFile && !!shadowFile;
   const liaisoningDone = !!agreementFile && !!testRecordFile && !!earthTestFile && !!workCompFile && annexures.length >= 5 && !!netMeteringFile;
 
-  const totalGates = 15; // 1 Load + 5 Survey + 4 Design + 5 Liaisoning
+  const totalGates = 16; // 1 Load + 5 Survey + 4 Design + 6 Liaisoning
   const gatesPassed = [
     !!sanctionedLoad, !!sarFile, !!roofDimFile, !!ePanelFile, !!shadowFile, photoGallery.length > 0,
     !!sldFile, !!layoutFile, !!structuralFile, !!bomFile,
@@ -96,9 +96,16 @@ export function WorkOrderHandoffCard({ project, dept, initialFiles }: UniversalE
   const canDispatch = designDone && surveyDone && scopeReviewed;
 
   const handleFileUpload = async (tag: string, category: "GENERAL" | "TECHNICAL" | "LIAISONING" | "COMMERCIAL" | "HANDOVER_SHEET" | "EXECUTION", e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const originalFile = e.target.files?.[0];
+    if (!originalFile) return;
     setUploadingTag(tag);
+
+    // Automatically prepend the [TAG] so the UI can accurately match and display it!
+    const fileExtension = originalFile.name.split('.').pop();
+    const cleanName = originalFile.name.replace(`.${fileExtension}`, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const renamedFileName = `[${tag}]_${cleanName}.${fileExtension}`;
+    const file = new File([originalFile], renamedFileName, { type: originalFile.type });
+
     try {
       await uploadFiles(project.id, [file], category, null, (saved) => {
         const updated = [...files, ...saved];
@@ -122,7 +129,7 @@ export function WorkOrderHandoffCard({ project, dept, initialFiles }: UniversalE
         <div className="flex items-center gap-3">
           {isComplete ? (
             <div className="h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center text-white shrink-0">
-                <CheckCircle2 size={12} strokeWidth={3} />
+              <CheckCircle2 size={12} strokeWidth={3} />
             </div>
           ) : (
             <div className="h-5 w-5 rounded-full border-2 border-slate-200 shrink-0" />
@@ -135,30 +142,30 @@ export function WorkOrderHandoffCard({ project, dept, initialFiles }: UniversalE
 
         {isComplete ? (
           <div className="flex items-center gap-2">
-             <a href={fileObject.fileUrl} target="_blank" className="text-emerald-600 hover:text-emerald-800 transition-colors">
-                <FileText size={14} />
-             </a>
-             {!locked && (
-                <button onClick={() => {
-                  deleteProjectFile(fileObject.id, project.id).then(() => {
-                    setFiles(files.filter(f => f.id !== fileObject.id));
-                    refresh();
-                  });
-                }} className="text-slate-300 hover:text-rose-500 opacity-0 group-hover/slot:opacity-100 transition-all">
-                  <Trash2 size={12} />
-                </button>
-             )}
+            <a href={fileObject.fileUrl} target="_blank" className="text-emerald-600 hover:text-emerald-800 transition-colors">
+              <FileText size={14} />
+            </a>
+            {!locked && (
+              <button onClick={() => {
+                deleteProjectFile(fileObject.id, project.id).then(() => {
+                  setFiles(files.filter(f => f.id !== fileObject.id));
+                  refresh();
+                });
+              }} className="text-slate-300 hover:text-rose-500 opacity-0 group-hover/slot:opacity-100 transition-all">
+                <Trash2 size={12} />
+              </button>
+            )}
           </div>
         ) : (
           <div className="relative">
-             {uploadingTag === tag ? (
-                <Settings size={14} className="animate-spin text-slate-400" />
-             ) : (
-                <>
-                  <UploadCloud size={14} className="text-slate-300 group-hover/slot:text-[#1C3384] transition-colors cursor-pointer" />
-                  <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleFileUpload(tag, category, e)} />
-                </>
-             )}
+            {uploadingTag === tag ? (
+              <Settings size={14} className="animate-spin text-slate-400" />
+            ) : (
+              <>
+                <UploadCloud size={14} className="text-slate-300 group-hover/slot:text-[#1C3384] transition-colors cursor-pointer" />
+                <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleFileUpload(tag, category, e)} />
+              </>
+            )}
           </div>
         )}
       </div>
@@ -188,33 +195,33 @@ export function WorkOrderHandoffCard({ project, dept, initialFiles }: UniversalE
               <div className="flex items-center gap-2 mt-2">
                 <User size={12} className="text-[#1C3384] shrink-0" />
                 <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#1C3384]">
-                  {project.assignedToEngineerId 
+                  {project.assignedToEngineerId
                     ? `ASSIGNED TO ${project.assignedEngineers?.[0]?.email?.split('@')[0]?.toUpperCase() || 'ENGINEER'}`
                     : project.claimedByUserId
-                    ? `CLAIMED BY ${project.claimedBy?.email?.split('@')[0]?.toUpperCase() || 'ENGINEER'}`
-                    : "UNIVERSAL ENGINEERING ENTRY"
+                      ? `CLAIMED BY ${project.claimedBy?.email?.split('@')[0]?.toUpperCase() || 'ENGINEER'}`
+                      : "UNIVERSAL ENGINEERING ENTRY"
                   }
                 </span>
               </div>
             </div>
-            
-            <div className="flex items-center gap-4">
-               {project.assignedEngineers?.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    {project.assignedEngineers.map((eng: any) => (
-                      <Badge key={eng.id} className={cn(
-                        "font-black px-3 py-1 uppercase tracking-widest text-[9px] rounded-full shrink-0 border-none",
-                        eng.id === user?.id ? "bg-[#1C3384] text-white shadow-md shadow-[#1C3384]/20" : "bg-slate-100 text-slate-500"
-                      )}>
-                        {eng.email.split('@')[0].toUpperCase()}
-                      </Badge>
-                    ))}
-                  </div>
-               )}
 
-               <Button variant="ghost" onClick={() => setModalOpen(true)} className="h-9 px-4 rounded-full bg-slate-50 hover:bg-[#1C3384] hover:text-white text-slate-400 font-black text-[9px] uppercase tracking-widest gap-2">
-                 <Eye size={12} /> INSPECT DATA
-               </Button>
+            <div className="flex items-center gap-4">
+              {project.assignedEngineers?.length > 0 && (
+                <div className="flex items-center gap-2">
+                  {project.assignedEngineers.map((eng: any) => (
+                    <Badge key={eng.id} className={cn(
+                      "font-black px-3 py-1 uppercase tracking-widest text-[9px] rounded-full shrink-0 border-none",
+                      eng.id === user?.id ? "bg-[#1C3384] text-white shadow-md shadow-[#1C3384]/20" : "bg-slate-100 text-slate-500"
+                    )}>
+                      {eng.email.split('@')[0].toUpperCase()}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              <Button variant="ghost" onClick={() => setModalOpen(true)} className="h-9 px-4 rounded-full bg-slate-50 hover:bg-[#1C3384] hover:text-white text-slate-400 font-black text-[9px] uppercase tracking-widest gap-2">
+                <Eye size={12} /> INSPECT DATA
+              </Button>
             </div>
           </div>
 
@@ -231,7 +238,7 @@ export function WorkOrderHandoffCard({ project, dept, initialFiles }: UniversalE
                   <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase">Preliminary Gate</p>
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <div className={cn("flex items-center justify-between p-3 rounded-xl border transition-all", sanctionedLoad ? "bg-emerald-50/40 border-emerald-100" : "bg-slate-50/50 border-slate-100")}>
                   <div className="flex items-center gap-3">
@@ -259,7 +266,7 @@ export function WorkOrderHandoffCard({ project, dept, initialFiles }: UniversalE
                   <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase">Detailed Blueprints</p>
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <MiniSlot label="SINGLE LINE DIAG." tag="SLD" category="TECHNICAL" fileObject={sldFile} />
                 <MiniSlot label="STRUCTURE LAYOUT" tag="LAYOUT" category="TECHNICAL" fileObject={layoutFile} />
@@ -280,26 +287,27 @@ export function WorkOrderHandoffCard({ project, dept, initialFiles }: UniversalE
                   <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase">Compliance & QC</p>
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <MiniSlot label="AGREEMENT DOC" tag="AGREEMENT" category="TECHNICAL" fileObject={agreementFile} />
                 <MiniSlot label="TEST RECORDS" tag="TEST_RECORD" category="TECHNICAL" fileObject={testRecordFile} />
+                <MiniSlot label="EARTH TEST" tag="EARTH_TEST" category="TECHNICAL" fileObject={earthTestFile} />
                 <MiniSlot label="WORK COMPLETION" tag="WORK_COMP" category="TECHNICAL" fileObject={workCompFile} />
                 <div className={cn("flex items-center justify-between p-3 rounded-xl border transition-all", annexures.length >= 5 ? "bg-emerald-50/40 border-emerald-100" : "bg-slate-50/50 border-slate-100")}>
-                   <div className="flex items-center gap-3">
-                     {annexures.length >= 5 ? <div className="h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center text-white shrink-0"><CheckCircle2 size={12} strokeWidth={3} /></div> : <div className="h-5 w-5 rounded-full border-2 border-slate-200 shrink-0" />}
-                     <span className={cn("text-[10px] font-black uppercase tracking-wider", annexures.length >= 5 ? "text-emerald-700" : "text-slate-400")}>ANNEXURES ({annexures.length}/5)</span>
-                   </div>
-                   <div className="relative">
-                      <UploadCloud size={14} className="text-slate-300 hover:text-[#1C3384] cursor-pointer" />
-                      <input type="file" multiple className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => {
-                          const files = Array.from(e.target.files || []);
-                          uploadFiles(project.id, files.map(f => new File([f], `[ANNEXURE]_${f.name}`, { type: f.type })), "TECHNICAL", null, (saved) => {
-                              setFiles(prev => [...prev, ...saved]);
-                              refresh();
-                          });
-                      }} />
-                   </div>
+                  <div className="flex items-center gap-3">
+                    {annexures.length >= 5 ? <div className="h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center text-white shrink-0"><CheckCircle2 size={12} strokeWidth={3} /></div> : <div className="h-5 w-5 rounded-full border-2 border-slate-200 shrink-0" />}
+                    <span className={cn("text-[10px] font-black uppercase tracking-wider", annexures.length >= 5 ? "text-emerald-700" : "text-slate-400")}>ANNEXURES ({annexures.length}/5)</span>
+                  </div>
+                  <div className="relative">
+                    <UploadCloud size={14} className="text-slate-300 hover:text-[#1C3384] cursor-pointer" />
+                    <input type="file" multiple className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      uploadFiles(project.id, files.map(f => new File([f], `[ANNEXURE]_${f.name}`, { type: f.type })), "TECHNICAL", null, (saved) => {
+                        setFiles(prev => [...prev, ...saved]);
+                        refresh();
+                      });
+                    }} />
+                  </div>
                 </div>
                 <MiniSlot label="NET METERING" tag="NET_METERING" category="TECHNICAL" fileObject={netMeteringFile} />
               </div>
@@ -320,48 +328,47 @@ export function WorkOrderHandoffCard({ project, dept, initialFiles }: UniversalE
           <div className="bg-white/10 backdrop-blur-md rounded-3xl p-6 border border-white/10 mb-8">
             <div className="flex items-center justify-between mb-4">
               <span className="text-[10px] font-black text-white uppercase tracking-widest">MASTER QC</span>
-              <Badge className="bg-white/20 text-white text-[9px] font-black border-none">{gatesPassed}/15 GATES</Badge>
+              <Badge className="bg-white/20 text-white text-[9px] font-black border-none">{gatesPassed}/{totalGates} GATES</Badge>
             </div>
             <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-400 transition-all duration-700" style={{ width: `${(gatesPassed / 15) * 100}%` }} />
+              <div className="h-full bg-emerald-400 transition-all duration-700" style={{ width: `${Math.min((gatesPassed / totalGates) * 100, 100)}%` }} />
             </div>
           </div>
 
           <div className="space-y-6 flex-1">
             <div className="flex items-start gap-4 p-5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all cursor-pointer group" onClick={() => setScopeReviewed(!scopeReviewed)}>
-                <Checkbox checked={scopeReviewed} onCheckedChange={(val) => setScopeReviewed(!!val)} className="mt-1 border-white/20 data-[state=checked]:bg-[#FFC800] data-[state=checked]:text-[#1C3384]" />
-                <div className="space-y-1">
-                  <p className="text-[10px] font-black text-white uppercase tracking-wider group-hover:text-[#FFC800]">SCOPE CERTIFIED</p>
-                  <p className="text-[8px] font-medium text-blue-100/50 uppercase tracking-tight leading-tight italic">Design & Margin Review Complete.</p>
-                </div>
+              <Checkbox checked={scopeReviewed} onCheckedChange={(val) => setScopeReviewed(!!val)} className="mt-1 border-white/20 data-[state=checked]:bg-[#FFC800] data-[state=checked]:text-[#1C3384]" />
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-white uppercase tracking-wider group-hover:text-[#FFC800]">SCOPE CERTIFIED</p>
+                <p className="text-[8px] font-medium text-blue-100/50 uppercase tracking-tight leading-tight italic">Design & Margin Review Complete.</p>
+              </div>
             </div>
 
             <div className="space-y-2">
-                <Label className="text-[9px] font-black uppercase tracking-widest text-blue-200/40 ml-1">FIELD DIRECTIVES</Label>
-                <Textarea placeholder="Directives for Execution..." className="bg-white/5 border-white/10 text-white text-[11px] font-medium h-28 rounded-2xl p-4 focus:ring-0 placeholder:text-white/20 resize-none transition-all leading-relaxed" />
+              <Label className="text-[9px] font-black uppercase tracking-widest text-blue-200/40 ml-1">FIELD DIRECTIVES</Label>
+              <Textarea placeholder="Directives for Execution..." className="bg-white/5 border-white/10 text-white text-[11px] font-medium h-28 rounded-2xl p-4 focus:ring-0 placeholder:text-white/20 resize-none transition-all leading-relaxed" />
             </div>
           </div>
 
           <div className="mt-8">
-             <form action={async (formData) => {
-                if (!canDispatch) return;
-                formData.append("nextStage", "MATERIAL_PROCUREMENT");
-                formData.append("department", "Execution");
-                formData.append("projectId", project.id);
-                try {
-                  await forwardProject(formData);
-                  toast.success("Project Dispatched to Execution!");
-                  refresh();
-                } catch(e: any) { toast.error(e.message); }
-             }}>
-               <Button type="submit" disabled={!canDispatch} className={cn(
-                 "w-full h-16 rounded-3xl font-black text-[11px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 shadow-xl",
-                 canDispatch ? "bg-white text-emerald-700 hover:bg-emerald-50" : "bg-white/5 text-white/20 border border-white/10 cursor-not-allowed"
-               )}>
-                 {canDispatch ? "DISPATCH TO EXECUTION" : "QC INCOMPLETE"}
-                 {canDispatch ? <Rocket size={20} className="animate-bounce" /> : <AlertCircle size={20} className="opacity-40" />}
-               </Button>
-             </form>
+            <form action={async (formData) => {
+              if (!canDispatch) return;
+              formData.append("nextStage", "MATERIAL_PROCUREMENT");
+              formData.append("department", "Procurement");
+              formData.append("projectId", project.id);
+              try {
+                await forwardProject(formData);
+                toast.success("Project Dispatched to Procurement!");
+                refresh();
+              } catch (e: any) { toast.error(e.message); }
+            }}>
+              <Button type="submit" disabled={!canDispatch} className={cn(
+                "w-full h-16 rounded-3xl font-black text-[11px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 shadow-xl",
+                canDispatch ? "bg-white text-emerald-700 hover:bg-emerald-50" : "bg-white/5 text-white/20 border border-white/10 cursor-not-allowed"
+              )}>
+                {canDispatch ? "PROCUREMENT" : "QC INCOMPLETE"}
+              </Button>
+            </form>
           </div>
         </div>
       </div>

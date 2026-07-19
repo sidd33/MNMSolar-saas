@@ -103,7 +103,11 @@ export function DispatchMRNCard({ project, initialFiles }: DispatchMRNCardProps)
       await logChallanReceipt(project.id, { expectedDeliveryDate });
       
       // 2. Forward the project stage to Execution
-      await forwardProject(project.id, "STRUCTURE_ERECTION");
+      const formData = new FormData();
+      formData.append("projectId", project.id);
+      formData.append("nextStage", "STRUCTURE_ERECTION");
+      formData.append("comment", "Dispatched to Execution");
+      await forwardProject(formData);
       
       toast.success("Materials Delivered! Project handed over to Execution", { id: toastId });
       refresh();

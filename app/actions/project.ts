@@ -262,7 +262,7 @@ export async function forwardProject(formData: FormData) {
     // FIX 3: Linear Stage Enforcement
     const PIPELINE_ORDER = [
       "SITE_SURVEY", "DETAILED_ENGG",
-      "WORK_ORDER", "HANDOVER_TO_EXECUTION", "MATERIAL_PROCUREMENT",
+      "WORK_ORDER", "MATERIAL_PROCUREMENT", "HANDOVER_TO_EXECUTION", 
       "STRUCTURE_ERECTION", "PV_PANEL_INSTALLATION", "AC_DC_INSTALLATION",
       "NET_METERING", "FINAL_HANDOVER"
     ];
@@ -359,7 +359,7 @@ export async function forwardProject(formData: FormData) {
         claimedAt: null
       }
     });
-  });
+  }, { timeout: 15000 });
 
   // --- NOTIFICATION ENGINE ---
   const isPrelimHandoff = previousProject.stage === "SITE_SURVEY" && previousProject.isPreliminary;

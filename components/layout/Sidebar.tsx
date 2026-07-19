@@ -37,6 +37,8 @@ const NAV_ITEMS = [
   { label: "Execution Hub", icon: LayoutDashboard, href: "/dashboard/execution", execOnly: true },
   { label: "Labor Calendar", icon: CalendarDays, href: "/dashboard/execution/calendar", execOnly: true },
 
+  // --- QUALITY DEPARTMENT EXCLUSIVE ---
+  { label: "Quality Audit", icon: ShieldAlert, href: "/dashboard/quality", qualOnly: true },
 
   // --- ACCOUNTS DEPARTMENT EXCLUSIVE ---
   { label: "Accounts Command", icon: LayoutDashboard, href: "/dashboard/accounts", acctOnly: true, countKey: "ACCOUNTS_PENDING" },
@@ -45,7 +47,7 @@ const NAV_ITEMS = [
   { label: "Procurement Hub", icon: LayoutDashboard, href: "/dashboard/procurement", procOnly: true },
   { label: "Inventory & Returns", icon: PackageSearch, href: "/dashboard/procurement/inventory", procOnly: true },
   { label: "BOM Review", icon: FileText, href: "/dashboard/procurement/bom", procOnly: true },
-  { label: "Purchase Orders", icon: ShoppingCart, href: "/dashboard/procurement/purchase-orders", procOnly: true },
+  { label: "Purchase Orders", icon: ShoppingCart, href: "/dashboard/procurement/po", procOnly: true },
   { label: "Dispatch & Logistics", icon: Truck, href: "/dashboard/procurement/dispatch", procOnly: true },
 ];
 
@@ -139,6 +141,7 @@ export function Sidebar({}: SidebarProps) {
           const isExecution = role === 'EMPLOYEE' && department === 'EXECUTION';
           const isAccounts = role === 'EMPLOYEE' && department === 'ACCOUNTS';
           const isProcurement = role === 'EMPLOYEE' && department === 'PROCUREMENT';
+          const isQuality = role === 'EMPLOYEE' && department === 'QUALITY';
 
           // --- ACCESS CONTROL LOGIC ---
           
@@ -164,6 +167,11 @@ export function Sidebar({}: SidebarProps) {
 
           // 2.8 Procurement Employees strictly only see "procOnly" items
           if (isProcurement && !(item as any).procOnly) {
+              return null;
+          }
+
+          // 2.9 Quality Employees strictly only see "qualOnly" items
+          if (isQuality && !(item as any).qualOnly) {
               return null;
           }
 
@@ -199,6 +207,11 @@ export function Sidebar({}: SidebarProps) {
 
           // 9. If someone isn't strictly Procurement, hide Procurement-only items
           if (!isProcurement && (item as any).procOnly) {
+              return null;
+          }
+
+          // 10. If someone isn't strictly Quality, hide Quality-only items
+          if (!isQuality && (item as any).qualOnly) {
               return null;
           }
 
@@ -344,13 +357,13 @@ export function Sidebar({}: SidebarProps) {
                       })()}
                     </div>
                   )}
-                  {item.href === "/dashboard/procurement/purchase-orders" && (
+                  {item.href === "/dashboard/procurement/po" && (
                     <div className="flex flex-col gap-1.5 mt-1 mb-2 ml-11 pr-3">
                       {(() => {
                         const activeStages = ['MATERIAL_PROCUREMENT', 'STRUCTURE_ERECTION', 'PV_PANEL_INSTALLATION', 'AC_DC_INSTALLATION', 'NET_METERING', 'FINAL_HANDOVER'];
                         const poProjects = projects.filter((p: any) => activeStages.includes(p.stage));
                         return poProjects.map((p: any) => (
-                          <Link key={p.id} href={`/dashboard/procurement/purchase-orders?search=${encodeURIComponent(p.name)}`} onClick={() => setMobileOpen(false)} className={cn("flex items-center gap-2 text-xs font-bold truncate transition-colors py-0.5", currentSearch === p.name ? "text-[#FFC800]" : "text-white/50 hover:text-white")}>
+                          <Link key={p.id} href={`/dashboard/procurement/po?search=${encodeURIComponent(p.name)}`} onClick={() => setMobileOpen(false)} className={cn("flex items-center gap-2 text-xs font-bold truncate transition-colors py-0.5", currentSearch === p.name ? "text-[#FFC800]" : "text-white/50 hover:text-white")}>
                             <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", currentSearch === p.name ? "bg-[#FFC800]" : "bg-white/20")} />
                             <span className="truncate">{p.name.replace(/\[.*?\]\s*/, '')}</span>
                           </Link>
@@ -378,19 +391,29 @@ export function Sidebar({}: SidebarProps) {
           );
         })}
 
-        {/* 🏗️ ACTIVE SITE WORKSPACES (Execution Only) */}
-        {!collapsed && role === 'EMPLOYEE' && department === 'EXECUTION' && projects.length > 0 && (
+        {/* 🏗️ ACTIVE SITE WORKSPACES (Execution & Quality Only) */}
+        {!collapsed && role === 'EMPLOYEE' && (department === 'EXECUTION' || department === 'QUALITY') && projects.length > 0 && (
            <div className="mt-8 mb-4 px-3">
               <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3 px-2">Active Site Workspaces</p>
               <div className="space-y-1">
-                 {projects.map((p: any) => (
+                 {projects.map((p: any) => {
+                    const targetHref = department === 'QUALITY' 
+                        ? `/dashboard/quality/project?search=${encodeURIComponent(p.name)}`
+                        : `/dashboard/execution/fielduploads?search=${encodeURIComponent(p.name)}`;
+                        
+                    // For highlighting active state
+                    const isQualityActive = department === 'QUALITY' && pathname.includes('/dashboard/quality/project') && currentSearch === p.name;
+                    const isExecutionActive = department === 'EXECUTION' && pathname.includes('fielduploads') && currentSearch === p.name;
+                    const isItemActive = isQualityActive || isExecutionActive;
+
+                    return (
                     <Link
                        key={p.id}
-                       href={`/dashboard/execution/fielduploads?search=${encodeURIComponent(p.name)}`}
+                       href={targetHref}
                        onClick={() => setMobileOpen(false)}
                        className={cn(
                           "flex items-center gap-2 rounded-xl transition-all duration-200 group relative min-h-[40px] px-3 text-xs font-bold",
-                          pathname.includes("fielduploads") && pathname.includes(encodeURIComponent(p.name))
+                          isItemActive
                              ? "bg-white/5 text-white" 
                              : "text-white/60 hover:bg-white/5 hover:text-white"
                        )}
@@ -398,7 +421,8 @@ export function Sidebar({}: SidebarProps) {
                        <MapPin size={14} className="shrink-0 text-slate-500 group-hover:text-emerald-400 transition-colors" />
                        <span className="truncate">{p.name.replace(/\[.*?\]\s*/, '')}</span> {/* Strip the [PROJ-XXX] for sidebar brevity */}
                     </Link>
-                 ))}
+                    );
+                 })}
               </div>
            </div>
         )}

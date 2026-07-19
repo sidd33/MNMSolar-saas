@@ -3,10 +3,25 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-export async function getInventoryItems(organizationId: string) {
+import { auth } from "@clerk/nextjs/server";
+import { syncUserAndOrg } from "@/app/actions/sync";
+
+export async function getInventoryItems(organizationId?: string) {
   try {
+    let orgId = organizationId;
+    if (!orgId) {
+      const authData = await auth();
+      orgId = authData.orgId || (authData.sessionClaims as any)?.publicMetadata?.orgId;
+      if (!orgId) {
+         const sync = await syncUserAndOrg();
+         orgId = sync?.orgId;
+      }
+    }
+    
+    if (!orgId) return { success: false, error: "No organization found" };
+
     const items = await prisma.inventoryItem.findMany({
-      where: { organizationId },
+      where: { organizationId: orgId },
       orderBy: { name: 'asc' },
     });
     return { success: true, data: items };

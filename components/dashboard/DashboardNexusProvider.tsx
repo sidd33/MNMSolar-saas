@@ -102,7 +102,7 @@ export function DashboardNexusProvider({
         result = await getAccountsNexus();
       } else if (department === 'PROCUREMENT') {
         result = await getProcurementNexus();
-      } else if (department === 'EXECUTION') {
+      } else if (department === 'EXECUTION' || department === 'QUALITY') {
         result = await getExecutionNexus();
       } else {
         result = await getOwnerDashboardData();

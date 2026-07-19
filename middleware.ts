@@ -40,6 +40,9 @@ export default clerkMiddleware(async (auth, request) => {
       if (department === 'ACCOUNTS') {
         return NextResponse.redirect(new URL('/dashboard/accounts', request.url));
       }
+      if (department === 'QUALITY') {
+        return NextResponse.redirect(new URL('/dashboard/quality', request.url));
+      }
       return NextResponse.redirect(new URL(`/dashboard/department/${department}`, request.url));
     }
   }

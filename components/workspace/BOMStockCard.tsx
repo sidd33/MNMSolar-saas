@@ -93,8 +93,9 @@ export function BOMStockCard({ project, initialFiles }: BOMStockCardProps) {
       const formData = new FormData();
       formData.append("projectId", project.id);
       formData.append("nextStage", nextStage);
-      formData.append("department", "PROCUREMENT");
-      formData.append("comment", "BOM Reviewed and Verified");
+      // If we are handing over to execution, switch the department to Execution!
+      formData.append("department", nextStage === "HANDOVER_TO_EXECUTION" ? "Execution" : "PROCUREMENT");
+      formData.append("comment", nextStage === "HANDOVER_TO_EXECUTION" ? "Primary BOM Released to Site. Handover to Execution." : "BOM Reviewed and Verified. Proceeding to POs.");
       
       await forwardProject(formData);
       
@@ -209,10 +210,10 @@ export function BOMStockCard({ project, initialFiles }: BOMStockCardProps) {
               </Button>
               <Button
                 disabled={!checklistComplete || isProcessing}
-                onClick={() => handleHandoff("STRUCTURE_ERECTION")}
+                onClick={() => handleHandoff("HANDOVER_TO_EXECUTION")}
                 className={cn("h-12 px-6 rounded-xl font-black tracking-widest uppercase transition-all shadow-lg text-xs", checklistComplete ? "bg-[#1C3384] text-white hover:bg-blue-900 shadow-blue-900/20 hover:scale-105" : "bg-slate-200 text-slate-400")}
               >
-                Stock Available: Skip to Dispatch
+                Release to Execution
                 <ArrowRight size={14} className="ml-2" />
               </Button>
             </div>

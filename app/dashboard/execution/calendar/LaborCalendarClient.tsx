@@ -247,8 +247,8 @@ export default function LaborCalendarClient({ projects }: { projects: any[] }) {
             {/* Modal */}
             {isModalOpen && selectedDate && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-                        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-[#1C3384] text-white">
+                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+                        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-[#1C3384] text-white shrink-0">
                             <div>
                                 <h3 className="font-black text-xl uppercase tracking-tight font-[family-name:var(--font-montserrat)]">Log Labor</h3>
                                 <p className="text-blue-200/80 font-medium text-xs mt-1">
@@ -259,7 +259,57 @@ export default function LaborCalendarClient({ projects }: { projects: any[] }) {
                                 <X size={16} />
                             </button>
                         </div>
-                        <div className="p-6 space-y-6">
+                        <div className="p-6 space-y-6 overflow-y-auto scrollbar-none">
+                            {(() => {
+                                let existingDPRs: any[] = [];
+                                const rawDpr = selectedProject?.executionMetadata?.dpr;
+                                if (Array.isArray(rawDpr)) {
+                                    existingDPRs = rawDpr;
+                                } else if (rawDpr?.records && Array.isArray(rawDpr.records)) {
+                                    existingDPRs = rawDpr.records;
+                                } else if (rawDpr && typeof rawDpr === 'object') {
+                                    existingDPRs = Object.values(rawDpr).filter((v: any) => v && v.id && v.date);
+                                }
+
+                                const activeDpr = existingDPRs.find(d => {
+                                    if (!selectedDate || !d.date) return false;
+                                    return isSameDay(new Date(d.date), selectedDate);
+                                });
+
+                                return activeDpr ? (
+                                    <div className="space-y-3 pb-2">
+                                        <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2 flex items-center gap-2">
+                                            <CalendarIcon size={12} /> Activity Log Found
+                                        </h4>
+                                        {activeDpr.tasksCompleted && (
+                                            <div className="bg-emerald-50/70 p-3 rounded-xl border border-emerald-100">
+                                                <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest block mb-0.5">Completed</span>
+                                                <p className="text-xs text-slate-700 font-medium">{activeDpr.tasksCompleted}</p>
+                                            </div>
+                                        )}
+                                        {activeDpr.blockers && (
+                                            <div className="bg-amber-50/70 p-3 rounded-xl border border-amber-100">
+                                                <span className="text-[9px] font-black text-amber-600 uppercase tracking-widest block mb-0.5">Blockers</span>
+                                                <p className="text-xs text-slate-700 font-medium">{activeDpr.blockers}</p>
+                                            </div>
+                                        )}
+                                        {activeDpr.nextPlan && (
+                                            <div className="bg-[#1C3384]/5 p-3 rounded-xl border border-[#1C3384]/10">
+                                                <span className="text-[9px] font-black text-[#1C3384] uppercase tracking-widest block mb-0.5">Next Plan</span>
+                                                <p className="text-xs text-slate-700 font-medium">{activeDpr.nextPlan}</p>
+                                            </div>
+                                        )}
+                                        {activeDpr.attachedFiles && activeDpr.attachedFiles.length > 0 && (
+                                            <div className="bg-indigo-50/70 p-3 rounded-xl border border-indigo-100">
+                                                <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest block mb-0.5">Evidence</span>
+                                                <p className="text-xs text-slate-700 font-bold">{activeDpr.attachedFiles.length} Photos Attached</p>
+                                            </div>
+                                        )}
+                                        <div className="h-px w-full bg-slate-100 my-4" />
+                                    </div>
+                                ) : null;
+                            })()}
+                            
                             <div className="space-y-2">
                                 <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Number of Laborers</label>
                                 <div className="relative">
@@ -286,7 +336,7 @@ export default function LaborCalendarClient({ projects }: { projects: any[] }) {
                                 />
                             </div>
                         </div>
-                        <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3 justify-end">
+                        <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3 justify-end shrink-0">
                             <button
                                 onClick={() => setIsModalOpen(false)}
                                 className="px-6 py-2.5 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition-colors text-sm uppercase tracking-widest"

@@ -8,9 +8,11 @@ import {
 
 import { FieldUploadModule } from "./FieldUploadModule";
 import { DocsVaultModule } from "./DocsVaultModule";
-import { MaterialRequestModule } from "./MaterialRequestModule";
+import { DailyProgressModule } from "./DailyProgressModule";
 import { TechnicalChecklistModule } from "./TechnicalChecklistModule";
 import { HandoverModule } from "./HandoverModule";
+import { SiteReceiptModule } from "./SiteReceiptModule";
+import { QualitySnagsModule } from "./QualitySnagsModule";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ExternalLink, Share2, AlertCircle } from "lucide-react";
@@ -18,7 +20,7 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
 import { claimProject, unclaimProject } from "@/lib/actions/execution";
-import { updateProjectStage, updateExecutionMetadata, getProjectDetails, markSiteReady, addPunchPoint } from "@/lib/actions/execution";
+import { updateExecutionMetadata } from "@/lib/actions/execution";
 
 import { toast } from "sonner";
 import { useDashboardNexus } from "../dashboard/DashboardNexusProvider";
@@ -74,12 +76,16 @@ export function ExecutionProjectManager({ project, onBack, forcedSection }: Exec
                 return <FieldUploadModule project={project} />;
             case "DOCS":
                 return <DocsVaultModule project={project} />;
-            case "MATERIAL_REQUEST":
-                return <MaterialRequestModule project={project} />;
+            case "SITE_RECEIPT":
+                return <SiteReceiptModule project={project} />;
+            case "DAILY_PROGRESS":
+                return <DailyProgressModule project={project} />;
             case "TESTING":
                 return <TechnicalChecklistModule project={project} />;
             case "HANDOVER":
                 return <HandoverModule project={project} />;
+            case "QUALITY":
+                return <QualitySnagsModule project={project} refresh={refresh} />;
             default:
                 return (
                     <div className="flex flex-col items-center justify-center p-20 text-center space-y-4 bg-slate-50/50 rounded-[3rem] border border-dashed border-slate-200">
@@ -96,9 +102,23 @@ export function ExecutionProjectManager({ project, onBack, forcedSection }: Exec
     };
 
     return (
-        <div className="flex flex-col gap-6 animate-in fade-in duration-700">
-            {/* 📍 Top Context Bar */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm">
+        <div className="flex h-full overflow-hidden">
+            
+            {/* 🏗️ Core Layout: Sidebar + Content */}
+            {/* LEFT PANEL — 20% width, full height, dark navy */}
+            <div className="w-[20%] shrink-0 h-full overflow-y-auto hidden lg:flex flex-col bg-gradient-to-b from-[#0f1f54] to-[#1C3384] border-r border-white/5">
+                <ExecutionProjectSidebar 
+                    activeSection={activeSection} 
+                    onChange={setActiveSection} 
+                    project={project}
+                />
+            </div>
+
+            {/* RIGHT PANEL — 80% width, full height */}
+            <div className="flex-1 flex flex-col h-full overflow-hidden bg-white">
+                
+                {/* 📍 Top Context Bar */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-8 pt-8 pb-4 shrink-0 z-10">
                 <div className="flex items-center gap-5">
                     {onBack && (
                         <button 
@@ -164,19 +184,41 @@ export function ExecutionProjectManager({ project, onBack, forcedSection }: Exec
                         <ExternalLink size={16} /> Site Vault (Soon)
                     </button>
                 </div>
-            </div>
+                </div>
 
-            {/* 🏗️ Core Layout: Sidebar + Content */}
-            <div className="flex flex-col lg:flex-row gap-6 items-start">
-                <ExecutionProjectSidebar 
-                    activeSection={activeSection} 
-                    onChange={setActiveSection} 
-                    project={project}
-                />
+                {(() => {
+                    let openSnagsCount = 0;
+                    const metadata = project.executionMetadata || {};
+                    let snags = [];
+                    if (Array.isArray(metadata.snags)) snags = metadata.snags;
+                    else if (metadata.snags?.records) snags = metadata.snags.records;
+                    else if (typeof metadata.snags === 'object') snags = Object.values(metadata.snags);
+                    openSnagsCount = snags.filter((s: any) => s && s.id && s.status === "OPEN").length;
 
-                <Card className="flex-1 w-full bg-white border border-slate-200 shadow-sm rounded-[3rem] p-8 min-h-[600px] overflow-hidden">
-                    {renderMainContent()}
-                </Card>
+                    if (openSnagsCount > 0 && activeSection !== "QUALITY") {
+                        return (
+                            <div className="bg-red-500 text-white px-8 py-3 flex items-center justify-between shrink-0 shadow-inner z-20">
+                                <div className="flex items-center gap-3">
+                                    <AlertCircle size={20} className="animate-pulse" />
+                                    <span className="font-bold text-sm tracking-wide">⚠️ {openSnagsCount} Open Punch Point{openSnagsCount > 1 ? 's require' : ' requires'} immediate resolution.</span>
+                                </div>
+                                <Button 
+                                    onClick={() => setActiveSection("QUALITY")}
+                                    className="bg-white text-red-600 hover:bg-red-50 text-[10px] font-black uppercase tracking-widest px-4 h-8 rounded-lg shadow-sm transition-all"
+                                >
+                                    View Punch List
+                                </Button>
+                            </div>
+                        );
+                    }
+                    return null;
+                })()}
+
+                <div className="flex-1 w-full p-8 overflow-y-auto bg-white">
+                    <div className="max-w-6xl mx-auto h-full">
+                        {renderMainContent()}
+                    </div>
+                </div>
             </div>
         </div>
     );

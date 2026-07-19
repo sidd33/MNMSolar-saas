@@ -26,7 +26,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         initialData = await getOwnerDashboardData();
     } else if (deptUpper === 'ENGINEERING') {
         initialData = await getEngineeringNexus();
-    } else if (deptUpper === 'EXECUTION') {
+    } else if (deptUpper === 'EXECUTION' || deptUpper === 'QUALITY') {
         initialData = await getExecutionNexus();
     } else if (deptUpper === 'ACCOUNTS') {
         initialData = await getAccountsNexus();

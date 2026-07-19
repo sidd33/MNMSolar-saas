@@ -3,63 +3,40 @@
 import { 
     Camera, 
     FolderOpen, 
-    PackageSearch, 
-    ClipboardList,
-    Flag,
+    ShieldAlert,
     CheckCircle2,
     CircleDashed,
-    Loader2,
-    ShieldAlert
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type ExecutionSection = "FIELD_UPLOAD" | "DOCS" | "DAILY_PROGRESS" | "TESTING" | "HANDOVER" | "SITE_RECEIPT" | "QUALITY";
+export type QualitySection = "QUALITY_SNAGS" | "FIELD_GALLERY" | "DOCS_VAULT";
 
 interface SidebarItem {
-    id: ExecutionSection;
+    id: QualitySection;
     label: string;
     icon: any;
     subtitle: string;
-    group: "FIELD_TOOLS" | "EXECUTION_COMMAND";
+    group: "AUDIT_TOOLS" | "REFERENCE";
 }
 
 const ITEMS: SidebarItem[] = [
-    { id: "FIELD_UPLOAD", label: "Site Gallery", icon: Camera, subtitle: "Photo Evidence", group: "FIELD_TOOLS" },
-    { id: "SITE_RECEIPT", label: "Site Deliveries", icon: PackageSearch, subtitle: "Inward & Receipt", group: "FIELD_TOOLS" },
-    { id: "DAILY_PROGRESS", label: "Daily Progress", icon: ClipboardList, subtitle: "Log daily labor & tasks", group: "FIELD_TOOLS" },
-    { id: "QUALITY", label: "Quality & Snags", icon: ShieldAlert, subtitle: "Defects & Punch List", group: "FIELD_TOOLS" },
-    
-    { id: "DOCS", label: "Docs Vault", icon: FolderOpen, subtitle: "Blueprints & Challans", group: "EXECUTION_COMMAND" },
-    { id: "HANDOVER", label: "Handover Desk", icon: Flag, subtitle: "Final clearance", group: "EXECUTION_COMMAND" }
+    { id: "QUALITY_SNAGS", label: "Punch List", icon: ShieldAlert, subtitle: "Track & verify defects", group: "AUDIT_TOOLS" },
+    { id: "FIELD_GALLERY", label: "Execution Photos", icon: Camera, subtitle: "Review site progress", group: "AUDIT_TOOLS" },
+    { id: "DOCS_VAULT", label: "Blueprints", icon: FolderOpen, subtitle: "Reference drawings", group: "REFERENCE" },
 ];
 
-interface ExecutionProjectSidebarProps {
-    activeSection: ExecutionSection;
-    onChange: (section: ExecutionSection) => void;
+interface QualityProjectSidebarProps {
+    activeSection: QualitySection;
+    onChange: (section: QualitySection) => void;
     project: any;
 }
 
-export function ExecutionProjectSidebar({ activeSection, onChange, project }: ExecutionProjectSidebarProps) {
-    const getStatusPip = (id: ExecutionSection) => {
+export function QualityProjectSidebar({ activeSection, onChange, project }: QualityProjectSidebarProps) {
+    const getStatusPip = (id: QualitySection) => {
         const metadata = project.executionMetadata || {};
         
         switch (id) {
-            case "FIELD_UPLOAD":
-                if (metadata.fieldUploads?.length > 0) return <CheckCircle2 size={12} className="text-emerald-400" />;
-                return <CircleDashed size={12} className="text-white/20" />;
-            case "DAILY_PROGRESS":
-                if (metadata.dpr?.length > 0) return <CheckCircle2 size={12} className="text-emerald-400" />;
-                return <CircleDashed size={12} className="text-white/20" />;
-            case "DOCS":
-                if (project.projectFiles?.length > 0) return <CheckCircle2 size={12} className="text-emerald-400" />;
-                return <CircleDashed size={12} className="text-white/20" />;
-            case "TESTING":
-                if (metadata.commissioningData) return <CheckCircle2 size={12} className="text-emerald-400" />;
-                return <CircleDashed size={12} className="text-white/20" />;
-            case "HANDOVER":
-                if (project.stage === "FINAL_HANDOVER" || project.stage === "NET_METERING") return <CheckCircle2 size={12} className="text-emerald-400" />;
-                return <CircleDashed size={12} className="text-white/20" />;
-            case "QUALITY":
+            case "QUALITY_SNAGS":
                 let snags = [];
                 if (Array.isArray(metadata.snags)) snags = metadata.snags;
                 else if (metadata.snags?.records) snags = metadata.snags.records;
@@ -68,24 +45,29 @@ export function ExecutionProjectSidebar({ activeSection, onChange, project }: Ex
                 if (openSnags > 0) return <div className="h-4 min-w-4 px-1 rounded-full bg-red-500 flex items-center justify-center text-[8px] font-black text-white">{openSnags}</div>;
                 if (snags.length > 0) return <CheckCircle2 size={12} className="text-emerald-400" />;
                 return <CircleDashed size={12} className="text-white/20" />;
+            case "FIELD_GALLERY":
+                if (metadata.fieldUploads?.length > 0) return <CheckCircle2 size={12} className="text-emerald-400" />;
+                return <CircleDashed size={12} className="text-white/20" />;
+            case "DOCS_VAULT":
+                if (project.projectFiles?.length > 0) return <CheckCircle2 size={12} className="text-emerald-400" />;
+                return <CircleDashed size={12} className="text-white/20" />;
             default:
                 return <CircleDashed size={12} className="text-white/20" />;
         }
     };
 
     return (
-        <div className="w-full flex flex-col h-full">
-            
+        <div className="w-full flex flex-col h-full"> 
             <div className="px-4 py-4 border-b border-white/10 shrink-0 space-y-1">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-blue-300/50 font-[family-name:var(--font-montserrat)]">
-                    {project?.currentDepartment === 'QUALITY' ? 'Quality Command' : 'Execution Command'}
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-red-400 font-[family-name:var(--font-montserrat)]">
+                    Quality Command
                 </h3>
             </div>
 
             <div className="flex-1 overflow-y-auto scrollbar-none p-2 space-y-6 pb-20">
                 <div className="space-y-1">
-                    <h6 className="text-[9px] font-black text-white/30 uppercase tracking-widest px-3 mb-2">Field Tools</h6>
-                    {ITEMS.filter(i => i.group === "FIELD_TOOLS").map((item) => {
+                    <h6 className="text-[9px] font-black text-white/30 uppercase tracking-widest px-3 mb-2">Audit Tools</h6>
+                    {ITEMS.filter(i => i.group === "AUDIT_TOOLS").map((item) => {
                         const isActive = activeSection === item.id;
                         return (
                             <button
@@ -95,13 +77,13 @@ export function ExecutionProjectSidebar({ activeSection, onChange, project }: Ex
                                     "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 group relative border",
                                     isActive 
                                         ? "bg-white/10 border-white/10" 
-                                        : "border-transparent hover:bg-white/5 text-blue-100/50 hover:text-white/80"
+                                        : "border-transparent hover:bg-white/5 text-red-100/50 hover:text-white/80"
                                 )}
                             >
                                 <div className="absolute top-3 right-3">{getStatusPip(item.id)}</div>
                                 <div className={cn(
                                     "h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-300",
-                                    isActive ? "bg-white text-[#0f1f54] scale-105" : "bg-white/5 text-white/40 group-hover:bg-white/10 group-hover:text-white/80"
+                                    isActive ? "bg-red-500 text-white scale-105" : "bg-white/5 text-white/40 group-hover:bg-white/10 group-hover:text-white/80"
                                 )}>
                                     <item.icon size={16} />
                                 </div>
@@ -115,8 +97,8 @@ export function ExecutionProjectSidebar({ activeSection, onChange, project }: Ex
                 </div>
 
                 <div className="space-y-1">
-                    <h6 className="text-[9px] font-black text-white/30 uppercase tracking-widest px-3 mb-2">Back Office</h6>
-                    {ITEMS.filter(i => i.group === "EXECUTION_COMMAND").map((item) => {
+                    <h6 className="text-[9px] font-black text-white/30 uppercase tracking-widest px-3 mb-2">Reference</h6>
+                    {ITEMS.filter(i => i.group === "REFERENCE").map((item) => {
                         const isActive = activeSection === item.id;
                         return (
                             <button
@@ -126,13 +108,13 @@ export function ExecutionProjectSidebar({ activeSection, onChange, project }: Ex
                                     "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 group relative border",
                                     isActive 
                                         ? "bg-white/10 border-white/10" 
-                                        : "border-transparent hover:bg-white/5 text-blue-100/50 hover:text-white/80"
+                                        : "border-transparent hover:bg-white/5 text-red-100/50 hover:text-white/80"
                                 )}
                             >
                                 <div className="absolute top-3 right-3">{getStatusPip(item.id)}</div>
                                 <div className={cn(
                                     "h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-300",
-                                    isActive ? "bg-white text-[#0f1f54] scale-105" : "bg-white/5 text-white/40 group-hover:bg-white/10 group-hover:text-white/80"
+                                    isActive ? "bg-red-500 text-white scale-105" : "bg-white/5 text-white/40 group-hover:bg-white/10 group-hover:text-white/80"
                                 )}>
                                     <item.icon size={16} />
                                 </div>

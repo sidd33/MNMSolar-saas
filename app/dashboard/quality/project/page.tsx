@@ -1,20 +1,16 @@
 "use client";
 
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useDashboardNexus } from "@/components/dashboard/DashboardNexusProvider";
 import { useState, useEffect } from "react";
-import { HardHat, Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { getProjectDetail, getBulkProjectDetails } from "@/lib/actions/engineering";
-import { ExecutionProjectManager } from "@/components/workspace/ExecutionProjectManager";
-import { ExecutionSection } from "@/components/workspace/ExecutionProjectSidebar";
+import { HardHat } from "lucide-react";
+import { getBulkProjectDetails } from "@/lib/actions/engineering";
+import { QualityProjectManager } from "@/components/workspace/QualityProjectManager";
+import { QualitySection } from "@/components/workspace/QualityProjectSidebar";
 
-export default function ExecutionStagePage() {
-  const params = useParams();
+export default function QualityProjectPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const stageSlug = params.stage as string;
   const { data } = useDashboardNexus();
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [detailCache, setDetailCache] = useState<Record<string, any>>({});
@@ -25,43 +21,18 @@ export default function ExecutionStagePage() {
     setSearchQuery(searchParams.get("search") || "");
   }, [searchParams]);
 
-  // Handle search input changes
-  const handleSearch = (value: string) => {
-    setSearchQuery(value);
-    const params = new URLSearchParams(window.location.search);
-    if (value) {
-      params.set("search", value);
-    } else {
-      params.delete("search");
-    }
-    router.replace(`?${params.toString()}`);
+  // Which section is active based on a query parameter (or default to QUALITY_SNAGS)
+  const tabSlug = searchParams.get("tab") || "quality_snags";
+  
+  const slugMap: Record<string, QualitySection> = {
+    quality_snags: "QUALITY_SNAGS",
+    field_gallery: "FIELD_GALLERY",
+    docs_vault: "DOCS_VAULT"
   };
 
-  // Map slug to internal section ID
-  const slugMap: Record<string, ExecutionSection> = {
-    fielduploads: "FIELD_UPLOAD",
-    materials: "DAILY_PROGRESS" as ExecutionSection,
-    docs: "DOCS",
-    testing: "TESTING",
-    handover: "HANDOVER",
-    quality: "QUALITY"
-  };
-
-  const activeSection = slugMap[stageSlug] || "FIELD_UPLOAD";
-
-  const slugToStages: Record<string, string[]> = {
-    fielduploads: ["HANDOVER_TO_EXECUTION", "MATERIAL_PROCUREMENT", "STRUCTURE_ERECTION", "PV_PANEL_INSTALLATION", "AC_DC_INSTALLATION"],
-    materials: ["HANDOVER_TO_EXECUTION", "MATERIAL_PROCUREMENT", "STRUCTURE_ERECTION", "PV_PANEL_INSTALLATION", "AC_DC_INSTALLATION"],
-    docs: ["HANDOVER_TO_EXECUTION", "MATERIAL_PROCUREMENT", "STRUCTURE_ERECTION", "PV_PANEL_INSTALLATION", "AC_DC_INSTALLATION", "NET_METERING", "FINAL_HANDOVER"],
-    testing: ["AC_DC_INSTALLATION", "NET_METERING"],
-    handover: ["NET_METERING", "FINAL_HANDOVER"],
-    quality: ["HANDOVER_TO_EXECUTION", "MATERIAL_PROCUREMENT", "STRUCTURE_ERECTION", "PV_PANEL_INSTALLATION", "AC_DC_INSTALLATION", "NET_METERING", "FINAL_HANDOVER"]
-  };
-
-  const allowedStages = slugToStages[stageSlug] || [];
+  const activeSection = slugMap[tabSlug] || "QUALITY_SNAGS";
 
   const baseProjects = data?.projects?.filter((p: any) => 
-    allowedStages.includes(p.stage) &&
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
 
@@ -97,7 +68,7 @@ export default function ExecutionStagePage() {
       {baseProjects.length === 0 ? (
         <div className="h-[calc(100vh-64px)] flex flex-col items-center justify-center bg-slate-50/50 text-slate-400 gap-3">
             <HardHat size={48} className="opacity-20" />
-            <p className="font-bold uppercase tracking-widest text-[10px]">No projects in this stage</p>
+            <p className="font-bold uppercase tracking-widest text-[10px]">Project not found</p>
         </div>
       ) : (
         baseProjects.map((project: any) => {
@@ -108,7 +79,7 @@ export default function ExecutionStagePage() {
 
            return (
               <div key={project.id} className="flex-1 min-h-0 w-full animate-in fade-in duration-500">
-                  <ExecutionProjectManager 
+                  <QualityProjectManager 
                       project={mergedProject} 
                       forcedSection={activeSection}
                   />

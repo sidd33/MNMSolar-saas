@@ -16,13 +16,14 @@ export default function ExecutionDashboard() {
   const activity = data?.activity || [];
 
   // Group projects for the list
-  const pendingSetup = projects.filter((p: any) => ['HANDOVER_TO_EXECUTION', 'MATERIAL_PROCUREMENT'].includes(p.stage));
+  const incomingLogistics = projects.filter((p: any) => p.stage === 'MATERIAL_PROCUREMENT');
+  const pendingSetup = projects.filter((p: any) => p.stage === 'HANDOVER_TO_EXECUTION');
   const activeInstallation = projects.filter((p: any) => ['STRUCTURE_ERECTION', 'PV_PANEL_INSTALLATION', 'AC_DC_INSTALLATION'].includes(p.stage));
   const readyHandover = projects.filter((p: any) => ['NET_METERING'].includes(p.stage));
 
   // Calculate real completion rate
   const completedProjectsCount = readyHandover.length; // You could also include FINAL_HANDOVER if it's in the pipeline data.
-  const totalProjects = pendingSetup.length + activeInstallation.length + readyHandover.length;
+  const totalProjects = pendingSetup.length + activeInstallation.length + readyHandover.length + incomingLogistics.length;
   const completionRate = totalProjects > 0 ? Math.round((completedProjectsCount / totalProjects) * 100) : 0;
 
   return (
@@ -43,7 +44,8 @@ export default function ExecutionDashboard() {
       {/* 📊 SUMMARY VIEW: Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
         {[
-          { label: "Pending Setup", value: (stats.setup || 0) + (stats.logistics || 0), icon: Layers, color: "blue", subtitle: "Awaiting start" },
+          { label: "Incoming Logistics", value: incomingLogistics.length || 0, icon: PackageSearch, color: "orange", subtitle: "Procurement phase" },
+          { label: "Pending Setup", value: pendingSetup.length || 0, icon: Layers, color: "blue", subtitle: "Awaiting start" },
           { label: "Active Sites", value: stats.activeSites || 0, icon: Hammer, color: "emerald", subtitle: "Installation" },
           { label: "Ready for Handover", value: stats.ready || 0, icon: ClipboardCheck, color: "indigo", subtitle: "Net Metering", dark: true }
         ].map((item, i) => (
@@ -159,6 +161,41 @@ export default function ExecutionDashboard() {
                                  <ArrowRight size={16} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
                              </div>
                          </Link>
+                     ))
+                 )}
+              </div>
+            </div>
+            {/* Incoming Logistics (View Only) */}
+            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col opacity-80">
+              <div className="p-6 border-b border-slate-50 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <PackageSearch size={20} className="text-orange-500" />
+                  Incoming Logistics (Procurement Phase)
+                </h2>
+                <Badge variant="outline" className="text-[9px] font-bold tracking-widest uppercase">{incomingLogistics.length} Sites</Badge>
+              </div>
+              <div className="flex-1 p-6 space-y-4">
+                 {isLoading ? (
+                     <div className="space-y-4">
+                        <Skeleton className="h-16 w-full rounded-2xl" />
+                     </div>
+                 ) : incomingLogistics.length === 0 ? (
+                    <div className="text-center py-6 opacity-40">
+                        <p className="font-bold uppercase tracking-widest text-[10px]">No incoming logistics</p>
+                    </div>
+                 ) : (
+                     incomingLogistics.map((project: any) => (
+                         <div key={project.id} className="group flex items-center justify-between p-4 rounded-2xl border border-slate-100 transition-all cursor-default opacity-70">
+                             <div>
+                                 <h4 className="font-bold text-slate-800">{project.name}</h4>
+                                 <div className="flex items-center gap-2 mt-1">
+                                    <Badge className="bg-slate-100 text-slate-500 border-none px-1.5 py-0 rounded text-[9px] font-bold uppercase tracking-widest">
+                                        MATERIAL PROCUREMENT
+                                    </Badge>
+                                    <span className="text-[10px] font-black text-orange-500 uppercase tracking-widest">VIEW ONLY (Procurement Owns)</span>
+                                 </div>
+                             </div>
+                         </div>
                      ))
                  )}
               </div>

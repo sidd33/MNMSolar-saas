@@ -35,7 +35,7 @@ async function validateExecutionAccess() {
       return { user: { id: userId, name }, orgId: sessionOrgId, isExecution: false, isOwner: true };
   }
 
-  const allowedDepts = ["EXECUTION", "ENGINEERING"];
+  const allowedDepts = ["EXECUTION", "ENGINEERING", "QUALITY"];
   const currentDept = department?.toUpperCase() || "";
 
   if (role !== "EMPLOYEE" || !allowedDepts.includes(currentDept)) {

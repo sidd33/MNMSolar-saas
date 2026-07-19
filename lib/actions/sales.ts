@@ -150,7 +150,7 @@ export async function getMyLeads(page: number = 1) {
   return Object.assign(data, { page, hasMore: data.length === 50 }) as any;
 }
 
-export async function convertLeadToProject(leadId: string, excelData?: any) {
+export async function convertLeadToProject(leadId: string, excelData?: any, quoteVersionId?: string) {
     const { user, orgId } = await validateSalesAccess();
     if (!orgId) throw new Error("No organization context found");
     
@@ -211,7 +211,8 @@ export async function convertLeadToProject(leadId: string, excelData?: any) {
             currentDepartment: "Engineering",
             stage: "DETAILED_ENGG" as any,
             isPreliminary: false,
-            createdByUserId: user.id
+            createdByUserId: user.id,
+            lockedQuoteVersionId: quoteVersionId || undefined
         };
 
         let project;
@@ -241,9 +242,9 @@ export async function convertLeadToProject(leadId: string, excelData?: any) {
         });
 
         return project;
-    });
+    }, { timeout: 15000 });
 
-    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/sales");
     revalidatePath("/dashboard/sales/leads");
     return result;
 }
@@ -337,7 +338,7 @@ export async function initiatePreliminarySurvey(leadId: string, engineerIds?: st
         console.log("Handoff log created");
 
         return project;
-    });
+    }, { timeout: 15000 });
     console.log("Transaction committed successfully.");
 
     // --- NOTIFICATION ENGINE ---
@@ -508,7 +509,7 @@ export async function uploadQuoteDocument(quoteId: string, fileUrl: string, utFi
   return { success: true };
 }
 
-export async function approveAndLaunchQuote(quoteId: string, handoverSheetUrl: string, handoverSheetKey: string, handoverSheetName: string, excelData?: any) {
+export async function approveAndLaunchQuote(quoteId: string, quoteVersionId: string, handoverSheetUrl: string, handoverSheetKey: string, handoverSheetName: string, excelData?: any) {
   const { orgId } = await validateSalesAccess();
   if (!orgId) throw new Error("No organization context found");
 
@@ -545,12 +546,12 @@ export async function approveAndLaunchQuote(quoteId: string, handoverSheetUrl: s
     // Update Quote
     await tx.quote.update({
       where: { id: quoteId },
-      data: { status: "CONVERTED" }
+      data: { status: "CONVERTED", lockedVersionId: quoteVersionId }
     });
   });
 
   // Launch project
-  await convertLeadToProject(quote.leadId, excelData);
+  await convertLeadToProject(quote.leadId, excelData, quoteVersionId);
 
   revalidatePath("/dashboard/sales/quotes");
   revalidatePath("/dashboard/engineering/survey");

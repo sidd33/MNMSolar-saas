@@ -114,7 +114,7 @@ export function useProjectFileUpload() {
         return compressedFile;
       }
     } catch (err) {
-      console.error(`Silent compression failure for ${file.name}:`, err);
+      console.warn(`Silent compression failure for ${file.name}:`, err);
     }
 
     return file; // Fallback to original uncompressed file
